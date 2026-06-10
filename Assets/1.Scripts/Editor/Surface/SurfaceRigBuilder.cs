@@ -22,10 +22,12 @@ namespace Game.Editor.Surface {
                 Undo.RegisterCreatedObjectUndo(root, "수상 리그 생성");
 
                 var river = BuildRiver(root.transform);
-                var sub = BuildSub(root.transform, river);
-                var player = BuildDeckPlayer(sub.transform);
-                BuildOrbitCamera(root.transform, player);
-                WireBootstrap(root, player);
+                var nav = BuildSub(root.transform, river);
+                var player = BuildDeckPlayer(nav.transform);
+                var (orbitCam, orbitDriver) = BuildOrbitCamera(root.transform, player);
+                var diveCam = BuildDiveCam(root.transform);
+                BuildIntro(root.transform, nav, player, orbitCam, orbitDriver);
+                WireBootstrap(root, nav, player, orbitCam, orbitDriver, diveCam);
 
                 EditorUtility.SetDirty(root);
                 UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(root.scene);
@@ -102,7 +104,7 @@ namespace Game.Editor.Surface {
         }
 
         // 3인칭 궤도 카메라(Cinemachine) + 마우스 입력 드라이버, 메인 카메라에 Brain 보장
-        static void BuildOrbitCamera(Transform parent, DeckCharacter player) {
+        static (CinemachineCamera, OrbitCameraDriver) BuildOrbitCamera(Transform parent, DeckCharacter player) {
             var camGo = new GameObject("OrbitCam");
             camGo.transform.SetParent(parent, false);
             var cm = camGo.AddComponent<CinemachineCamera>();
@@ -115,7 +117,7 @@ namespace Game.Editor.Surface {
             orbital.VerticalAxis.Range = new Vector2(-20f, 65f);
             orbital.VerticalAxis.Value = 18f;
             camGo.AddComponent<CinemachineRotationComposer>();
-            camGo.AddComponent<OrbitCameraDriver>();
+            var driver = camGo.AddComponent<OrbitCameraDriver>();
 
             // 메인 카메라가 Cinemachine을 받도록 Brain 보장
             var main = Camera.main;
@@ -129,16 +131,56 @@ namespace Game.Editor.Surface {
                 pso.FindProperty("cam").objectReferenceValue = main.transform;
                 pso.ApplyModifiedPropertiesWithoutUndo();
             }
+            return (cm, driver);
         }
 
-        // SurfaceBootstrap 배치 + GameBootstrap(수상 시작)·사이드뷰 카메라 연결
-        static void WireBootstrap(GameObject root, DeckCharacter player) {
+        // 잠수 블렌드 목적지 카메라 — 위치는 잠수 시점에 코드로 설정, 평소엔 비활성
+        static CinemachineCamera BuildDiveCam(Transform parent) {
+            var go = new GameObject("DiveCam");
+            go.transform.SetParent(parent, false);
+            var cm = go.AddComponent<CinemachineCamera>();
+            go.SetActive(false);
+            return cm;
+        }
+
+        // 인트로 컷신 — 부감 돌리 카메라 + 디렉터(시작 시 자동 재생, Space/Esc 스킵)
+        static void BuildIntro(Transform parent, SubNavigator nav, DeckCharacter player,
+            CinemachineCamera orbitCam, OrbitCameraDriver orbitDriver) {
+            var camGo = new GameObject("IntroCam");
+            camGo.transform.SetParent(parent, false);
+            var introCam = camGo.AddComponent<CinemachineCamera>();
+            camGo.SetActive(false);
+
+            var dirGo = new GameObject("IntroDirector");
+            dirGo.transform.SetParent(parent, false);
+            var director = dirGo.AddComponent<IntroDirector>();
+            var so = new SerializedObject(director);
+            so.FindProperty("introCam").objectReferenceValue = introCam;
+            so.FindProperty("orbitCam").objectReferenceValue = orbitCam;
+            so.FindProperty("focus").objectReferenceValue = nav.transform;
+            so.FindProperty("deck").objectReferenceValue = player;
+            so.FindProperty("orbitDriver").objectReferenceValue = orbitDriver;
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        // SurfaceBootstrap 배치 + 잠수 시퀀스에 필요한 전체 참조 배선
+        static void WireBootstrap(GameObject root, SubNavigator nav, DeckCharacter player,
+            CinemachineCamera orbitCam, OrbitCameraDriver orbitDriver, CinemachineCamera diveCam) {
             var boot = root.AddComponent<SurfaceBootstrap>();
             var game = UnityEngine.Object.FindFirstObjectByType<GameBootstrap>();
             var side = UnityEngine.Object.FindFirstObjectByType<CamFollow>();
+            var dive2d = UnityEngine.Object.FindFirstObjectByType<Game.Player.PlayerMove>();
+            var toast = UnityEngine.Object.FindFirstObjectByType<Game.UI.Toast>();
             var so = new SerializedObject(boot);
             so.FindProperty("game").objectReferenceValue = game;
             so.FindProperty("sideCamera").objectReferenceValue = side;
+            so.FindProperty("nav").objectReferenceValue = nav;
+            so.FindProperty("deck").objectReferenceValue = player;
+            so.FindProperty("orbitDriver").objectReferenceValue = orbitDriver;
+            so.FindProperty("orbitCam").objectReferenceValue = orbitCam;
+            so.FindProperty("diveCam").objectReferenceValue = diveCam;
+            so.FindProperty("sideTarget").objectReferenceValue = dive2d != null ? dive2d.transform : null;
+            so.FindProperty("toast").objectReferenceValue = toast;
             so.ApplyModifiedPropertiesWithoutUndo();
             if (game != null) {
                 // 씬 시작을 수상 항해로 전환
@@ -147,6 +189,9 @@ namespace Game.Editor.Surface {
                 gso.ApplyModifiedPropertiesWithoutUndo();
             } else {
                 Debug.LogWarning("[SurfaceRigBuilder] GameBootstrap을 못 찾음 — 씬에서 수동 연결 필요");
+            }
+            if (dive2d == null) {
+                Debug.LogWarning("[SurfaceRigBuilder] 2.5D 잠수정(PlayerMove)을 못 찾음 — sideTarget 수동 연결 필요");
             }
         }
     }
