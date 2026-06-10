@@ -29,6 +29,15 @@ namespace Game.UI {
         }
 
         void OnDisable() {
+            Unsubscribe();
+        }
+
+        void OnDestroy() {
+            Unsubscribe();
+        }
+
+        // 이벤트 해제 — OnDisable과 OnDestroy 양쪽에서 호출(중복 해제 안전)
+        void Unsubscribe() {
             if (analyzeBtn != null) {
                 analyzeBtn.onClick.RemoveListener(OnAnalyze);
             }

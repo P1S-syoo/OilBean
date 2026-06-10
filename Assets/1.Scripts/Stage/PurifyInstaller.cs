@@ -25,13 +25,13 @@ namespace Game.Stage {
 
         void OnTriggerEnter2D(Collider2D other) {
             // 탐사 기계 진입 표시(부유체 게이트는 Update에서 — 진입 후 제작해도 인식)
-            if (other.GetComponent<PlayerMove>() != null) {
+            if (other.GetComponentInParent<PlayerMove>() != null) {
                 inside = true;
             }
         }
 
         void OnTriggerExit2D(Collider2D other) {
-            if (other.GetComponent<PlayerMove>() != null) {
+            if (other.GetComponentInParent<PlayerMove>() != null) {
                 inside = false;
             }
         }

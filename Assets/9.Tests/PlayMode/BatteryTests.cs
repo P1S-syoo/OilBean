@@ -27,6 +27,7 @@ namespace Game.Tests {
             SetField(b, "max", max);
             SetField(b, "drainPerSec", drain);
             go.SetActive(true);
+            b.SetDraining(true);   // 기본값이 비소모로 바뀌어 테스트는 명시적으로 소모 활성화
             return b;
         }
 

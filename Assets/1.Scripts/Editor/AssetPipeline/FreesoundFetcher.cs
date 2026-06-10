@@ -25,15 +25,24 @@ namespace Game.Editor {
                 return 0;
             }
             try {
+                // 토큰은 URL 쿼리스트링 대신 헤더로 전달(URL 로그 노출 방지)
                 string url = "https://freesound.org/apiv2/search/text/?query=" + UnityWebRequest.EscapeURL(query)
                     + "&filter=" + UnityWebRequest.EscapeURL("license:\"Creative Commons 0\"")
-                    + "&fields=name,license,previews&page_size=" + Mathf.Clamp(count, 1, 15)
-                    + "&token=" + Token;
+                    + "&fields=name,license,previews&page_size=" + Mathf.Clamp(count, 1, 15);
                 string json;
                 using (var req = UnityWebRequest.Get(url)) {
+                    req.timeout = 30;   // 무한 대기 방지
+                    req.SetRequestHeader("Authorization", "Token " + Token);
                     var op = req.SendWebRequest();
                     while (!op.isDone) {
-                        EditorUtility.DisplayProgressBar("Freesound 검색", query, 0.3f);
+                        // 사용자가 취소하면 요청 중단
+                        if (EditorUtility.DisplayCancelableProgressBar("Freesound 검색", query, 0.3f)) {
+                            req.Abort();
+                            EditorUtility.ClearProgressBar();
+                            Debug.LogWarning("[Freesound] 사용자 취소(검색)");
+                            return 0;
+                        }
+                        System.Threading.Thread.Sleep(16);   // CPU 점유 감소
                     }
                     EditorUtility.ClearProgressBar();
                     if (req.result != UnityWebRequest.Result.Success) {
@@ -61,14 +70,31 @@ namespace Game.Editor {
         }
 
         // 응답 JSON에서 (preview-hq-mp3 url, name) 추출 — 하이픈 키라 정규식 파싱
+        // preview 매치 위치 앞의 가장 가까운 name을 짝으로 삼아 result 객체 단위로 페어링
         static List<KeyValuePair<string, string>> ExtractPreviews(string json) {
             var list = new List<KeyValuePair<string, string>>();
-            var names = Regex.Matches(json, "\"name\"\\s*:\\s*\"([^\"]+)\"");
-            var urls = Regex.Matches(json, "\"preview-hq-mp3\"\\s*:\\s*\"([^\"]+)\"");
-            for (int i = 0; i < urls.Count; i++) {
-                string u = urls[i].Groups[1].Value.Replace("\\/", "/");
-                string nm = i < names.Count ? names[i].Groups[1].Value : ("sound" + i);
-                list.Add(new KeyValuePair<string, string>(u, nm));
+            try {
+                var names = Regex.Matches(json, "\"name\"\\s*:\\s*\"([^\"]+)\"");
+                var urls = Regex.Matches(json, "\"preview-hq-mp3\"\\s*:\\s*\"([^\"]+)\"");
+                for (int i = 0; i < urls.Count; i++) {
+                    string u = urls[i].Groups[1].Value.Replace("\\/", "/");
+                    int urlIdx = urls[i].Index;
+                    // url 위치보다 앞에 있는 name 중 가장 가까운 것을 짝으로 선택
+                    string nm = "sound" + i;
+                    int bestDist = int.MaxValue;
+                    foreach (Match nm_match in names) {
+                        if (nm_match.Index < urlIdx) {
+                            int dist = urlIdx - nm_match.Index;
+                            if (dist < bestDist) {
+                                bestDist = dist;
+                                nm = nm_match.Groups[1].Value;
+                            }
+                        }
+                    }
+                    list.Add(new KeyValuePair<string, string>(u, nm));
+                }
+            } catch (System.Exception e) {
+                Debug.LogError($"[Freesound] JSON 파싱 오류: {e.Message}");
             }
             return list;
         }
@@ -82,9 +108,17 @@ namespace Game.Editor {
                 }
                 string dest = Path.GetFullPath(Path.Combine(Application.dataPath, "..", SaveDir, safe + ".mp3"));
                 using (var req = UnityWebRequest.Get(url)) {
+                    req.timeout = 30;   // 무한 대기 방지
                     var op = req.SendWebRequest();
                     while (!op.isDone) {
-                        EditorUtility.DisplayProgressBar("Freesound 다운로드", name, req.downloadProgress);
+                        // 사용자가 취소하면 요청 중단
+                        if (EditorUtility.DisplayCancelableProgressBar("Freesound 다운로드", name, req.downloadProgress)) {
+                            req.Abort();
+                            EditorUtility.ClearProgressBar();
+                            Debug.LogWarning($"[Freesound] 사용자 취소(다운로드): {name}");
+                            return false;
+                        }
+                        System.Threading.Thread.Sleep(16);   // CPU 점유 감소
                     }
                     EditorUtility.ClearProgressBar();
                     if (req.result != UnityWebRequest.Result.Success) {

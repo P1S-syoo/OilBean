@@ -6,7 +6,7 @@ namespace Game.Player {
     public class Battery : MonoBehaviour {
         [SerializeField] float max = 100f;
         [SerializeField] float drainPerSec = 3.33f;   // 약 30초/회 탐사(5분에 ~3회)
-        [SerializeField] bool draining = true;
+        [SerializeField] bool draining = false;   // 코디네이터가 탐사 진입 시 SetDraining(true)로 켬 — 미배선 시 무단 소모 방지
 
         float current;
         bool emptied;

@@ -106,6 +106,8 @@ namespace Game.Items {
                     best = p;
                 }
             }
+            // 순회 후 파괴된 죽은 엔트리 일괄 제거
+            inRange.RemoveWhere(x => x == null);
             return best;
         }
     }

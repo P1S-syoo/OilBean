@@ -15,9 +15,17 @@ namespace Game.Editor {
             }
             try {
                 using (var req = UnityWebRequest.Get(e.url)) {
+                    req.timeout = 30;   // 무한 대기 방지
                     var op = req.SendWebRequest();
                     while (!op.isDone) {
-                        EditorUtility.DisplayProgressBar("리소스 조달", e.name, req.downloadProgress);
+                        // 사용자가 취소하면 요청 중단
+                        if (EditorUtility.DisplayCancelableProgressBar("리소스 조달", e.name, req.downloadProgress)) {
+                            req.Abort();
+                            EditorUtility.ClearProgressBar();
+                            Debug.LogWarning($"[Fetch] 사용자 취소: {e.name}");
+                            return false;
+                        }
+                        System.Threading.Thread.Sleep(16);   // CPU 점유 감소
                     }
                     EditorUtility.ClearProgressBar();
                     if (req.result != UnityWebRequest.Result.Success) {
@@ -49,13 +57,20 @@ namespace Game.Editor {
         // ZIP 바이트를 폴더에 해제(엔트리 스트림 복사 — 호환성 우선)
         static void Unzip(byte[] data, string destDir) {
             Directory.CreateDirectory(destDir);
+            // Zip Slip 검증용 — 구분자를 포함한 정규화 접두사
+            string safeRoot = Path.GetFullPath(destDir) + Path.DirectorySeparatorChar;
             using (var ms = new MemoryStream(data))
             using (var zip = new System.IO.Compression.ZipArchive(ms, System.IO.Compression.ZipArchiveMode.Read)) {
                 foreach (var entry in zip.Entries) {
                     if (string.IsNullOrEmpty(entry.Name)) {
                         continue;   // 디렉토리 항목 건너뜀
                     }
-                    string dest = Path.Combine(destDir, entry.FullName);
+                    string dest = Path.GetFullPath(Path.Combine(destDir, entry.FullName));
+                    // 경로 탈출 시도(Zip Slip) 차단
+                    if (!dest.StartsWith(safeRoot, System.StringComparison.OrdinalIgnoreCase)) {
+                        Debug.LogWarning($"[Unzip] 경로 탈출 시도 차단: {entry.FullName}");
+                        continue;
+                    }
                     Directory.CreateDirectory(Path.GetDirectoryName(dest));
                     using (var es = entry.Open())
                     using (var fs = File.Create(dest)) {

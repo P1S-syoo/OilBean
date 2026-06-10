@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using UnityEngine;
 
@@ -33,15 +34,21 @@ namespace Game.UI {
             if (fx != null) {
                 fx.Play();
             }
-            StartCoroutine(LerpBg());
+            // 카메라 미연결 시 배경 보간만 생략(UI 연출은 이미 완료됨)
+            if (cam == null) {
+                Debug.LogWarning("[ClearView] cam 미연결 — 배경 보간 생략");
+                return;
+            }
+            try {
+                StartCoroutine(LerpBg());
+            } catch (Exception e) {
+                Debug.LogError($"[ClearView] 배경 보간 코루틴 시작 실패: {e.Message}");
+                // 코루틴 실패 시 played는 유지해 중복 재생 방지
+            }
         }
 
         // 배경색을 탁한 색 → 맑은 색으로 보간
         IEnumerator LerpBg() {
-            if (cam == null) {
-                Debug.LogWarning("[ClearView] cam 미연결 — 배경 보간 생략");
-                yield break;
-            }
             cam.clearFlags = CameraClearFlags.SolidColor;   // Skybox면 배경색이 안 보임 — 단색으로 전환
             Color from = cam.backgroundColor;
             float t = 0f;
