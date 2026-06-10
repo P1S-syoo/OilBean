@@ -12,6 +12,7 @@ namespace Game.Surface {
         [SerializeField] Transform focus;                // 바라볼 대상(잠수정) — 항해 중이면 따라감
         [SerializeField] DeckCharacter deck;             // 컷신 중 입력 잠금
         [SerializeField] OrbitCameraDriver orbitDriver;
+        [SerializeField] SubNavigator nav;               // 컷신 동안 항해 보류 — 컷신 중 목표 도달 경합 방지
         [SerializeField] float duration = 8f;
         [SerializeField] Vector3 startOffset = new(6f, 30f, -42f);   // 부감 시작(도시 사이 강 구도)
         [SerializeField] Vector3 endOffset = new(0f, 5f, -13f);      // 잠수정 가까이
@@ -40,6 +41,9 @@ namespace Game.Surface {
                 return;
             }
             SetControl(false);
+            if (nav != null) {
+                nav.enabled = false;   // 항해는 컷신 끝나고 출발
+            }
             if (orbitCam != null) {
                 orbitCam.gameObject.SetActive(false);
             }
@@ -98,6 +102,9 @@ namespace Game.Surface {
             }
             if (introCam != null) {
                 introCam.gameObject.SetActive(false);
+            }
+            if (nav != null) {
+                nav.enabled = true;   // 컷신 종료 — 항해 출발
             }
             SetControl(true);
         }

@@ -71,5 +71,37 @@ namespace Game.Tests {
             Assert.IsTrue(deck.enabled, "컷신 종료 후 조작 해제");
             Assert.IsFalse(introCam.gameObject.activeSelf, "종료 시 인트로 카메라 비활성");
         }
+
+        [UnityTest]
+        public IEnumerator Sailing_waits_until_cutscene_ends() {
+            // 컷신 중 목표 도달 경합 방지 — 항해는 컷신 종료 후 출발
+            root = new GameObject("Root");
+            var focus = new GameObject("Focus");
+            focus.transform.SetParent(root.transform, false);
+            var navGo = new GameObject("Sub");
+            navGo.transform.SetParent(root.transform, false);
+            // river 미연결 에러 로그는 예상된 것 — enabled 토글만 검증
+            LogAssert.Expect(LogType.Error, "[SubNavigator] 강 스플라인 미연결 — 인스펙터에서 할당하세요.");
+            var nav = navGo.AddComponent<Game.Surface.SubNavigator>();
+            var camGo = new GameObject("IntroCam");
+            camGo.transform.SetParent(root.transform, false);
+            var introCam = camGo.AddComponent<CinemachineCamera>();
+
+            var dirGo = new GameObject("Intro");
+            dirGo.transform.SetParent(root.transform, false);
+            dirGo.SetActive(false);
+            var director = dirGo.AddComponent<IntroDirector>();
+            SetField(director, "introCam", introCam);
+            SetField(director, "focus", focus.transform);
+            SetField(director, "nav", nav);
+            SetField(director, "duration", 0.2f);
+            dirGo.SetActive(true);
+            yield return null;
+            Assert.IsFalse(nav.enabled, "컷신 중 항해 보류");
+            for (int i = 0; i < 120 && director.Running; i++) {
+                yield return null;
+            }
+            Assert.IsTrue(nav.enabled, "컷신 종료 후 항해 출발");
+        }
     }
 }

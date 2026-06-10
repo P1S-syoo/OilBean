@@ -99,14 +99,16 @@ namespace Game.Surface {
         }
 
         IEnumerator DiveSequence() {
-            // 1) 입력 잠금(커서 해제는 orbitDriver.OnDisable이 처리)
+            // 1) 입력 잠금 + 커서 명시 복원(orbitDriver 생명주기에 의존하지 않음 — 누수 방지)
             if (deck != null) {
                 deck.enabled = false;
             }
             if (orbitDriver != null) {
                 orbitDriver.enabled = false;
             }
-            // 2) 사이드뷰 프레이밍 카메라로 블렌드 시작 — 종료 위치를 CamFollow 목표와 일치시켜 끊김 제거
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            // 2) 사이드뷰 프레이밍 카메라로 블렌드 시작
             if (diveCam != null && sideTarget != null) {
                 diveCam.transform.SetPositionAndRotation(
                     sideTarget.position + new Vector3(0f, 0f, sideZOffset), Quaternion.identity);
@@ -116,16 +118,27 @@ namespace Game.Surface {
                 }
             }
             // 3) 잠수정이 수면 아래로 가라앉음(블렌드와 동시 진행)
+            Tween descend = null;
             if (nav != null) {
                 nav.enabled = false;   // 항해 정지 상태 고정
                 try {
-                    nav.transform.DOMoveY(nav.transform.position.y - descendDepth, blendTime + 0.6f)
+                    descend = nav.transform.DOMoveY(nav.transform.position.y - descendDepth, blendTime + 0.6f)
                         .SetEase(Ease.InQuad);
                 } catch (Exception e) {
                     Debug.LogError($"[SurfaceBootstrap] 하강 트윈 실패: {e.Message}");
                 }
             }
-            yield return new WaitForSeconds(blendTime);
+            // 블렌드 동안 DiveCam이 목표 프레이밍을 계속 추적 — 종료 위치 = CamFollow 목표 보장(인계 점프 제거)
+            float t = 0f;
+            while (t < blendTime) {
+                t += Time.deltaTime;
+                if (diveCam != null && sideTarget != null) {
+                    diveCam.transform.position = sideTarget.position + new Vector3(0f, 0f, sideZOffset);
+                }
+                yield return null;
+            }
+            // 리그 비활성 후에도 트윈이 비활성 트랜스폼을 만지지 않도록 정리
+            descend?.Kill(true);
             // 4) 카메라 인계 + 게임 루프 인계 + 다음 수상 목표 기록(복귀 항해 재개용)
             if (sideCamera != null) {
                 sideCamera.enabled = true;
