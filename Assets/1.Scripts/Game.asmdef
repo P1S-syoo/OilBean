@@ -3,6 +3,6 @@
   "rootNamespace": "Game",
   "references": ["Unity.InputSystem", "UnityEngine.UI", "Unity.TextMeshPro"],
   "overrideReferences": true,
-  "precompiledReferences": ["DOTween.dll", "DOTweenPro.dll"],
+  "precompiledReferences": ["DOTween.dll", "DOTweenPro.dll", "Newtonsoft.Json.dll"],
   "autoReferenced": true
 }
