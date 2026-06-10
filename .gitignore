@@ -63,6 +63,7 @@ crashlytics-build.properties
 # 개인 노트 설정
 /.obsidian/
 /.playwright-mcp/
+/.cursor/
 
 # ===== OS =====
 .DS_Store
