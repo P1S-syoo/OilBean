@@ -19,6 +19,7 @@ namespace Game.Core {
         [SerializeField] bool buoyReady;      // 정화 부유체 제작 완료(설치 대기)
         [SerializeField] int researchProgress; // 연구로 분석한 샘플 수(리셋 대상)
         [SerializeField] List<string> recipes = new();  // 해금된 레시피 id
+        [SerializeField] int surfaceTargetIdx; // 수상 항해 현재 목표 인덱스(잠수 시 +1 기록 — 복귀 항해 재개용)
 
         public float Weight => weight;
         public float MaxWeight => maxWeight;
@@ -27,6 +28,12 @@ namespace Game.Core {
         public float Purify => purify;
         public bool BuoyReady => buoyReady;
         public int ResearchProgress => researchProgress;
+        public int SurfaceTargetIdx => surfaceTargetIdx;
+
+        // 수상 목표 인덱스 기록(잠수 시점에 다음 목표를 저장)
+        public void SetSurfaceTarget(int idx) {
+            surfaceTargetIdx = Mathf.Max(0, idx);
+        }
 
         // 무게 w를 더 실을 수 있나(통합 기준)
         public bool HasRoom(float w) {
@@ -106,6 +113,7 @@ namespace Game.Core {
             researchProgress = 0;
             maxWeight = baseMaxWeight;   // 업그레이드 초기화
             recipes.Clear();
+            surfaceTargetIdx = 0;
         }
     }
 }

@@ -119,5 +119,18 @@ namespace Game.Tests {
             run.Unlock("purifier");
             Assert.IsTrue(run.IsUnlocked("purifier"));
         }
+
+        [Test]
+        public void Surface_target_records_and_resets() {
+            // 잠수 시 다음 수상 목표 기록, 새 판이면 0으로
+            var run = Make();
+            run.SetSurfaceTarget(2);
+            Assert.AreEqual(2, run.SurfaceTargetIdx);
+            run.SetSurfaceTarget(-1);
+            Assert.AreEqual(0, run.SurfaceTargetIdx, "음수는 0으로 방어");
+            run.SetSurfaceTarget(3);
+            run.ResetRun();
+            Assert.AreEqual(0, run.SurfaceTargetIdx);
+        }
     }
 }

@@ -1,6 +1,6 @@
 {
   "name": "Game.Tests.PlayMode",
-  "references": ["UnityEngine.TestRunner", "Game", "Unity.Splines", "Unity.Mathematics"],
+  "references": ["UnityEngine.TestRunner", "Game", "Unity.Splines", "Unity.Mathematics", "Unity.Cinemachine"],
   "precompiledReferences": ["nunit.framework.dll"],
   "defineConstraints": ["UNITY_INCLUDE_TESTS"],
   "autoReferenced": false
