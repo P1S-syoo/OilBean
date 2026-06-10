@@ -46,6 +46,14 @@ crashlytics-build.properties
 # 개발 중 디버그 캡처(게임에 불필요)
 /[Aa]ssets/Screenshots/
 /[Aa]ssets/Screenshots.meta
+# Unity Test Runner가 남기는 임시 씬
+/[Aa]ssets/InitTestScene*
+# VARCO API 스모크 테스트가 생성하는 오디오 산출물(재생성 가능)
+/[Aa]ssets/9.Tests/Varco/
+/[Aa]ssets/9.Tests/Varco.meta
+# DOTween 예제 씬을 에디터가 열며 생성하는 라이팅 설정(플러그인 노이즈)
+/[Aa]ssets/[Pp]lugins/Demigiant/**/*Settings.lighting
+/[Aa]ssets/[Pp]lugins/Demigiant/**/*Settings.lighting.meta
 # 코드그래프 DB(재생성 가능, 대용량)
 /.codegraph/
 # OMC 세션 상태
