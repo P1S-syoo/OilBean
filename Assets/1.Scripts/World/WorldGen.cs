@@ -84,18 +84,6 @@ namespace Game.World {
             return cur;
         }
 
-        // 빌딩 꼭대기 y(인도 위). 빌딩 사이는 인도 높이(=하늘 보임)
-        static int BuildingTop(int x) {
-            int period = 9;
-            int local = ((x % period) + period) % period;
-            if (local >= 6) {
-                return SidewalkY;          // 3칸 간격(빌딩 사이 하늘)
-            }
-            int bidx = Mathf.FloorToInt((float)x / period);
-            int h = 4 + Hash(bidx, 7) % 8;  // 4~11 높이 변주
-            return SidewalkY + h;
-        }
-
         // 레이어 의존은 단방향(2→1→0)만 허용 — 역방향 참조 추가 시 무한 재귀
         public static bool IsSolid(int layer, int x, int y) {
             // X는 무한(섹션 순환), Y만 수심/하늘 한계로 제한
@@ -103,14 +91,8 @@ namespace Game.World {
                 return false;
             }
             if (layer == 3) {
-                // Shore: 해수면 위 강변 옹벽(절벽)+인도+빌딩
-                if (y <= WaterY) {
-                    return false;                 // 물속 아님
-                }
-                if (y <= SidewalkY) {
-                    return true;                  // 옹벽/강변(절벽) — 윗면이 인도
-                }
-                return y <= BuildingTop(x);       // 빌딩 기둥(사이는 하늘)
+                // Shore: 해수면 위 강변 옹벽(절벽)+인도 — 하늘 영역 빌딩 블록은 3D 명소(LandmarkPlacer)로 대체됨
+                return y > WaterY && y <= SidewalkY;
             }
             float floor = FloorTop(x);
             float ceil = CeilBot(x);
@@ -165,14 +147,8 @@ namespace Game.World {
                 }
                 BlockRole role;
                 if (layer == 3) {
-                    // Shore 역할: 빌딩=Wall, 인도=Top, 옹벽/강변=Slope
-                    if (y > SidewalkY) {
-                        role = BlockRole.Wall;
-                    } else if (y == SidewalkY) {
-                        role = BlockRole.Top;
-                    } else {
-                        role = BlockRole.Slope;
-                    }
+                    // Shore 역할: 인도=Top, 옹벽/강변=Slope (빌딩 블록은 3D 명소로 대체)
+                    role = y == SidewalkY ? BlockRole.Top : BlockRole.Slope;
                 } else if (layer == 2) {
                     role = BlockRole.Wall;
                 } else {
