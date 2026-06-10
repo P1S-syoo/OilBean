@@ -41,12 +41,13 @@ namespace Game.World {
                     DestroyImmediate(tmp);
                 }
                 pool = new BlockPool(transform, cubeMesh);
-                // variant별 [top, side] 페어 캐시(옆면은 공유, 윗면만 변형)
-                int nv = (terrainTops != null && terrainTops.Length > 0) ? terrainTops.Length : 1;
-                terrainPairs = new Material[nv][];
+                // variant별 [top, side] 페어 캐시 — variant는 0~2 고정 3종이므로 배열도 3 고정
+                const int VariantCount = 3;
+                terrainPairs = new Material[VariantCount][];
                 bool hasSides = terrainSides != null && terrainSides.Length > 0;
-                for (int i = 0; i < nv; i++) {
-                    var t = (terrainTops != null && i < terrainTops.Length) ? terrainTops[i] : null;
+                for (int i = 0; i < VariantCount; i++) {
+                    // terrainTops 부족 시 순환(마지막 항목 재사용)해 인덱스 어긋남 방지
+                    var t = (terrainTops != null && terrainTops.Length > 0) ? terrainTops[i % terrainTops.Length] : null;
                     var s = hasSides ? terrainSides[i % terrainSides.Length] : null;
                     terrainPairs[i] = new[] { t, s };
                 }
@@ -102,7 +103,7 @@ namespace Game.World {
             foreach (var c in remove) {
                 loaded.Remove(c);
             }
-            // 2) 범위 안 새 청크 로드
+            // 2) 범위 안 새 청크 로드 — X는 무한 순환 맵이라 clamp 없음(생성은 WorldGen이 좌표로 결정)
             for (int cx = center.x - radiusX; cx <= center.x + radiusX; cx++) {
                 for (int cy = center.y - radiusY; cy <= center.y + radiusY; cy++) {
                     var c = new Vector2Int(cx, cy);
@@ -141,7 +142,7 @@ namespace Game.World {
                         } else if (s.layer == 0) {
                             mats = (bgTriPair != null) ? bgTriPair : bgPair;          // 배경
                         } else {
-                            mats = (triPair != null) ? triPair : terrainPairs[s.variant % terrainPairs.Length];   // 지형 triplanar
+                            mats = (triPair != null) ? triPair : terrainPairs[s.variant % 3];   // 지형 triplanar(variant 0~2 고정 3종)
                         }
                         if (mats != null) {
                             go.GetComponent<MeshRenderer>().sharedMaterials = mats;
@@ -150,6 +151,9 @@ namespace Game.World {
                         var col = go.GetComponent<BoxCollider2D>();
                         if (col != null) {
                             col.enabled = (s.layer == 1) && WorldGen.Exposed(x, y);
+                            // blockScale 축소 보정: 콜라이더 크기를 월드 기준 1×1로 유지해 블록 사이 틈 없앰
+                            float invScale = 1f / blockScale;
+                            col.size = new Vector2(invScale, invScale);
                         }
                         list.Add(go);
                     }

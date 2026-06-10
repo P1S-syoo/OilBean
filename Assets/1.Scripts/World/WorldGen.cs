@@ -18,13 +18,14 @@ namespace Game.World {
         public const int WaterY = 24;               // 해수면(이 위로 못 올라감, 위는 공기/하늘)
         public const int SidewalkY = 32;            // 강변 옹벽 위 인도 높이
 
-        // 의도한 섹션 시퀀스(테스트: 일반→터널→통로). 시작점(OriginX)이 [0]
+        // 섹션 순환 패턴(일반→터널→통로 무한 반복). 시작점(OriginX)이 [0]
         public static readonly SectionType[] Sequence = {
             SectionType.Open,
             SectionType.Tunnel,
             SectionType.Corridor
         };
 
+        // VARCO export(blockmap.json) 샘플링 범위 — 맵 자체는 X 무한, 내보낼 때만 사용
         public static int MinX => OriginX - SectionW;
         public static int MaxX => OriginX + Sequence.Length * SectionW + SectionW;
 
@@ -37,9 +38,19 @@ namespace Game.World {
             public int variant;
         }
 
+        // 섹션 전역 인덱스(무한) — X 방향으로 끝없이 증가/감소
+        static int GlobalIndex(int x) {
+            return Mathf.FloorToInt((float)(x - OriginX) / SectionW);
+        }
+
+        // 전역 인덱스를 시퀀스 길이로 순환(음수 안전)
+        static int Cyc(int gi) {
+            int n = Sequence.Length;
+            return ((gi % n) + n) % n;
+        }
+
         static int SeqIndex(int x) {
-            int i = Mathf.FloorToInt((float)(x - OriginX) / SectionW);
-            return Mathf.Clamp(i, 0, Sequence.Length - 1);
+            return Cyc(GlobalIndex(x));
         }
 
         public static SectionType SectionAt(int x) => Sequence[SeqIndex(x)];
@@ -55,17 +66,18 @@ namespace Game.World {
         }
 
         static float CeilBot(int x) {
-            int i = SeqIndex(x);
-            float cur = CeilOf(Sequence[i], x);
-            float secStart = OriginX + i * SectionW;
+            // 전역 인덱스로 섹션 시작점을 잡고, 타입 조회만 순환 — 경계 블렌드가 순환 이음새에서도 이어짐
+            int gi = GlobalIndex(x);
+            float cur = CeilOf(Sequence[Cyc(gi)], x);
+            float secStart = OriginX + gi * SectionW;
             float local = (x - secStart) / SectionW;
-            if (local * SectionW < BlendW && i > 0) {
-                float prev = CeilOf(Sequence[i - 1], x);
+            if (local * SectionW < BlendW) {
+                float prev = CeilOf(Sequence[Cyc(gi - 1)], x);
                 float t = 0.5f + 0.5f * (local * SectionW / BlendW);
                 return Mathf.Lerp(prev, cur, t);
             }
-            if ((1f - local) * SectionW < BlendW && i < Sequence.Length - 1) {
-                float next = CeilOf(Sequence[i + 1], x);
+            if ((1f - local) * SectionW < BlendW) {
+                float next = CeilOf(Sequence[Cyc(gi + 1)], x);
                 float t = 0.5f + 0.5f * ((1f - local) * SectionW / BlendW);
                 return Mathf.Lerp(next, cur, t);
             }
@@ -84,8 +96,10 @@ namespace Game.World {
             return SidewalkY + h;
         }
 
+        // 레이어 의존은 단방향(2→1→0)만 허용 — 역방향 참조 추가 시 무한 재귀
         public static bool IsSolid(int layer, int x, int y) {
-            if (x < MinX || x > MaxX || y < MinY || y > MaxY) {
+            // X는 무한(섹션 순환), Y만 수심/하늘 한계로 제한
+            if (y < MinY || y > MaxY) {
                 return false;
             }
             if (layer == 3) {
