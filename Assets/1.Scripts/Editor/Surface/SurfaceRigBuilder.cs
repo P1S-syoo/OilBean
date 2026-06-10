@@ -27,6 +27,7 @@ namespace Game.Editor.Surface {
                 var (orbitCam, orbitDriver) = BuildOrbitCamera(root.transform, player);
                 var diveCam = BuildDiveCam(root.transform);
                 BuildIntro(root.transform, nav, player, orbitCam, orbitDriver);
+                BuildEnvironment(root.transform);
                 WireBootstrap(root, nav, player, orbitCam, orbitDriver, diveCam);
 
                 EditorUtility.SetDirty(root);
@@ -160,6 +161,7 @@ namespace Game.Editor.Surface {
             so.FindProperty("focus").objectReferenceValue = nav.transform;
             so.FindProperty("deck").objectReferenceValue = player;
             so.FindProperty("orbitDriver").objectReferenceValue = orbitDriver;
+            so.FindProperty("nav").objectReferenceValue = nav;
             so.ApplyModifiedPropertiesWithoutUndo();
         }
 
@@ -192,6 +194,80 @@ namespace Game.Editor.Surface {
             }
             if (dive2d == null) {
                 Debug.LogWarning("[SurfaceRigBuilder] 2.5D 잠수정(PlayerMove)을 못 찾음 — sideTarget 수동 연결 필요");
+            }
+        }
+
+        // ───── W4: 수면·폐허 도시 그레이박스 환경 ─────
+
+        // 좌표 결정적 해시 — 빌딩 높이/기울기 변주(재생성해도 같은 모양)
+        static int Hash(int a, int b) {
+            int h = a * 73856093 ^ b * 19349663;
+            return (h % 1000 + 1000) % 1000;
+        }
+
+        // 머티리얼 에셋 확보 — 있으면 로드, 없으면 생성(URP Lit 단색)
+        static Material GetOrCreateMat(string name, Color color) {
+            const string dir = "Assets/4.Art/Materials/Surface";
+            if (!AssetDatabase.IsValidFolder(dir)) {
+                AssetDatabase.CreateFolder("Assets/4.Art/Materials", "Surface");
+            }
+            string path = $"{dir}/{name}.mat";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (mat == null) {
+                mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                mat.SetColor("_BaseColor", color);
+                AssetDatabase.CreateAsset(mat, path);
+            }
+            return mat;
+        }
+
+        // 레퍼런스 이미지의 잿빛 톤 — 수면·폐허 도시·부유 잔해·안개·흐린 광원
+        static void BuildEnvironment(Transform parent) {
+            var env = new GameObject("Environment");
+            env.transform.SetParent(parent, false);
+
+            float waterY = Game.World.WorldGen.WaterY;
+            var waterMat = GetOrCreateMat("MurkyWater", new Color(0.10f, 0.16f, 0.16f));
+            var debrisMat = GetOrCreateMat("RuinDebris", new Color(0.20f, 0.21f, 0.22f));
+
+            // 수면 — 잠수정 흘수선(WaterY+0.5) 바로 아래 탁한 평면
+            var water = GameObject.CreatePrimitive(PrimitiveType.Plane);
+            water.name = "WaterSurface";
+            water.transform.SetParent(env.transform, false);
+            water.transform.position = new Vector3(70f, waterY + 0.45f, 0f);
+            water.transform.localScale = new Vector3(40f, 1f, 10f);   // 400×100m
+            UnityEngine.Object.DestroyImmediate(water.GetComponent<Collider>());
+            water.GetComponent<MeshRenderer>().sharedMaterial = waterMat;
+
+            // 강변 스카이라인은 그레이박스 대신 LandmarkPlacer(Tools/한강/명소 배치)가 실물 3D로 채운다
+
+            // 부유 쓰레기/잔해 — 강 위에 해시 산포
+            var trash = new GameObject("FloatingDebris");
+            trash.transform.SetParent(env.transform, false);
+            for (int i = 0; i < 36; i++) {
+                int h = Hash(i, 77);
+                var d = GameObject.CreatePrimitive(h % 3 == 0 ? PrimitiveType.Cylinder : PrimitiveType.Cube);
+                d.name = $"Debris_{i:00}";
+                d.transform.SetParent(trash.transform, false);
+                float x = -18f + (h % 100) * 1.7f;
+                float z = -8f + (h >> 2) % 17;
+                d.transform.position = new Vector3(x, waterY + 0.55f, z);
+                float s = 0.3f + (h % 7) * 0.12f;
+                d.transform.localScale = new Vector3(s * 1.6f, s * 0.35f, s);
+                d.transform.rotation = Quaternion.Euler(0f, h % 360, 0f);
+                UnityEngine.Object.DestroyImmediate(d.GetComponent<Collider>());
+                d.GetComponent<MeshRenderer>().sharedMaterial = debrisMat;
+            }
+
+            // 잿빛 안개 + 흐린 광원 — 레퍼런스의 흐린 하늘 톤(원경 빌딩이 안개에 잠김)
+            RenderSettings.fog = true;
+            RenderSettings.fogMode = FogMode.Exponential;
+            RenderSettings.fogColor = new Color(0.40f, 0.44f, 0.46f);
+            RenderSettings.fogDensity = 0.011f;
+            var light = UnityEngine.Object.FindFirstObjectByType<Light>();
+            if (light != null && light.type == LightType.Directional) {
+                light.intensity = 0.75f;
+                light.color = new Color(0.78f, 0.80f, 0.83f);
             }
         }
     }
