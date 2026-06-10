@@ -1,0 +1,235 @@
+{
+  "main": {
+    "id": "ffbddb5b7db58083",
+    "type": "split",
+    "children": [
+      {
+        "id": "e7b6efc815b0a5cb",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "23eb11aed163fa73",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "한강오염탐사_게임기획서.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "한강오염탐사_게임기획서"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "28822d263201d2a0",
+    "type": "split",
+    "children": [
+      {
+        "id": "f072459f349ce943",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "9c05beb80a594a78",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "파일 탐색기"
+            }
+          },
+          {
+            "id": "a17eede7ffa5aff7",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "검색"
+            }
+          },
+          {
+            "id": "c4fd10d41e1e0561",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "북마크"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "5a2ca5b271beeaad",
+    "type": "split",
+    "children": [
+      {
+        "id": "ec97fac73f1021cf",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "37c8d68648d3515e",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "한강오염탐사_게임기획서.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "한강오염탐사_게임기획서 의 백링크"
+            }
+          },
+          {
+            "id": "af29b889a0e2f8d0",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "한강오염탐사_게임기획서.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "한강오염탐사_게임기획서 의 나가는 링크"
+            }
+          },
+          {
+            "id": "182c12173bd7203a",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "태그"
+            }
+          },
+          {
+            "id": "8f9fd92899551b1b",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "모든 속성"
+            }
+          },
+          {
+            "id": "172f46fe2b664d16",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "한강오염탐사_게임기획서.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "한강오염탐사_게임기획서 의 개요"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:빠른 전환기 열기": false,
+      "graph:그래프 뷰 열기": false,
+      "canvas:새 캔버스 만들기": false,
+      "daily-notes:오늘의 일일 노트 열기": false,
+      "templates:템플릿 삽입": false,
+      "command-palette:명령어 팔레트 열기": false,
+      "bases:새 베이스 생성하기": false
+    }
+  },
+  "active": "23eb11aed163fa73",
+  "lastOpenFiles": [
+    "Temp/UnityTempFile-7dacb50e326de448887271f4b6c80c69",
+    "Temp/ADB-Refresh5703feb7adeff48309be5408958e1b90",
+    "Temp/ADB-Refresh215f6181e25b34b328c6b0cd29ed4319",
+    "Library/Artifacts/42/425808236e2b47496989e7290929d5aa",
+    "Assets/Screenshots/sky_dream.png.meta",
+    "Temp/ADB-Refreshea40a57411aa8456aa17f994addcc6b7",
+    "Assets/Screenshots/sky_dream.png",
+    "Library/Artifacts/63/6385ca1ddd1364e3a2b032f9e92eb0ac",
+    "Assets/Screenshots/deep_map.png.meta",
+    "Assets/Screenshots/deep_map.png",
+    "Temp/ADB-Refresh44bab2349bd9c437a9e73bf97fc0bc2d",
+    "Temp/ADB-Refreshf1d014d0fc8024809936c3bed8b2c1f6",
+    "Library/Bee/TundraBuildState.state",
+    "Assets/4.Art/Textures/SkyGradient.png",
+    "Assets/Screenshots/tri_final.png",
+    "Assets/Screenshots/tri_gamecam.png",
+    "Assets/Screenshots/terrain_tri_frame.png",
+    "Assets/Screenshots/terrain_tri_g2.png",
+    "Assets/Screenshots/terrain_tri_game.png",
+    "Assets/Screenshots/terrain_tri3.png",
+    "Assets/Screenshots/terrain_tri2.png",
+    "Library/PackageCache/com.unity.usd.core@a7855ade4aa6/Documentation~/index.md",
+    "Library/PackageCache/com.unity.usd.core@a7855ade4aa6/Documentation~/api_index.md",
+    "Library/PackageCache/com.unity.usd.core@a7855ade4aa6/Third Party Notices.md",
+    "Library/PackageCache/com.unity.usd.core@a7855ade4aa6/README.md",
+    "Library/PackageCache/com.unity.usd.core@a7855ade4aa6/LICENSE.md",
+    "Library/PackageCache/com.unity.usd.core@a7855ade4aa6/CHANGELOG.md",
+    "Assets/1.Scripts/Core/VARCO3D-Bridge-for-Unity/README.md",
+    "Assets/1.Scripts/Core/VARCO3D-Bridge-for-Unity/CHANGELOG.md",
+    "docs/배치규칙.md",
+    "Library/PackageCache/com.cqf.urpvolumetricfog@16dece56060d/README.md",
+    "Library/PackageCache/com.cqf.urpvolumetricfog@16dece56060d/LICENSE.md",
+    "Library/PackageCache/com.cqf.urpvolumetricfog@16dece56060d/CHANGELOG.md",
+    "Library/PackageCache/com.unity.film-internal-utilities@8cfa91f65639/Documentation~/index.md",
+    "Library/PackageCache/com.unity.film-internal-utilities@8cfa91f65639/LICENSE.md",
+    "Library/PackageCache/com.unity.film-internal-utilities@8cfa91f65639/CONTRIBUTING.md",
+    "Library/PackageCache/com.unity.film-internal-utilities@8cfa91f65639/CHANGELOG.md",
+    "Library/PackageCache/com.unity.burst@6bb9aca3ef38/Documentation~/optimization-skiplocalsinit.md",
+    "Library/PackageCache/com.unity.burst@6bb9aca3ef38/Documentation~/optimization-overview.md",
+    "Library/PackageCache/com.unity.burst@6bb9aca3ef38/Documentation~/optimization-loop-vectorization.md",
+    "Library/PackageCache/com.unity.burst@6bb9aca3ef38/Documentation~/optimization-hint.md",
+    "Library/PackageCache/com.unity.burst@6bb9aca3ef38/Documentation~/optimization-constant.md",
+    "Library/PackageCache/com.unity.burst@6bb9aca3ef38/Documentation~/optimization-assumerange.md",
+    "Library/PackageCache/com.unity.burst@6bb9aca3ef38/Documentation~/modding-support.md",
+    "Library/PackageCache/com.unity.burst@6bb9aca3ef38/Documentation~/index.md",
+    "Library/PackageCache/com.unity.burst@6bb9aca3ef38/Documentation~/getting-started.md"
+  ]
+}

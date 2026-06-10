@@ -1,0 +1,652 @@
+{
+  "project": "한강 오염 탐사 — 고도화(폴리시) 계획",
+  "engine": "Unity 6.3 LTS (6000.3.11f1) — 2D URP 17.3 · uGUI 2.0 · Input System 1.19 · Timeline 1.8.11 · DOTween Pro(보유)",
+  "target": "PC (Windows) · 키보드(WASD) + 마우스",
+  "prototype_scope": "기존 5분 프로토타입(S0~S6, 핵심 루프 완성)을 '기능은 되지만 밋밋함'에서 '보여줄 수 있는 데모'로 끌어올리는 폴리시 단계. 신규 게임플레이 스코프 확장(S7 백로그)이 아니라 기존 시스템의 연출·UI·내러티브·재미요소 고도화.",
+  "source": "/Users/syoo/Project4/한강오염탐사_게임기획서.md + 한강오염탐사_구현계획.md(S0~S6 완료) + S6 코드리뷰/플레이경험리뷰(2026-06-04)",
+  "open_questions": [
+    "Push-your-luck 페널티 강도: 강제복귀 시 '미정착 수집물'을 몇 % 손실시킬지. 기획서가 '손상 추후'(DEV_HANDOFF B안 보류)라 미도입 상태 — 좌절감 없이 긴장만 주는 선을 플레이 검증으로 확정 (E6)",
+    "연구 '오염 구조 연결 퍼즐'·제작 '슬롯 배치 퍼즐'의 구체 규칙(노드 연결 방식·턴 수·성공 판정)이 여전히 미확정(기획서 4-(3), 기존 open_question 유지) — E7에서 가벼운 1종으로 구현할지, 버튼 단순제작 유지할지 확정 필요",
+    "수중 풀스크린 왜곡(Full Screen Pass Renderer Feature) 셰이더는 난이도 중~상 — Light2D 볼류메트릭+부유입자로 체감 확보 후 도입 여부 결정 (E4)",
+    "Freesound 원본(.wav) 다운로드는 OAuth2 사용자 로그인 필요 — 자동 파이프라인을 미리듣기(ogg)로 둘지, 수동 다운로드로 둘지 (E1)"
+  ],
+  "asset_strategy": [
+    {
+      "category": "코드/시스템/UI 위젯",
+      "tool": "무료·오픈소스 (Unity 공식 패키지 + GitHub OSS)",
+      "scope": "Yarn Spinner(MIT)·Unity UI Extensions(BSD-3)·juice 셰이더/스크립트·퍼즐 레퍼런스. 도입 전 각 repo LICENSE 재확인"
+    },
+    {
+      "category": "2D 스프라이트/UI/범용 SFX",
+      "tool": "Kenney.nl (CC0)",
+      "scope": "UI Pack·Interface/Impact/Sci-fi Sounds·거품/입자 텍스처 — attribution 불필요, 상업 자유"
+    },
+    {
+      "category": "수중 ambience BGM/물 SFX",
+      "tool": "Freesound CC0 필터 + VARCO Sound",
+      "scope": "범용 물/거품은 Freesound CC0, 게임 고유 톤 BGM·정화 클리어 스팅어는 VARCO Sound(라이선스 클린)"
+    },
+    {
+      "category": "한글 폰트",
+      "tool": "Google Fonts Noto Sans KR (SIL OFL 1.1)",
+      "scope": "TMP Font Asset으로 사용 글자만 베이크. 빌드에 OFL 라이선스 파일 동봉"
+    },
+    {
+      "category": "음성/내레이션",
+      "tool": "VARCO Voice",
+      "scope": "인트로/튜토리얼/클리어 내레이션 — 프로젝트 귀속 라이선스"
+    },
+    {
+      "category": "라이선스 보강 텍스처",
+      "tool": "ambientCG / Poly Haven (CC0)",
+      "scope": "배경 디테일·고철 금속 질감 보조(2.5D 보조적)"
+    }
+  ],
+  "systems": [
+    {
+      "id": "E1",
+      "name": "오픈소스 리소스 조달 파이프라인 (라이선스 안전)",
+      "goal": "CC0 우선 스프라이트·사운드·폰트를 라이선스 안전하게 수급하고 Unity로 임포트하는 반자동 파이프라인을 만든다",
+      "priority": "P1",
+      "status": "done",
+      "approach": "직접 파일 URL이 열린 CC0 소스(Kenney/ambientCG)와 API가 있는 Freesound만 자동화. itch.io·Asset Store는 약관상 수동. CC-BY는 CREDITS.txt 자동 기록, CC-BY-NC/SA·GPL은 코드에서 배제.",
+      "tech_stack": [
+        {
+          "name": "UnityWebRequest (com.unity.modules.unitywebrequest*)",
+          "note": "에디터 스크립트로 직접 URL/Freesound API 다운로드 → Assets 저장 → AssetDatabase.Refresh"
+        },
+        {
+          "name": "Freesound APIv2",
+          "note": "키 발급 필요. CC0 필터(filter=license). 미리듣기는 토큰, 원본은 OAuth2(사용자 로그인) — open_question"
+        },
+        {
+          "name": "TMP Font Asset Creator",
+          "note": "Noto Sans KR TTF → SDF 에셋(Custom Characters로 사용 글자만 베이크)"
+        },
+        {
+          "name": "VARCO Sound/Voice",
+          "note": "고유 BGM·스팅어·내레이션. 2026 상반기 베타 — 쿼터/안정성 실제 호출로 검증"
+        }
+      ],
+      "assets": [
+        {
+          "type": "OSS",
+          "tool": "Kenney.nl (CC0)",
+          "items": "UI Pack·범용 SFX·거품/입자 텍스처"
+        },
+        {
+          "type": "OSS",
+          "tool": "Freesound (CC0 필터)",
+          "items": "수중 ambience·물/거품 SFX"
+        },
+        {
+          "type": "Font",
+          "tool": "Noto Sans KR (OFL 1.1)",
+          "items": "한글 TMP 폰트 소스"
+        },
+        {
+          "type": "Sound",
+          "tool": "VARCO Sound",
+          "items": "고유 BGM·정화 클리어 스팅어"
+        }
+      ],
+      "tasks": [
+        {
+          "text": "Kenney CC0 스프라이트/오디오 팩 선별·다운로드(거품/입자·UI·범용 SFX)",
+          "done": true
+        },
+        {
+          "text": "Freesound API 키 발급 + CC0 수중 ambience/물 SFX 검색·수급",
+          "done": true
+        },
+        {
+          "text": "Noto Sans KR(OFL) 다운로드 → TMP SDF 에셋 생성(사용 글자만 베이크)",
+          "done": true
+        },
+        {
+          "text": "UnityWebRequest 에디터 다운로더 + CREDITS.txt 자동 기록 스크립트",
+          "done": true
+        },
+        {
+          "text": "라이선스 안전 체크리스트 적용(CC-BY-NC/SA·GPL 배제, OFL 파일 동봉)",
+          "done": true
+        },
+        {
+          "text": "(VARCO 준비 시) 고유 BGM·정화 스팅어 생성·임포트",
+          "done": false
+        }
+      ],
+      "acceptance": [
+        "Assets/에 라이선스 클린(CC0/OFL) 에셋이 폴더 규칙대로 임포트되고 CREDITS.txt에 출처/라이선스가 기록됨",
+        "TMP 한글 폰트 에셋으로 한글이 깨짐 없이 렌더됨",
+        "상업 사용 불가(CC-BY-NC) 또는 약관 위반 소스가 포함되지 않음(체크리스트 통과)"
+      ],
+      "references": [
+        {
+          "kind": "docs",
+          "title": "Kenney 라이선스(CC0) 공식",
+          "url": "https://kenney.nl/assets/category:Audio"
+        },
+        {
+          "kind": "docs",
+          "title": "Freesound API overview(OAuth2/레이트리밋)",
+          "url": "https://freesound.org/docs/api/overview.html"
+        },
+        {
+          "kind": "docs",
+          "title": "Noto Sans KR (OFL)",
+          "url": "https://fonts.google.com/noto/specimen/Noto+Sans+KR"
+        },
+        {
+          "kind": "docs",
+          "title": "OpenGameArt FAQ(라이선스)",
+          "url": "https://opengameart.org/content/faq"
+        },
+        {
+          "kind": "docs",
+          "title": "Unity Asset Store 재배포/EULA",
+          "url": "https://support.unity.com/hc/en-us/articles/205623589"
+        }
+      ],
+      "risks": [
+        "CC-BY-NC는 상업 사용 금지·CC-BY-SA/GPL은 카피레프트 전파 — 반드시 필터로 배제",
+        "itch.io·Asset Store는 자동 크롤 약관 위반 소지 — 수동 보강만",
+        "VARCO는 베타 — 쿼터/안정성 불확실"
+      ]
+    },
+    {
+      "id": "E2",
+      "name": "UI 고도화 (TextMeshPro 한글 + DOTween 트랜지션)",
+      "goal": "uGUI 기본 위젯을 TMP(한글)로 교체하고 DOTween 팝업/패널 트랜지션과 공통 토스트/배너 컴포넌트를 정비한다",
+      "priority": "P1",
+      "status": "todo",
+      "approach": "보유한 DOTween Pro의 DOTweenAnimation 컴포넌트로 코드 최소화. 미니게임 슬롯 드래그는 무거운 라이브러리 대신 IDrag/IDropHandler 패턴만 차용. 추가 위젯 필요 시에만 Unity UI Extensions(OpenUPM) 도입.",
+      "tech_stack": [
+        {
+          "name": "TextMeshPro",
+          "note": "uGUI Text보다 권장 — SDF·다국어 fallback. Unity 6 기본 텍스트"
+        },
+        {
+          "name": "DOTween Pro (보유)",
+          "note": "CanvasGroup DOFade + DOScale(OutBack) + DOAnchorPos를 Sequence로. DOTweenAnimation으로 무코드 모션"
+        },
+        {
+          "name": "Unity UI Extensions (BSD-3, OpenUPM)",
+          "note": "토글/캐러셀 등 추가 위젯 필요 시. com.unity.uiextensions"
+        }
+      ],
+      "assets": [
+        {
+          "type": "Font",
+          "tool": "Noto Sans KR TMP (E1)",
+          "items": "전체 UI 한글 폰트"
+        },
+        {
+          "type": "OSS",
+          "tool": "Kenney UI Pack (CC0)",
+          "items": "패널·버튼·아이콘 9-slice"
+        }
+      ],
+      "tasks": [
+        {
+          "text": "TMP Essentials 임포트 + Noto Sans KR SDF 적용(E1)",
+          "done": false
+        },
+        {
+          "text": "기존 HUD/연구/제작 패널의 uGUI Text → TMP 교체",
+          "done": false
+        },
+        {
+          "text": "공통 팝업 트랜지션(CanvasGroup Fade + Scale OutBack) DOTween 유틸 작성",
+          "done": false
+        },
+        {
+          "text": "토스트/배너 컴포넌트(온보딩·경고 메시지 표준화)",
+          "done": false
+        },
+        {
+          "text": "Kenney UI Pack 9-slice로 패널/버튼 스킨 정비",
+          "done": false
+        }
+      ],
+      "acceptance": [
+        "모든 UI 텍스트가 TMP 한글로 일관 렌더되고 확대 시 품질 유지",
+        "패널 열기/닫기에 부드러운 트랜지션이 적용됨(즉시 토글 아님)",
+        "토스트/배너로 시스템 메시지가 일관된 위치/스타일로 표시됨"
+      ],
+      "references": [
+        {
+          "kind": "docs",
+          "title": "DOTween Pro(공식)",
+          "url": "https://dotween.demigiant.com/pro.php"
+        },
+        {
+          "kind": "repo",
+          "title": "Unity UI Extensions (BSD-3)",
+          "url": "https://github.com/Unity-UI-Extensions/com.unity.uiextensions"
+        },
+        {
+          "kind": "repo",
+          "title": "uGUI 드래그앤드롭 레퍼런스(IDrag/IDropHandler)",
+          "url": "https://github.com/Voldakk/Unity-Drag-and-Drop"
+        }
+      ],
+      "risks": [
+        "한글 전체 글자 베이크 시 atlas 폭발 — 사용 글자만 Custom Characters로 제한",
+        "Text→TMP 교체 시 기존 Hud.cs 직렬화 참조(infoText 등) 재배선 필요"
+      ],
+      "depends_on": [
+        "E1"
+      ]
+    },
+    {
+      "id": "E3",
+      "name": "게임필 / Juice 연출 (핵심 행동 피드백)",
+      "goal": "수집·정화·충돌 등 가장 자주 하는 행동에 즉각 피드백(플래시·스쿼시·파티클·셰이크·히트포즈)을 부여한다",
+      "priority": "P1",
+      "status": "todo",
+      "approach": "'가장 자주 하는 행동을 가장 임팩트 있게' 원칙. 전부 보유 자산(DOTween/ParticleSystem/Cinemachine Impulse/URP 셰이더)으로 신규 유료 에셋 없이 구현. 피드백은 입력 즉시 발생.",
+      "tech_stack": [
+        {
+          "name": "DOTween Pro (보유)",
+          "note": "DOScale 스쿼시&스트레치, DOShakePosition 셰이크, _FlashAmount 보간"
+        },
+        {
+          "name": "ParticleSystem (보유)",
+          "note": "수집/정화 프레임에 Burst 1회(sparkle)"
+        },
+        {
+          "name": "Cinemachine Impulse (내장)",
+          "note": "충돌/정화 임팩트 카메라 반동 — 경량 대안은 DOShakePosition"
+        },
+        {
+          "name": "URP 2D 스프라이트 플래시 셰이더",
+          "note": "_FlashColor/_FlashAmount, MaterialPropertyBlock로 인스턴스별 제어. 라이선스 명시 없는 gist는 재작성"
+        }
+      ],
+      "assets": [
+        {
+          "type": "OSS",
+          "tool": "Kenney CC0 (E1)",
+          "items": "수집/정화 SFX·sparkle 텍스처"
+        },
+        {
+          "type": "Sound",
+          "tool": "VARCO Sound (E1)",
+          "items": "정화 완료 스팅어"
+        }
+      ],
+      "tasks": [
+        {
+          "text": "스프라이트 화이트 플래시 셰이더 + MaterialPropertyBlock DOTween 보간(수집/피격)",
+          "done": false
+        },
+        {
+          "text": "수집물/부유체 스쿼시&스트레치(DOScale OutBack/OutElastic)",
+          "done": false
+        },
+        {
+          "text": "수집·정화 완료 파티클 버스트(ParticleSystem Burst)",
+          "done": false
+        },
+        {
+          "text": "정화 성공·오염원 충돌 스크린셰이크(DOShakePosition 또는 Impulse)",
+          "done": false
+        },
+        {
+          "text": "핵심 임팩트 타임슬로우/히트포즈(Time.timeScale 0.05~0.1s 복원 코루틴)",
+          "done": false
+        },
+        {
+          "text": "설치/정화/클리어 SFX·스팅어 연결(E1 에셋)",
+          "done": false
+        }
+      ],
+      "acceptance": [
+        "자원 수집 시 플래시+스쿼시+파티클+사운드가 입력과 동시에 발생",
+        "정화 완료·충돌 시 화면 셰이크와 히트포즈로 임팩트가 체감됨",
+        "추가 유료 에셋 없이 보유 패키지만으로 동작"
+      ],
+      "references": [
+        {
+          "kind": "article",
+          "title": "2D Juice 베스트 프랙티스(Bloodmoon)",
+          "url": "https://www.bloodmooninteractive.com/articles/juice.html"
+        },
+        {
+          "kind": "docs",
+          "title": "Cinemachine Impulse",
+          "url": "https://docs.unity3d.com/Packages/com.unity.cinemachine@2.3/manual/CinemachineImpulse.html"
+        },
+        {
+          "kind": "article",
+          "title": "2D 카메라 셰이크(Unity)",
+          "url": "https://medium.com/nerd-for-tech/tip-of-the-day-simple-2d-camera-shake-in-unity-521d454ac89b"
+        }
+      ],
+      "risks": [
+        "과한 셰이크/슬로우는 멀미·답답함 — 강도/지속 짧게, 핵심 순간만",
+        "DOTween 애니는 timeScale 영향받음 — 히트포즈 중 UI 트윈은 SetUpdate(true)"
+      ],
+      "depends_on": [
+        "E1"
+      ]
+    },
+    {
+      "id": "E4",
+      "name": "수중 분위기 & 정화 전/후 연출 (URP 2D)",
+      "goal": "Light2D 서치라이트+부유입자로 수중감을 만들고, URP Volume 색보정 보간으로 정화 전/후(탁함→맑음)를 화면 전체로 전환한다",
+      "priority": "P2",
+      "status": "todo",
+      "approach": "S6 리뷰 C1(카메라 Skybox라 정화 전/후 대비가 화면에 안 보임)의 근본 해결. ClearView의 카메라 backgroundColor 보간을 URP Volume 기반 화면 전환으로 대체. 보유 URP 17.3 Light2D/Volume 우선, Full Screen Pass는 여력 시.",
+      "tech_stack": [
+        {
+          "name": "URP 2D Light2D (보유)",
+          "note": "Spot/Freeform Light2D + Volume Opacity로 서치라이트·볼류메트릭(기획서 '서치라이트 연출')"
+        },
+        {
+          "name": "URP Volume / Post-processing",
+          "note": "Color Adjustments(Color Filter)+Depth of Field 프로파일을 DOTween으로 보간(탁함↔맑음)"
+        },
+        {
+          "name": "Full Screen Pass Renderer Feature + Shader Graph",
+          "note": "화면 전체 물 왜곡(여력 시) — 난이도 중~상, open_question"
+        },
+        {
+          "name": "ParticleSystem (보유)",
+          "note": "부유 입자(먼지/플랑크톤) + Noise 흐름"
+        }
+      ],
+      "assets": [
+        {
+          "type": "OSS",
+          "tool": "ambientCG/Kenney CC0 (E1)",
+          "items": "물 노이즈/코스틱 텍스처(보조)"
+        }
+      ],
+      "tasks": [
+        {
+          "text": "Light2D 서치라이트(콘) + 볼류메트릭 Opacity 설정",
+          "done": false
+        },
+        {
+          "text": "부유 입자 파티클(저속·저알파·Noise)로 상시 수중감",
+          "done": false
+        },
+        {
+          "text": "URP Volume 탁함/맑음 2개 프로파일 + DOTween weight 보간 유틸",
+          "done": false
+        },
+        {
+          "text": "ClearView(S6) 색보간을 Volume 기반 전환으로 교체(C1 근본 해결)",
+          "done": false
+        },
+        {
+          "text": "카메라 미세 흔들림(약한 DOShake 루프 또는 Cinemachine noise)",
+          "done": false
+        },
+        {
+          "text": "(여력) Full Screen Pass 물 왜곡 셰이더 그래프",
+          "done": false
+        }
+      ],
+      "acceptance": [
+        "탐사 중 서치라이트·부유입자로 수중 분위기가 화면에 드러남",
+        "정화 시 화면 전체가 탁함→맑음으로 부드럽게 전환되어 전/후 대비가 명확히 보임(C1 해결)",
+        "ClearView가 카메라 clearFlags 트릭 없이 Volume 기반으로 동작"
+      ],
+      "references": [
+        {
+          "kind": "docs",
+          "title": "URP 2D Lights",
+          "url": "https://docs.unity3d.com/Packages/com.unity.render-pipelines.universal@7.1/manual/Lights-2D-intro.html"
+        },
+        {
+          "kind": "docs",
+          "title": "URP Full Screen Pass Renderer Feature",
+          "url": "https://docs.unity3d.com/6000.4/Documentation/Manual/urp/renderer-features/renderer-feature-full-screen-pass.html"
+        },
+        {
+          "kind": "docs",
+          "title": "URP Color Adjustments",
+          "url": "https://docs.unity3d.com/6000.0/Documentation/Manual/urp/Post-Processing-Color-Adjustments.html"
+        }
+      ],
+      "risks": [
+        "Full Screen Pass 셰이더는 난이도 중~상 — Light2D+입자로 먼저 체감 확보",
+        "URP Volume 적용엔 씬에 Global Volume + Volume 컴포넌트 배선 필요"
+      ],
+      "depends_on": [
+        "E3"
+      ]
+    },
+    {
+      "id": "E5",
+      "name": "다이얼로그 / 내러티브 (Yarn Spinner) + 온보딩",
+      "goal": "Yarn Spinner로 인트로/튜토리얼/클리어 내레이션과 온보딩 시스템 메시지(부유체 준비→스팟 안내)를 구현한다",
+      "priority": "P2",
+      "status": "todo",
+      "approach": "분기 서사가 불필요한 5분 데모이므로 선형 대사에 강하고 .yarn 평문 UTF-8로 한글이 직관적인 Yarn Spinner 채택(MIT, v3.2.4, Unity6 대응). S6 리뷰 C3(온보딩 부재)를 함께 해결.",
+      "tech_stack": [
+        {
+          "name": "Yarn Spinner-Unity v3.2.4 (MIT)",
+          "note": "OpenUPM 또는 UPM git 설치. .yarn 스크립트 = UTF-8 한글 직접 작성"
+        },
+        {
+          "name": "TextMeshPro (E2)",
+          "note": "DialogueRunner 대사 UI 렌더"
+        },
+        {
+          "name": "VARCO Voice (E1)",
+          "note": "내레이션 보이스 연결(선택)"
+        }
+      ],
+      "assets": [
+        {
+          "type": "Voice",
+          "tool": "VARCO Voice (E1)",
+          "items": "인트로/클리어 내레이션"
+        },
+        {
+          "type": "OSS",
+          "tool": "Kenney UI (E1)",
+          "items": "대사창 패널·네임태그"
+        }
+      ],
+      "tasks": [
+        {
+          "text": "Yarn Spinner-Unity OpenUPM 설치 + 컴파일 확인",
+          "done": false
+        },
+        {
+          "text": ".yarn 한글 스크립트(인트로·튜토리얼·스테이지 클리어 내레이션)",
+          "done": false
+        },
+        {
+          "text": "온보딩 메시지: 부유체 준비 시 '정화 스팟으로 이동·설치' 안내(C3)",
+          "done": false
+        },
+        {
+          "text": "DialogueRunner UI(TMP 대사창) + 진행/스킵 입력",
+          "done": false
+        },
+        {
+          "text": "(선택) VARCO Voice 내레이션 오디오 동기화",
+          "done": false
+        }
+      ],
+      "acceptance": [
+        "게임 시작 시 인트로 내레이션, 클리어 시 마무리 내레이션이 한글로 표시됨",
+        "부유체 제작 후 다음 행동(스팟 이동·설치) 안내가 떠 처음 플레이어도 클리어에 도달(C3 해결)",
+        "대사창이 TMP로 일관 렌더되고 스킵 가능"
+      ],
+      "references": [
+        {
+          "kind": "repo",
+          "title": "Yarn Spinner-Unity (MIT)",
+          "url": "https://github.com/YarnSpinnerTool/YarnSpinner-Unity"
+        },
+        {
+          "kind": "docs",
+          "title": "Yarn Spinner 설치",
+          "url": "https://docs.yarnspinner.dev/yarn-spinner-for-unity/installation-and-setup"
+        }
+      ],
+      "risks": [
+        "OpenUPM scoped registry 설정 필요 — manifest.json 수정",
+        "내레이션이 길면 5분 페이싱 저해 — 짧고 스킵 가능하게"
+      ],
+      "depends_on": [
+        "E2"
+      ]
+    },
+    {
+      "id": "E6",
+      "name": "재미요소 — Push-your-luck & 상호작용 깊이",
+      "goal": "깊이 기반 위험-보상과 강제복귀 자원손실, hold-to-install로 코어 루프에 긴장과 주체성을 부여한다",
+      "priority": "P2",
+      "status": "todo",
+      "approach": "Dave the Diver/Dome Keeper 모델 차용. S6 리뷰 M1(페널티 0 → 긴장 없음)·M2(자동설치 → 주체성 없음) 해결. 페널티는 좌절 없는 선에서 플레이 검증으로 조정(기획서 '손상 추후' 정합).",
+      "tech_stack": [
+        {
+          "name": "RunData/GameBootstrap 확장 (기존)",
+          "note": "세션 버퍼 → 복귀 시 커밋. 강제복귀 시 미정착분 부분 손실"
+        },
+        {
+          "name": "Input System hold interaction",
+          "note": "hold-to-install: 그레이스타임 + 중단 시 부분진행 보존(Dave the Diver 답답함 교훈)"
+        },
+        {
+          "name": "DOTween + 월드 게이지",
+          "note": "스팟 머리 위 원형 진행바로 설치 피드백 가시화"
+        }
+      ],
+      "assets": [
+        {
+          "type": "OSS",
+          "tool": "Kenney CC0 (E1)",
+          "items": "위험/보상 인디케이터 아이콘"
+        }
+      ],
+      "tasks": [
+        {
+          "text": "깊은 구역 보상↑위험↑(수집물 가치·오염원 밀도 깊이 연동)",
+          "done": false
+        },
+        {
+          "text": "세션 버퍼 도입 → 강제복귀 시 미정착 수집물 부분 손실(거점 입고분 보존)",
+          "done": false
+        },
+        {
+          "text": "hold-to-install(E 홀드 + 그레이스타임 + 중단 시 부분진행 보존)",
+          "done": false
+        },
+        {
+          "text": "설치 게이지 월드공간(스팟 위) 표시로 시선·피드백 집중",
+          "done": false
+        },
+        {
+          "text": "페널티 강도 플레이 검증·밸런스(open_question 확정)",
+          "done": false
+        }
+      ],
+      "acceptance": [
+        "더 깊이 들어갈수록 보상과 위험이 함께 커져 '복귀 판단'에 긴장이 생김",
+        "강제복귀 시 이번 탐사 미정착 자원 일부를 잃되 거점 입고분은 보존됨",
+        "설치가 홀드 입력으로 바뀌어 능동감이 생기고, 중단해도 진행이 일부 보존됨"
+      ],
+      "references": [
+        {
+          "kind": "article",
+          "title": "Dome Keeper 디자인 분석(push-your-luck)",
+          "url": "https://joshanthony.info/2023/05/24/design-dive-dome-keeper/"
+        },
+        {
+          "kind": "article",
+          "title": "Dave the Diver 디자인",
+          "url": "https://www.gamedeveloper.com/design/dave-the-diver"
+        }
+      ],
+      "risks": [
+        "페널티 과하면 좌절 — 미정착분만·소량부터. 기획서 '손상 추후'와 정합 확인",
+        "hold가 엄격하면 답답함 — 그레이스타임·부분진행 보존 필수"
+      ],
+      "depends_on": [
+        "E3"
+      ]
+    },
+    {
+      "id": "E7",
+      "name": "스코어/콤보 & 연구·제작 미니게임",
+      "goal": "콤보·타임어택 스코어로 리플레이성을 주고, 연구/제작 버튼 플레이스홀더를 가벼운 노드연결/슬롯배치 퍼즐로 교체한다",
+      "priority": "P3",
+      "status": "todo",
+      "approach": "5분 페이싱을 해치지 않도록 가벼운 1종씩만. 연구=노드 연결, 제작=슬롯 배치. OSS 레퍼런스의 핸들러 패턴만 차용해 직접 구현. 기존 open_question(퍼즐 규칙 미확정) 확정 후 진행.",
+      "tech_stack": [
+        {
+          "name": "PlayerPrefs + DOTween",
+          "note": "콤보 타이머·점수 팝업(punch scale)·종료 등급(S/A/B)·베스트 기록"
+        },
+        {
+          "name": "OSS 퍼즐 레퍼런스",
+          "note": "zerefgd/Connect(점 연결)·드래그앤드롭 IDrag/IDropHandler — repo 라이선스 사전 확인"
+        },
+        {
+          "name": "EventSystem 드래그 핸들러",
+          "note": "제작 슬롯 배치 — IDragHandler/IDropHandler"
+        }
+      ],
+      "assets": [
+        {
+          "type": "OSS",
+          "tool": "Kenney CC0 (E1)",
+          "items": "점수/등급 UI·퍼즐 노드 아이콘"
+        }
+      ],
+      "tasks": [
+        {
+          "text": "수집 콤보 타이머 + 점수 팝업(DOTween punch)",
+          "done": false
+        },
+        {
+          "text": "종료 등급(S/A/B) + PlayerPrefs 베스트 기록 표시",
+          "done": false
+        },
+        {
+          "text": "연구 노드 연결 퍼즐(zerefgd/Connect 패턴 차용) — 기존 ResearchPanel 교체",
+          "done": false
+        },
+        {
+          "text": "제작 슬롯 배치 퍼즐(드래그앤드롭) — 기존 CraftPanel 교체",
+          "done": false
+        }
+      ],
+      "acceptance": [
+        "수집 콤보·종료 등급·베스트 기록으로 '한 번 더' 동기가 생김",
+        "연구/제작이 버튼이 아니라 가벼운 퍼즐 상호작용으로 동작(규칙 확정 후)",
+        "미니게임이 5분 페이싱을 해치지 않는 수준의 가벼움"
+      ],
+      "references": [
+        {
+          "kind": "repo",
+          "title": "zerefgd/Connect(점 연결 퍼즐)",
+          "url": "https://github.com/zerefgd/Connect"
+        },
+        {
+          "kind": "article",
+          "title": "아케이드 스코어 시스템 설계",
+          "url": "https://itch.io/blog/810141/what-makes-a-great-scoring-system-lessons-from-the-arcade.amp"
+        }
+      ],
+      "risks": [
+        "미니게임 과하면 5분 페이싱 저해 — 가벼운 1종씩",
+        "퍼즐 규칙 미확정(open_question) — 확정 전 착수 금지",
+        "OSS 퍼즐 repo 라이선스 미명시 가능 — 패턴만 차용, LICENSE 확인"
+      ],
+      "depends_on": [
+        "E2",
+        "E6"
+      ]
+    }
+  ]
+}

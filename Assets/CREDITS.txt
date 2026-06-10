@@ -1,0 +1,33 @@
+# 한강 오염 탐사 — 에셋 크레딧 (배포 시 동봉 필수)
+
+## 폰트
+- Noto Sans KR — SIL OFL 1.1 — Google / Noto Project
+  https://fonts.google.com/noto/specimen/Noto+Sans+KR
+
+## 3D 모델 (출처: Poly Pizza / poly.pizza)
+### CC0 (출처표기 불필요 — 기록용)
+- Rock Large — Quaternius (CC0)
+- Rock Flat / Rock Formation — Kenney (CC0)
+- Fish / Lionfish — Quaternius (CC0)
+
+### CC-BY (★크레딧 필수★)
+- Coral Reef Set3 / Set4 / Set5 / Set6 — MiniPoly — CC-BY 3.0
+  https://poly.pizza/u/MiniPoly
+- Boulder — Poly by Google — CC-BY
+- Submarine — Poly by Google — CC-BY
+- Kelp — M Smith Jonn — CC-BY
+
+## 사운드
+- Underwater Ambience 외 — Freesound — CC0 필터
+  https://freesound.org
+- Kenney Audio (Interface / Impact / Sci-fi Sounds) — CC0
+
+## 2D 스프라이트 / 텍스처
+- Kenney (Particle Pack / UI Pack) — CC0
+
+---
+CC-BY 항목은 게임 크레딧 화면 + 배포물에 위 출처를 표기해야 합니다.
+
+### 오염원 생물 (Poly Pizza, CC-BY — 크레딧 필수)
+- Jellyfish / Portuguese Man of War / Octopus / Blowfish / Eel 등 7종
+  poly.pizza 각 제작자 (CC-BY) — 게임 크레딧에 출처 표기

@@ -1,0 +1,49 @@
+using System;
+using UnityEngine;
+
+namespace Game.Player {
+    // 탐사 제한 게이지 — 시간에 따라 소모, 0이 되면 복귀 유도(OnEmpty)
+    public class Battery : MonoBehaviour {
+        [SerializeField] float max = 100f;
+        [SerializeField] float drainPerSec = 3.33f;   // 약 30초/회 탐사(5분에 ~3회)
+        [SerializeField] bool draining = true;
+
+        float current;
+        bool emptied;
+
+        public float Max => max;
+        public float Current => current;
+        public float Ratio => max > 0f ? current / max : 0f;
+
+        // 배터리 고갈 — 강제 복귀 등이 구독
+        public event Action OnEmpty;
+
+        void Awake() {
+            // 최초 1회만 충전(재활성화 시 무단 리필 방지 — 탐사 재시작은 Refill로 명시 호출)
+            current = max;
+            emptied = false;
+        }
+
+        void Update() {
+            if (!draining || emptied) {
+                return;
+            }
+            current = Mathf.Max(0f, current - drainPerSec * Time.deltaTime);
+            if (current <= 0f) {
+                emptied = true;
+                OnEmpty?.Invoke();
+            }
+        }
+
+        // 재충전(거점 복귀 시)
+        public void Refill() {
+            current = max;
+            emptied = false;
+        }
+
+        // 소모 on/off(탐사 중에만 소모) — 코디네이터가 상태에 맞춰 토글
+        public void SetDraining(bool on) {
+            draining = on;
+        }
+    }
+}

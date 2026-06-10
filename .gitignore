@@ -1,0 +1,63 @@
+# ===== Unity 생성물 (다른 PC에서 Unity가 자동 재생성) =====
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+
+# Asset meta 누락 방지: 폴더 자체가 ignore되면 그 안의 .meta도 함께 빠짐(정상)
+
+# ===== IDE / 빌드 산출 =====
+.vs/
+.idea/
+.vscode/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+.gradle/
+ExportedObj/
+*.apk
+*.aab
+*.app
+*.ipa
+
+# ===== Unity 크래시/캐시 =====
+sysinfo.txt
+crashlytics-build.properties
+/[Aa]ssets/[Aa]ssetStoreTools*
+/[Aa]ssets/[Pp]lugins/[Ee]ditor/JetBrains*
+
+# ===== 이 프로젝트 전용 제외 =====
+# 개발 중 디버그 캡처(게임에 불필요)
+/[Aa]ssets/Screenshots/
+/[Aa]ssets/Screenshots.meta
+# 코드그래프 DB(재생성 가능, 대용량)
+/.codegraph/
+# OMC 세션 상태
+/.omc/
+/[Aa]ssets/.omc/
+/[Aa]ssets/.omc.meta
+# 개인 노트 설정
+/.obsidian/
+/.playwright-mcp/
+
+# ===== OS =====
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
