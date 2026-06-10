@@ -21,12 +21,23 @@ namespace Game.Core {
         [SerializeField] Crafting crafting;        // 제작(완료 토스트용)
         [SerializeField] Toast toast;              // 행동 피드백 배너
         [SerializeField] bool autoStartDive;      // 3D 씬: 시작 시 바로 탐사 진입
+        [SerializeField] bool startOnSurface;     // 수상 항해(Surface)로 시작 — 잠수 전까지 탐사 루프 잠금
 
-        readonly GameFsm fsm = new();
+        GameFsm fsm;
         Vector3 dockPos;
+
+        // 지연 생성 — EditMode 테스트처럼 Awake 없이 접근해도 동작(기존 필드 초기화와 동등)
+        GameFsm Fsm {
+            get {
+                if (fsm == null) {
+                    fsm = new GameFsm(startOnSurface ? GameState.Surface : GameState.Dock);
+                }
+                return fsm;
+            }
+        }
         InputAction returnInput;   // 플레이어 수동 복귀(R)
 
-        public GameState State => fsm.Current;
+        public GameState State => Fsm.Current;
         public RunData Run => run;
 
         void Awake() {
@@ -40,11 +51,11 @@ namespace Game.Core {
                 if (clearView != null) clearView.ResetState();
                 if (purify != null) purify.ResetState();
                 dockPos = sub != null ? sub.position : Vector3.zero;
-                fsm.OnChanged += OnStateChanged;
+                Fsm.OnChanged += OnStateChanged;
                 // 강제 복귀 트리거 구독(S2 이벤트 소비)
                 if (battery != null) {
                     battery.OnEmpty += OnBatteryEmpty;
-                    battery.SetDraining(fsm.Current == GameState.Dive);   // 초기(Dock)엔 소모 off
+                    battery.SetDraining(Fsm.Current == GameState.Dive);   // 초기(Dock)엔 소모 off
                 }
                 if (collector != null) {
                     collector.OnFull += OnInvFull;
@@ -58,27 +69,42 @@ namespace Game.Core {
                 if (hazard != null) hazard.OnHit += OnHazardHit;
                 if (purify != null) {
                     purify.OnPurified += OnPurified;
-                    purify.SetArmed(fsm.Current == GameState.Dive);   // 초기 Dock이면 설치 비활성
+                    purify.SetArmed(Fsm.Current == GameState.Dive);   // 초기 Dock이면 설치 비활성
                 }
                 // 수동 복귀 입력(R) — 적재 한계 등에서 자발적 복귀
                 returnInput = new InputAction("Return", InputActionType.Button, "<Keyboard>/r");
                 returnInput.performed += OnReturnInput;
                 returnInput.Enable();
-                Debug.Log($"[GameBootstrap] 시작 상태: {fsm.Current}");
+                Debug.Log($"[GameBootstrap] 시작 상태: {Fsm.Current}");
             } catch (System.Exception e) {
                 Debug.LogError($"[GameBootstrap] Awake 오류: {e.Message}\n{e.StackTrace}");
             }
         }
 
         void Start() {
-            // 3D 씬: 거점 UI 없이 시작 즉시 탐사 진입
-            if (autoStartDive) {
+            // 3D 씬: 거점 UI 없이 시작 즉시 탐사 진입 (수상 시작이면 잠수 전까지 보류)
+            if (autoStartDive && !startOnSurface) {
                 StartDive();
             }
         }
 
+        // 수상에서 잠수 — Surface→Dock 인계(카메라 블렌드·하강 연출은 W5에서 확장)
+        public bool EnterDockFromSurface() {
+            if (!Fsm.Change(GameState.Dock)) {
+                Debug.LogWarning("[GameBootstrap] 잠수 인계 거부됨 — 현재 상태: " + Fsm.Current);
+                return false;
+            }
+            if (autoStartDive) {
+                StartDive();   // 잠수 직후 바로 탐사 진입
+            }
+            return true;
+        }
+
         void OnDestroy() {
-            fsm.OnChanged -= OnStateChanged;
+            // 파괴 시점엔 새로 만들지 않도록 필드로 접근
+            if (fsm != null) {
+                fsm.OnChanged -= OnStateChanged;
+            }
             if (battery != null) battery.OnEmpty -= OnBatteryEmpty;
             if (collector != null) {
                 collector.OnFull -= OnInvFull;
@@ -104,7 +130,7 @@ namespace Game.Core {
         void OnHazardHit() => ForceReturn("오염원 충돌");
         // 플레이어 수동 복귀(R) — 탐사 중에만 동작
         void OnReturnInput(InputAction.CallbackContext ctx) {
-            if (fsm.Current == GameState.Dive) {
+            if (Fsm.Current == GameState.Dive) {
                 ReturnDock();
             }
         }
@@ -115,25 +141,28 @@ namespace Game.Core {
         void OnUpgraded() { if (toast != null) toast.Show("탐사 기계 업그레이드"); }
         // 정화 완료 → 스테이지 클리어(전환 거부 시 진단 로그)
         void OnPurified() {
-            if (!fsm.Change(GameState.Clear)) {
-                Debug.LogWarning($"[GameBootstrap] 정화 완료했으나 Clear 전환 거부됨(현재 {fsm.Current})");
+            if (!Fsm.Change(GameState.Clear)) {
+                Debug.LogWarning($"[GameBootstrap] 정화 완료했으나 Clear 전환 거부됨(현재 {Fsm.Current})");
             }
         }
 
         // 탐사 강제 종료 → 거점 복귀
         public void ForceReturn(string reason) {
             // 클리어/거점 상태면 무시 — 정화 완료(Clear)와 강제 복귀가 같은 프레임에 경합해도 Clear 보존
-            if (fsm.Current == GameState.Clear || fsm.Current == GameState.Dock) {
+            if (Fsm.Current == GameState.Clear || Fsm.Current == GameState.Dock) {
                 return;
             }
             Debug.Log($"[GameBootstrap] 강제 복귀: {reason}");
-            fsm.Change(GameState.Dock);
+            Fsm.Change(GameState.Dock);
         }
 
         void OnStateChanged(GameState from, GameState to) {
             Debug.Log($"[GameBootstrap] 전환: {from} → {to} | 무게 {run?.Weight ?? 0}/{run?.MaxWeight ?? 0}");
             if (battery != null) {
                 battery.SetDraining(to == GameState.Dive);   // 탐사 중에만 소모
+            }
+            if (hazard != null) {
+                hazard.SetArmed(to == GameState.Dive);   // 탐사 중에만 발화(Dock 복귀 후 재발화 방지)
             }
             if (purify != null) {
                 purify.SetArmed(to == GameState.Dive);   // 탐사 중에만 설치 가능(복귀 시 진행 취소)
@@ -163,11 +192,11 @@ namespace Game.Core {
         }
 
         // 인스펙터 우클릭으로 흐름 검증(입력 백엔드 불필요)
-        [ContextMenu("탐사 시작")] public void StartDive() => fsm.Change(GameState.Dive);
-        [ContextMenu("거점 복귀")] public void ReturnDock() => fsm.Change(GameState.Dock);
-        [ContextMenu("연구")] public void GoResearch() => fsm.Change(GameState.Research);
-        [ContextMenu("제작")] public void GoCraft() => fsm.Change(GameState.Craft);
-        [ContextMenu("정화 설치")] public void GoPurify() => fsm.Change(GameState.Purify);
-        [ContextMenu("클리어")] public void ClearStage() => fsm.Change(GameState.Clear);
+        [ContextMenu("탐사 시작")] public void StartDive() => Fsm.Change(GameState.Dive);
+        [ContextMenu("거점 복귀")] public void ReturnDock() => Fsm.Change(GameState.Dock);
+        [ContextMenu("연구")] public void GoResearch() => Fsm.Change(GameState.Research);
+        [ContextMenu("제작")] public void GoCraft() => Fsm.Change(GameState.Craft);
+        [ContextMenu("정화 설치")] public void GoPurify() => Fsm.Change(GameState.Purify);
+        [ContextMenu("클리어")] public void ClearStage() => Fsm.Change(GameState.Clear);
     }
 }

@@ -42,6 +42,31 @@ namespace Game.Tests {
             fsm.Change(GameState.Dive);
             Assert.AreEqual(GameState.Dive, seen);
         }
+
+        [Test]
+        public void Surface_initial_state_supported() {
+            // 수상 씬은 Surface로 시작, 기본 생성은 기존대로 Dock
+            var fsm = new GameFsm(GameState.Surface);
+            Assert.AreEqual(GameState.Surface, fsm.Current);
+            Assert.AreEqual(GameState.Dock, new GameFsm().Current);
+        }
+
+        [Test]
+        public void Surface_to_dock_allowed_dive_blocked() {
+            var fsm = new GameFsm(GameState.Surface);
+            // 수상에서 바로 수중 탐사는 불가 — 잠수(Dock)를 거쳐야 함
+            Assert.IsFalse(fsm.Change(GameState.Dive));
+            Assert.IsTrue(fsm.Change(GameState.Dock));
+        }
+
+        [Test]
+        public void Clear_to_surface_allowed() {
+            // 클리어 후 수면 복귀(W6) 경로
+            var fsm = new GameFsm();
+            fsm.Change(GameState.Dive);
+            fsm.Change(GameState.Clear);
+            Assert.IsTrue(fsm.Change(GameState.Surface));
+        }
     }
 
     // RunData 통합 무게 회계/적재 로직 테스트

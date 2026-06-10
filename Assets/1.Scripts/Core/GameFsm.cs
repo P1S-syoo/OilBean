@@ -7,15 +7,21 @@ namespace Game.Core {
     public class GameFsm {
         // 허용 전환 표 — 잘못된 전환을 막아 흐름을 명확히 유지
         static readonly Dictionary<GameState, HashSet<GameState>> Allowed = new() {
+            { GameState.Surface,  new() { GameState.Dock } },
             { GameState.Dock,     new() { GameState.Dive, GameState.Research, GameState.Craft, GameState.Purify } },
             { GameState.Dive,     new() { GameState.Dock, GameState.Clear } },
             { GameState.Research, new() { GameState.Dock } },
             { GameState.Craft,    new() { GameState.Dock } },
             { GameState.Purify,   new() { GameState.Dock, GameState.Clear } },
-            { GameState.Clear,    new() { GameState.Dock } },
+            { GameState.Clear,    new() { GameState.Dock, GameState.Surface } },
         };
 
         public GameState Current { get; private set; } = GameState.Dock;
+
+        // 씬별 시작 상태 지정(수상 씬=Surface). 기본은 기존과 동일하게 Dock
+        public GameFsm(GameState initial = GameState.Dock) {
+            Current = initial;
+        }
 
         // 상태 변경 알림 (HUD·사운드 등이 구독) — from, to
         public event Action<GameState, GameState> OnChanged;
