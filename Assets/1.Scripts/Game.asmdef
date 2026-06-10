@@ -1,7 +1,7 @@
 {
   "name": "Game",
   "rootNamespace": "Game",
-  "references": ["Unity.InputSystem", "UnityEngine.UI", "Unity.TextMeshPro", "Unity.Splines", "Unity.Mathematics"],
+  "references": ["Unity.InputSystem", "UnityEngine.UI", "Unity.TextMeshPro", "Unity.Splines", "Unity.Mathematics", "Unity.Cinemachine"],
   "overrideReferences": true,
   "precompiledReferences": ["DOTween.dll", "DOTweenPro.dll", "Newtonsoft.Json.dll"],
   "autoReferenced": true

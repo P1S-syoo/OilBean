@@ -48,6 +48,8 @@ crashlytics-build.properties
 /[Aa]ssets/Screenshots.meta
 # Unity Test Runner가 남기는 임시 씬
 /[Aa]ssets/InitTestScene*
+# Mixamo 업로드용 로컬 사본(원본은 Assets/4.Art/Characters)
+/docs/MainCharacter.fbx
 # VARCO API 스모크 테스트가 생성하는 오디오 산출물(재생성 가능)
 /[Aa]ssets/9.Tests/Varco/
 /[Aa]ssets/9.Tests/Varco.meta
