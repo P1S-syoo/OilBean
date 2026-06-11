@@ -29,14 +29,14 @@ namespace Game.Tests {
             o.GetType().GetField(name, BindingFlags.NonPublic | BindingFlags.Instance).SetValue(o, v);
         }
 
-        // 최소 리그: GameBootstrap(수상 시작) + 스플라인 항해 잠수정 + SurfaceBootstrap
-        SurfaceBootstrap Make(out SubNavigator nav) {
+        // 최소 리그: GameBootstrap + 스플라인 항해 잠수정 + SurfaceBootstrap (onSurface=false면 Dock 시작)
+        SurfaceBootstrap Make(out SubNavigator nav, bool onSurface = true) {
             run = ScriptableObject.CreateInstance<RunData>();
             gameGo = new GameObject("Game");
             gameGo.SetActive(false);
             var game = gameGo.AddComponent<GameBootstrap>();
             SetField(game, "run", run);
-            SetField(game, "startOnSurface", true);
+            SetField(game, "startOnSurface", onSurface);
             gameGo.SetActive(true);
 
             rig = new GameObject("SurfaceRig");
@@ -86,6 +86,17 @@ namespace Game.Tests {
             Assert.IsFalse(rig.activeSelf, "잠수 후 수상 리그 비활성");
             Assert.AreEqual(GameState.Dock, ((GameBootstrap)GetGame(boot)).State, "잠수 후 거점 인계");
             Assert.AreEqual(nav.TargetIndex + 1, run.SurfaceTargetIdx, "다음 수상 목표 기록(복귀 재개용)");
+        }
+
+        [UnityTest]
+        public IEnumerator Dive_refused_keeps_surface_rig_alive() {
+            // 인계 거부(수상 상태가 아님) 시 리그가 죽지 않고 재시도 가능해야 — 데드 상태 방지(리뷰 Critical)
+            var boot = Make(out _, false);   // Dock 시작 → Surface→Dock 인계 거부
+            LogAssert.Expect(LogType.Warning, "[SurfaceBootstrap] 잠수 인계 실패 — 수상 상태로 복귀");
+            boot.RequestDive();
+            yield return new WaitForSeconds(0.3f);
+            Assert.IsTrue(rig.activeSelf, "인계 거부 시 수상 리그 유지");
+            Assert.AreEqual(GameState.Dock, ((GameBootstrap)GetGame(boot)).State, "상태는 그대로 Dock");
         }
 
         static object GetGame(SurfaceBootstrap boot) {

@@ -33,6 +33,9 @@ namespace Game.Surface {
         Color prevBg;
         CameraClearFlags prevClear;
         bool bgOverridden;
+        bool prevParticlesActive = true;   // 숨기기 전 활성 상태 — 원복은 항상 이전 상태로
+        bool prevBlocksActive = true;
+        bool prevSkyActive = true;
 
         public bool DiveReady => diveReady;
 
@@ -61,12 +64,15 @@ namespace Game.Surface {
                     bgOverridden = true;
                 }
                 if (camParticles != null) {
+                    prevParticlesActive = camParticles.gameObject.activeSelf;
                     camParticles.gameObject.SetActive(false);   // 수중 입자는 잠수 후에만
                 }
                 if (worldBlocks != null) {
+                    prevBlocksActive = worldBlocks.activeSelf;
                     worldBlocks.SetActive(false);   // 2.5D 백드롭은 잠수 후에만
                 }
                 if (skyQuad != null) {
+                    prevSkyActive = skyQuad.activeSelf;
                     skyQuad.SetActive(false);
                 }
             }
@@ -127,12 +133,7 @@ namespace Game.Surface {
 
         IEnumerator DiveSequence() {
             // 1) 입력 잠금 + 커서 명시 복원(orbitDriver 생명주기에 의존하지 않음 — 누수 방지)
-            if (deck != null) {
-                deck.enabled = false;
-            }
-            if (orbitDriver != null) {
-                orbitDriver.enabled = false;
-            }
+            SetSurfaceControl(false);
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
             // 2) 사이드뷰 프레이밍 카메라로 블렌드 시작
@@ -146,52 +147,91 @@ namespace Game.Surface {
             }
             // 3) 잠수정이 수면 아래로 가라앉음(블렌드와 동시 진행)
             Tween descend = null;
+            float subY = nav != null ? nav.transform.position.y : 0f;
             if (nav != null) {
                 nav.enabled = false;   // 항해 정지 상태 고정
                 try {
-                    descend = nav.transform.DOMoveY(nav.transform.position.y - descendDepth, blendTime + 0.6f)
+                    descend = nav.transform.DOMoveY(subY - descendDepth, blendTime + 0.6f)
                         .SetEase(Ease.InQuad);
                 } catch (Exception e) {
                     Debug.LogError($"[SurfaceBootstrap] 하강 트윈 실패: {e.Message}");
                 }
             }
-            // 블렌드 동안 DiveCam이 목표 프레이밍을 계속 추적 — 종료 위치 = CamFollow 목표 보장(인계 점프 제거)
-            float t = 0f;
-            while (t < blendTime) {
-                t += Time.deltaTime;
-                if (diveCam != null && sideTarget != null) {
-                    diveCam.transform.position = sideTarget.position + new Vector3(0f, 0f, sideZOffset);
+            bool handedOff = false;
+            // 코루틴 중단·예외 경로에서도 finally가 트윈·상태를 정리 — 인계 성공에만 2.5D 전환을 묶음
+            try {
+                // 블렌드 동안 DiveCam이 목표 프레이밍을 계속 추적 — 종료 위치 = CamFollow 목표 보장(인계 점프 제거)
+                float t = 0f;
+                while (t < blendTime) {
+                    t += Time.deltaTime;
+                    if (diveCam != null && sideTarget != null) {
+                        diveCam.transform.position = sideTarget.position + new Vector3(0f, 0f, sideZOffset);
+                    }
+                    yield return null;
                 }
-                yield return null;
+                // 4) 게임 루프 인계 — 성공해야만 2.5D로 전환
+                handedOff = game.EnterDockFromSurface();
+                if (handedOff && game.Run != null && nav != null) {
+                    game.Run.SetSurfaceTarget(nav.TargetIndex + 1);   // 다음 수상 목표 기록(복귀 항해 재개용)
+                }
+            } finally {
+                if (handedOff) {
+                    descend?.Kill(true);          // 하강 종착점 고정 — 리그 비활성 후 트윈 접근 방지
+                    RestoreUnderwaterVisuals();
+                } else {
+                    // 인계 거부·코루틴 중단 — 수상 상태로 되돌려 재시도 가능(데드 상태 방지)
+                    Debug.LogWarning("[SurfaceBootstrap] 잠수 인계 실패 — 수상 상태로 복귀");
+                    descend?.Kill(false);
+                    if (nav != null) {
+                        var p = nav.transform.position;
+                        p.y = subY;
+                        nav.transform.position = p;
+                    }
+                    if (diveCam != null) {
+                        diveCam.gameObject.SetActive(false);
+                    }
+                    if (orbitCam != null) {
+                        orbitCam.gameObject.SetActive(true);
+                    }
+                    SetSurfaceControl(true);
+                    diving = false;
+                }
             }
-            // 리그 비활성 후에도 트윈이 비활성 트랜스폼을 만지지 않도록 정리
-            descend?.Kill(true);
-            // 4) 카메라 인계 + 게임 루프 인계 + 다음 수상 목표 기록(복귀 항해 재개용)
+            // 5) 인계 성공 시에만 수상 리그 종료 — 이 코루틴도 함께 멈추므로 반드시 마지막 줄
+            //    (W6 수면 복귀는 리그 재활성 + 배치 메뉴 상태가 전제 — 계획서 W6 참조)
+            if (handedOff) {
+                gameObject.SetActive(false);
+            }
+        }
+
+        // 덱 조작·궤도 카메라 입력 일괄 토글(궤도 드라이버 OnEnable이 커서 잠금을 처리)
+        void SetSurfaceControl(bool on) {
+            if (deck != null) {
+                deck.enabled = on;
+            }
+            if (orbitDriver != null) {
+                orbitDriver.enabled = on;
+            }
+        }
+
+        // 수상 동안 덮었던 2.5D 요소를 숨기기 전 상태로 복원 + 사이드뷰 인계
+        void RestoreUnderwaterVisuals() {
             if (bgOverridden && mainCam != null) {
-                mainCam.clearFlags = prevClear;      // 수중 배경색 원복
+                mainCam.clearFlags = prevClear;
                 mainCam.backgroundColor = prevBg;
             }
             if (camParticles != null) {
-                camParticles.gameObject.SetActive(true);   // 수중 입자 재개
+                camParticles.gameObject.SetActive(prevParticlesActive);
             }
             if (worldBlocks != null) {
-                worldBlocks.SetActive(true);    // 2.5D 백드롭 복원
+                worldBlocks.SetActive(prevBlocksActive);
             }
             if (skyQuad != null) {
-                skyQuad.SetActive(true);
+                skyQuad.SetActive(prevSkyActive);
             }
             if (sideCamera != null) {
                 sideCamera.enabled = true;
             }
-            if (game.EnterDockFromSurface()) {
-                if (game.Run != null && nav != null) {
-                    game.Run.SetSurfaceTarget(nav.TargetIndex + 1);
-                }
-            } else {
-                Debug.LogWarning("[SurfaceBootstrap] 잠수 인계 거부됨");
-            }
-            // 5) 수상 리그 종료 — 이 코루틴도 함께 멈추므로 반드시 마지막 줄
-            gameObject.SetActive(false);
         }
     }
 }

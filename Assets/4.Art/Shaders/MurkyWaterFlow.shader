@@ -116,6 +116,18 @@ Shader "Game/MurkyWaterFlow"
             #pragma fragment fragDepth
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
+            // SRP Batcher 호환 — 모든 패스의 UnityPerMaterial 레이아웃이 일치해야 배칭됨
+            CBUFFER_START(UnityPerMaterial)
+                float4 _BaseColor;
+                float4 _DeepColor;
+                float4 _FoamColor;
+                float4 _FlowDir;
+                float _FlowSpeed;
+                float _WaveScale;
+                float _FoamAmount;
+                float _SpecStrength;
+            CBUFFER_END
+
             struct ADepth { float4 positionOS:POSITION; };
             struct VDepth { float4 positionCS:SV_POSITION; };
 
