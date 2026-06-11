@@ -3,13 +3,19 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.Splines;
 using Game.Surface;
+using Game.World;
 
 namespace Game.Editor.Surface {
-    // 강 양안 폐허 스카이라인 산포 도구 — 로드뷰→VARCO 빌딩 모델을 해시 변주(높이·기울임·침하)로 배치
+    // 강 양안 폐허 스카이라인 산포 도구 — 빌딩 2줄(근경+원경) + 터널 섹션마다 다리, 스플라인 양 끝 너머까지 연장
     public static class SkylinePlacer {
         const float RiverHalfWidth = 18f;                  // LandmarkPlacer와 동일한 강폭 기준
-        const float Spacing = 14f;                         // 빌딩 간 스플라인 거리(u)
+        const float Spacing = 14f;                         // 빌딩 간 체인 거리(u)
+        const float CoverExtra = 90f;                      // 스플라인 양 끝 너머 연장 — 시작 뒤·종점 너머 허전함 방지(안개 가시거리 커버)
+        const float BackRowExtra = 18f;                    // 원경 뒷줄 추가 후퇴 거리
         const float SebitMin = 0.40f, SebitMax = 0.54f;    // 세빛섬(t=0.47 우안) 주변은 비움
+        const string BridgePath = "Assets/VARCO3DImports/bridge_arch.glb";
+        const float BridgeHeightM = 26f;                   // 한강대교 아치 수면 위 실측(m)
+        const float SpanClearance = 5.5f;                  // 다리 밑면-수면 간격(u) — 잠수정(잠망경 ~3u) 통과 여유
 
         // 변주 소스 — (에셋 경로, 실물 높이 m). 새 빌딩은 여기에 추가
         static readonly (string path, float heightM)[] Variants = {
@@ -56,68 +62,82 @@ namespace Game.Editor.Surface {
                 }
 
                 float len = river.CalculateLength();
-                int steps = Mathf.Max(1, Mathf.FloorToInt(len / Spacing));
+                int steps = Mathf.Max(1, Mathf.FloorToInt((len + CoverExtra * 2f) / Spacing));
                 int placed = 0;
                 for (int i = 0; i <= steps; i++) {
-                    float t = (float)i / steps;
+                    float d = -CoverExtra + i * Spacing;
+                    EvalRiver(river, len, d, out var pos, out var tangent);
+                    float t01 = d / len;
                     for (int s = 0; s < 2; s++) {
                         int side = s == 0 ? -1 : 1;
-                        if (side > 0 && t > SebitMin && t < SebitMax) {
-                            continue;   // 명소 자리 확보
-                        }
+                        bool sebitGap = side > 0 && t01 > SebitMin && t01 < SebitMax;
+                        // 근경 줄 — 20% 틈(무너져 사라진 자리), 명소 자리 비움
                         int h = Hash(i * 2 + s, 91);
-                        if (h % 5 == 0) {
-                            continue;   // 듬성듬성 — 스카이라인 틈(무너져 사라진 자리)
-                        }
-                        int v = h % Variants.Length;
-                        if (prefabs[v] == null) {
-                            v = (v + 1) % Variants.Length;   // 빠진 변주는 다른 모델로 대체
-                            if (prefabs[v] == null) {
-                                continue;
+                        if (!sebitGap && h % 5 != 0) {
+                            if (PlaceOne(root.transform, prefabs, pos, tangent, side,
+                                RiverHalfWidth + 5f + (h >> 3) % 7, h, 1f)) {
+                                placed++;
                             }
                         }
-                        if (PlaceOne(root.transform, river, prefabs[v], Variants[v].heightM, t, side, h)) {
-                            placed++;
+                        // 원경 뒷줄 — 근경 틈 사이로도 먼 빌딩이 보이게(더 크고 더 물러남)
+                        int h2 = Hash(i * 2 + s, 173);
+                        if (h2 % 7 != 0) {
+                            if (PlaceOne(root.transform, prefabs, pos, tangent, side,
+                                RiverHalfWidth + BackRowExtra + 6f + (h2 >> 3) % 9, h2, 1.25f)) {
+                                placed++;
+                            }
                         }
                     }
                 }
+                int bridges = PlaceSectionBridges(root.transform, river, len);
                 EditorUtility.SetDirty(rig);
                 UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(rig.scene);
-                Debug.Log($"[SkylinePlacer] 폐허 스카이라인 배치 완료 — {placed}개 (변주 {loaded}종, 간격 {Spacing}u)");
+                Debug.Log($"[SkylinePlacer] 폐허 스카이라인 배치 완료 — 빌딩 {placed}동(2줄) + 다리 {bridges}개 (연장 ±{CoverExtra}u)");
             } catch (Exception e) {
                 Debug.LogError($"[SkylinePlacer] 배치 실패: {e.Message}\n{e.StackTrace}");
             }
         }
 
-        // 한 동 배치 — 실측 스케일 + 해시 변주(높이 ±20%·요 ±8°·기울임·침하)로 같은 모델 반복감 제거
-        static bool PlaceOne(Transform parent, SplineContainer river, GameObject prefab, float heightM, float t, int side, int h) {
-            var go = (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent);
-            go.name = $"Ruin_{Mathf.RoundToInt(t * 100):00}{(side < 0 ? "L" : "R")}";
+        // 체인 거리 d(범위 밖 허용) → 강 중심선 위치·접선 — 스플라인 끝 너머는 끝 접선 방향 직선 연장
+        static void EvalRiver(SplineContainer river, float len, float d, out Vector3 pos, out Vector3 tangent) {
+            float t = Mathf.Clamp01(d / len);
+            pos = (Vector3)river.EvaluatePosition(t);
+            tangent = ((Vector3)(Unity.Mathematics.float3)river.EvaluateTangent(t));
+            tangent.y = 0f;
+            tangent = tangent.sqrMagnitude > 0.0001f ? tangent.normalized : Vector3.forward;
+            pos += tangent * (d - t * len);
+        }
+
+        // 한 동 배치 — 실측 스케일 + 해시 변주(높이 ±20%·요 ±8°·기울임). heightMul=원경 확대 계수
+        static bool PlaceOne(Transform parent, GameObject[] prefabs, Vector3 pos, Vector3 tangent, int side, float bankDist, int h, float heightMul) {
+            int v = h % Variants.Length;
+            if (prefabs[v] == null) {
+                v = (v + 1) % Variants.Length;   // 빠진 변주는 다른 모델로 대체
+                if (prefabs[v] == null) {
+                    return false;
+                }
+            }
+            var go = (GameObject)PrefabUtility.InstantiatePrefab(prefabs[v], parent);
+            go.name = $"Ruin_{Mathf.RoundToInt(pos.x)}{(side < 0 ? "L" : "R")}{(heightMul > 1f ? "B" : "")}";
 
             Bounds b = CalcBounds(go);
             if (b.size.y <= 0.0001f) {
                 UnityEngine.Object.DestroyImmediate(go);
                 return false;
             }
-            float varied = heightM * (0.8f + (h % 41) * 0.01f);          // 높이 ±20% 변주
+            float varied = Variants[v].heightM * heightMul * (0.8f + (h % 41) * 0.01f);   // 높이 ±20% 변주
             float scale = LandmarkScale.GameHeight(varied) / b.size.y;
             // 파사드형 모델은 가로가 과대해질 수 있어 발자국 폭 상한(카메라 침범 방지)
-            const float footprintCap = 24f;
+            float footprintCap = 24f * heightMul;
             float widest = Mathf.Max(b.size.x, b.size.z);
             scale = Mathf.Min(scale, footprintCap / Mathf.Max(widest, 0.001f));
             go.transform.localScale = Vector3.one * scale;
 
-            // 스플라인 접선·법선으로 강변 바깥 방향 산출
-            Vector3 pos = (Vector3)river.EvaluatePosition(t);
-            Vector3 tangent = ((Vector3)(Unity.Mathematics.float3)river.EvaluateTangent(t));
-            tangent.y = 0f;
-            tangent = tangent.sqrMagnitude > 0.0001f ? tangent.normalized : Vector3.forward;
             Vector3 right = Vector3.Cross(Vector3.up, tangent).normalized;
-            float bankExtra = 5f + (h >> 3) % 7;                          // 강변에서 5~11u 물러남
-            Vector3 worldPos = pos + right * side * (RiverHalfWidth + bankExtra);
+            Vector3 worldPos = pos + right * side * bankDist;
 
             // 바닥 스냅(수면 기준) — 침하 변주는 저층만 남아 부서진 다리처럼 오독돼 제거
-            float baseline = Game.World.WorldGen.WaterY + 0.45f;
+            float baseline = WorldGen.WaterY + 0.45f;
             go.transform.rotation = Quaternion.identity;
             Bounds sb = CalcBounds(go);
             worldPos.y = baseline - (sb.min.y - go.transform.position.y);
@@ -131,6 +151,62 @@ namespace Game.Editor.Surface {
                 rot = Quaternion.AngleAxis(lean, tangent) * rot;
             }
             go.transform.rotation = rot;
+            return true;
+        }
+
+        // 2.5D 터널 섹션(다리 밑 테마) 중심마다 강 가로지름 다리 — 수중 터널과 수상 다리가 같은 X에서 정렬
+        static int PlaceSectionBridges(Transform parent, SplineContainer river, float len) {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(BridgePath);
+            if (prefab == null) {
+                Debug.LogWarning($"[SkylinePlacer] 다리 모델 없음: {BridgePath} — roadview-to-3d로 생성 후 임포트");
+                return 0;
+            }
+            EvalRiver(river, len, 0f, out var origin, out _);
+            EvalRiver(river, len, -CoverExtra, out var startPos, out _);
+            EvalRiver(river, len, len + CoverExtra, out var endPos, out _);
+            float xMin = Mathf.Min(startPos.x, endPos.x);
+            float xMax = Mathf.Max(startPos.x, endPos.x);
+
+            int placed = 0;
+            int giMin = Mathf.FloorToInt((xMin - WorldGen.OriginX) / WorldGen.SectionW);
+            int giMax = Mathf.CeilToInt((xMax - WorldGen.OriginX) / WorldGen.SectionW);
+            for (int gi = giMin; gi <= giMax; gi++) {
+                float centerX = WorldGen.OriginX + (gi + 0.5f) * WorldGen.SectionW;
+                if (centerX < xMin || centerX > xMax) {
+                    continue;
+                }
+                if (WorldGen.SectionAt(Mathf.RoundToInt(centerX)) != SectionType.Tunnel) {
+                    continue;
+                }
+                // 강은 대체로 +X 진행 — 체인 거리를 X 차이로 근사(굽이는 EvalRiver가 z를 보정)
+                EvalRiver(river, len, centerX - origin.x, out var pos, out var tangent);
+                if (PlaceBridge(parent, prefab, pos, tangent, gi)) {
+                    placed++;
+                }
+            }
+            return placed;
+        }
+
+        // 다리 한 스팬 — 긴 축을 강폭 방향으로, 밑면은 수면+통과 여유
+        static bool PlaceBridge(Transform parent, GameObject prefab, Vector3 pos, Vector3 tangent, int gi) {
+            var go = (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent);
+            go.name = $"Bridge_{gi}";
+            Bounds b = CalcBounds(go);
+            if (b.size.y <= 0.0001f) {
+                UnityEngine.Object.DestroyImmediate(go);
+                return false;
+            }
+            float scale = LandmarkScale.GameHeight(BridgeHeightM) / b.size.y;
+            go.transform.localScale = Vector3.one * scale;
+
+            Vector3 right = Vector3.Cross(Vector3.up, tangent).normalized;
+            go.transform.rotation = (b.size.x >= b.size.z)
+                ? Quaternion.LookRotation(tangent)
+                : Quaternion.LookRotation(right);
+            Bounds rb = CalcBounds(go);
+            Vector3 spanPos = pos;
+            spanPos.y = WorldGen.WaterY + 0.45f + SpanClearance - (rb.min.y - go.transform.position.y);
+            go.transform.position = spanPos;
             return true;
         }
 
