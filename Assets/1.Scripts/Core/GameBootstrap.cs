@@ -40,6 +40,9 @@ namespace Game.Core {
         public GameState State => Fsm.Current;
         public RunData Run => run;
 
+        // 상태 전환 알림 — FSM 비공개를 유지한 채 오디오 등 외부 시스템이 구독
+        public event System.Action<GameState, GameState> OnStateChanged;
+
         void Awake() {
             try {
                 if (run == null) {
@@ -51,7 +54,7 @@ namespace Game.Core {
                 if (clearView != null) clearView.ResetState();
                 if (purify != null) purify.ResetState();
                 dockPos = sub != null ? sub.position : Vector3.zero;
-                Fsm.OnChanged += OnStateChanged;
+                Fsm.OnChanged += HandleStateChanged;
                 // 강제 복귀 트리거 구독(S2 이벤트 소비)
                 if (battery != null) {
                     battery.OnEmpty += OnBatteryEmpty;
@@ -103,7 +106,7 @@ namespace Game.Core {
         void OnDestroy() {
             // 파괴 시점엔 새로 만들지 않도록 필드로 접근
             if (fsm != null) {
-                fsm.OnChanged -= OnStateChanged;
+                fsm.OnChanged -= HandleStateChanged;
             }
             if (battery != null) battery.OnEmpty -= OnBatteryEmpty;
             if (collector != null) {
@@ -156,8 +159,9 @@ namespace Game.Core {
             Fsm.Change(GameState.Dock);
         }
 
-        void OnStateChanged(GameState from, GameState to) {
+        void HandleStateChanged(GameState from, GameState to) {
             Debug.Log($"[GameBootstrap] 전환: {from} → {to} | 무게 {run?.Weight ?? 0}/{run?.MaxWeight ?? 0}");
+            OnStateChanged?.Invoke(from, to);
             if (battery != null) {
                 battery.SetDraining(to == GameState.Dive);   // 탐사 중에만 소모
             }
