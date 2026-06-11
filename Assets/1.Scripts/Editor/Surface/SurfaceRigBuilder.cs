@@ -35,6 +35,7 @@ namespace Game.Editor.Surface {
                 BuildIntro(root.transform, nav, player, orbitCam, orbitDriver);
                 BuildEnvironment(root.transform);
                 WireBootstrap(root, nav, player, orbitCam, orbitDriver, diveCam);
+                SkylinePlacer.EnsureStreamer(root);   // 스카이라인 스트리머(수상·수중 무한) 배선
 
                 EditorUtility.SetDirty(root);
                 UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(root.scene);
@@ -222,7 +223,7 @@ namespace Game.Editor.Surface {
             var orbital = camGo.AddComponent<CinemachineOrbitalFollow>();
             orbital.Radius = 8f;
             orbital.TargetOffset = new Vector3(0f, 1.2f, 0f);
-            orbital.VerticalAxis.Range = new Vector2(-20f, 65f);
+            orbital.VerticalAxis.Range = new Vector2(3f, 65f);   // 하한 +3° — 카메라가 수면 아래로 안 내려가게(물속 노출 방지)
             orbital.VerticalAxis.Value = 18f;
             camGo.AddComponent<CinemachineRotationComposer>();
             var driver = camGo.AddComponent<OrbitCameraDriver>();
