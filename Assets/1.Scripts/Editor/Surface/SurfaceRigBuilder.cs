@@ -10,6 +10,12 @@ using Game.Surface;
 namespace Game.Editor.Surface {
     // 수상 리그 그레이박스 생성 도구 — Main3D에 강 스플라인·잠수정·덱 캐릭터·궤도 카메라를 코드로 배치(재생성 가능)
     public static class SurfaceRigBuilder {
+        // 실물 모델 에셋 — 없으면 그레이박스 폴백
+        const string SubModelPath = "Assets/4.Art/Models/PolyPizza/submarine1.glb";
+        const string CharModelPath = "Assets/4.Art/Characters/MainCharacter.fbx";
+        const string CharAnimPath = "Assets/4.Art/Characters/PlayerAnim.controller";
+        const float SubLength = 11f;          // 잠수정 진행축(Z) 목표 길이
+        const float CharacterHeight = 1.7f;   // 덱 캐릭터 목표 키
 
         [MenuItem("Tools/한강/수상 리그 생성")]
         public static void Build() {
@@ -22,8 +28,8 @@ namespace Game.Editor.Surface {
                 Undo.RegisterCreatedObjectUndo(root, "수상 리그 생성");
 
                 var river = BuildRiver(root.transform);
-                var nav = BuildSub(root.transform, river);
-                var player = BuildDeckPlayer(nav.transform);
+                var (nav, deckTop, deckHalf) = BuildSub(root.transform, river);
+                var player = BuildDeckPlayer(nav.transform, deckTop, deckHalf);
                 var (orbitCam, orbitDriver) = BuildOrbitCamera(root.transform, player);
                 var diveCam = BuildDiveCam(root.transform);
                 BuildIntro(root.transform, nav, player, orbitCam, orbitDriver);
@@ -58,50 +64,114 @@ namespace Game.Editor.Surface {
             return container;
         }
 
-        // 잠수정 그레이박스 — 덱 위를 걸을 수 있게 선체를 넉넉히(4.5×1.5×11)
-        static SubNavigator BuildSub(Transform parent, SplineContainer river) {
+        // 잠수정 — 실물 모델(submarine1) 바운즈 기반 축 정렬·스케일, 없으면 큐브 그레이박스 폴백
+        static (SubNavigator nav, float deckTop, Vector2 deckHalf) BuildSub(Transform parent, SplineContainer river) {
             var subRoot = new GameObject("Sub3D");
             subRoot.transform.SetParent(parent, false);
+            float deckTop = 0.75f;                        // 그레이박스 선체 윗면 기본값
+            var deckHalf = new Vector2(1.8f, 4.6f);
 
-            var hull = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            hull.name = "Hull";
-            hull.transform.SetParent(subRoot.transform, false);
-            hull.transform.localScale = new Vector3(4.5f, 1.5f, 11f);   // 진행축(Z) 길쭉한 넓은 덱
-            UnityEngine.Object.DestroyImmediate(hull.GetComponent<Collider>());   // 그레이박스라 3D 충돌 불필요
-            hull.AddComponent<FloatBob>();   // 부유 모션은 모델에만(루트는 항해 위치 고정)
-
-            var tower = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            tower.name = "Tower";
-            tower.transform.SetParent(hull.transform, false);
-            tower.transform.localPosition = new Vector3(0f, 0.85f, 0.18f);
-            tower.transform.localScale = new Vector3(0.25f, 0.7f, 0.12f);
-            UnityEngine.Object.DestroyImmediate(tower.GetComponent<Collider>());
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(SubModelPath);
+            if (prefab != null) {
+                var model = (GameObject)PrefabUtility.InstantiatePrefab(prefab, subRoot.transform);
+                model.name = "Model";
+                var b = CalcBounds(model);
+                if (b.size.x > b.size.z) {
+                    model.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);   // 긴 축을 진행축(Z)으로
+                    b = CalcBounds(model);
+                }
+                float scale = SubLength / Mathf.Max(b.size.z, 0.001f);
+                model.transform.localScale = Vector3.one * scale;
+                b = CalcBounds(model);
+                model.transform.position -= b.center;     // 선체 중심을 흘수선(루트 원점)에 — 반쯤 잠긴 항해 자세
+                b = CalcBounds(model);
+                deckTop = HullTopY(model);                // 함교/잠망경/프로펠러 제외한 선체 윗면
+                deckHalf = new Vector2(Mathf.Max(b.extents.x * 0.6f, 0.6f), b.extents.z * 0.8f);
+                model.AddComponent<FloatBob>();           // 부유 모션은 모델에만(루트는 항해 위치 고정)
+            } else {
+                Debug.LogWarning($"[SurfaceRigBuilder] 잠수정 모델 없음({SubModelPath}) — 큐브 그레이박스로 대체");
+                var hull = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                hull.name = "Hull";
+                hull.transform.SetParent(subRoot.transform, false);
+                hull.transform.localScale = new Vector3(4.5f, 1.5f, 11f);
+                UnityEngine.Object.DestroyImmediate(hull.GetComponent<Collider>());
+                hull.AddComponent<FloatBob>();
+            }
 
             var nav = subRoot.AddComponent<SubNavigator>();
             var so = new SerializedObject(nav);
             so.FindProperty("river").objectReferenceValue = river;
             so.ApplyModifiedPropertiesWithoutUndo();
-            return nav;
+            return (nav, deckTop, deckHalf);
         }
 
-        // 덱 위 캐릭터 캡슐 — 잠수정 자식(로컬 이동), 덱 경계는 DeckCharacter가 클램프
-        static DeckCharacter BuildDeckPlayer(Transform sub) {
-            var player = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            player.name = "DeckPlayer";
-            player.transform.SetParent(sub, false);
-            player.transform.localPosition = new Vector3(0f, 1.65f, -2f);   // 덱 윗면 + 캡슐 절반
-            player.transform.localScale = new Vector3(0.6f, 0.9f, 0.6f);
-            UnityEngine.Object.DestroyImmediate(player.GetComponent<Collider>());
+        // 덱 위 캐릭터 — 2.5D와 같은 수영 플레이어 모델(MainCharacter+PlayerAnim) 재사용, 없으면 캡슐 폴백
+        static DeckCharacter BuildDeckPlayer(Transform sub, float deckTop, Vector2 deckHalf) {
+            var playerRoot = new GameObject("DeckPlayer");
+            playerRoot.transform.SetParent(sub, false);
+            playerRoot.transform.localPosition = new Vector3(0f, deckTop, -deckHalf.y * 0.4f);
 
-            // 전방 표시(코) — 회전 방향 확인용
-            var nose = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            nose.name = "Nose";
-            nose.transform.SetParent(player.transform, false);
-            nose.transform.localPosition = new Vector3(0f, 0.4f, 0.45f);
-            nose.transform.localScale = new Vector3(0.25f, 0.15f, 0.4f);
-            UnityEngine.Object.DestroyImmediate(nose.GetComponent<Collider>());
+            Animator animator = null;
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(CharModelPath);
+            if (prefab != null) {
+                var model = (GameObject)PrefabUtility.InstantiatePrefab(prefab, playerRoot.transform);
+                model.name = "Model";
+                var b = CalcBounds(model);
+                if (b.size.y > 0.0001f) {
+                    model.transform.localScale = Vector3.one * (CharacterHeight / b.size.y);
+                    b = CalcBounds(model);
+                    // 발바닥(바운즈 바닥)을 루트(덱 윗면)에 스냅
+                    model.transform.position += playerRoot.transform.position - new Vector3(b.center.x, b.min.y, b.center.z);
+                }
+                animator = model.GetComponentInChildren<Animator>();
+                var ctrl = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(CharAnimPath);
+                if (animator != null && ctrl != null) {
+                    animator.runtimeAnimatorController = ctrl;
+                }
+            } else {
+                Debug.LogWarning($"[SurfaceRigBuilder] 캐릭터 모델 없음({CharModelPath}) — 캡슐 그레이박스로 대체");
+                var capsule = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+                capsule.name = "Model";
+                capsule.transform.SetParent(playerRoot.transform, false);
+                capsule.transform.localPosition = new Vector3(0f, 0.9f, 0f);
+                capsule.transform.localScale = new Vector3(0.6f, 0.9f, 0.6f);
+                UnityEngine.Object.DestroyImmediate(capsule.GetComponent<Collider>());
+            }
 
-            return player.AddComponent<DeckCharacter>();
+            var deck = playerRoot.AddComponent<DeckCharacter>();
+            var dso = new SerializedObject(deck);
+            dso.FindProperty("deckHalf").vector2Value = deckHalf;
+            dso.FindProperty("animator").objectReferenceValue = animator;
+            dso.ApplyModifiedPropertiesWithoutUndo();
+            return deck;
+        }
+
+        // 가장 부피 큰 렌더러(선체)의 윗면 Y — 함교·잠망경·프로펠러가 바운즈를 부풀리는 것을 배제
+        static float HullTopY(GameObject model) {
+            Renderer hull = null;
+            float best = 0f;
+            foreach (var r in model.GetComponentsInChildren<Renderer>()) {
+                var s = r.bounds.size;
+                float v = s.x * s.y * s.z;
+                if (v > best) {
+                    best = v;
+                    hull = r;
+                }
+            }
+            return hull != null ? hull.bounds.max.y : 0.75f;
+        }
+
+        // 모든 렌더러를 합친 월드 바운즈 — 모델 피벗 위치와 무관한 스케일/스냅 기준
+        static Bounds CalcBounds(GameObject go) {
+            var renderers = go.GetComponentsInChildren<Renderer>();
+            if (renderers.Length == 0) {
+                return new Bounds(go.transform.position, Vector3.zero);
+            }
+            Bounds b = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++) {
+                b.Encapsulate(renderers[i].bounds);
+            }
+            return b;
         }
 
         // 3인칭 궤도 카메라(Cinemachine) + 마우스 입력 드라이버, 메인 카메라에 Brain 보장

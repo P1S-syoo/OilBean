@@ -9,6 +9,9 @@ namespace Game.Surface {
         [SerializeField] float moveSpeed = 3.5f;
         [SerializeField] float turnSpeed = 12f;                  // 이동 방향 회전 보간 속도
         [SerializeField] Vector2 deckHalf = new(1.8f, 4.6f);    // 덱 절반 크기(로컬 x, z) — 잠수정 선체와 일치
+        [SerializeField] Animator animator;                      // 선택 — 이동 시 Speed 파라미터로 모션 전환
+
+        static readonly int SpeedHash = Animator.StringToHash("Speed");
 
         InputAction move;
 
@@ -49,7 +52,11 @@ namespace Game.Surface {
 
         // 이동 1스텝 — 테스트에서 입력을 직접 주입할 수 있게 분리
         public void Step(Vector2 input, float dt) {
-            if (input.sqrMagnitude < 0.0001f || transform.parent == null) {
+            float mag = Mathf.Clamp01(input.magnitude);
+            if (animator != null) {
+                animator.SetFloat(SpeedHash, mag);   // Idle↔Swim 전환(임계 0.1)
+            }
+            if (mag * mag < 0.0001f || transform.parent == null) {
                 return;
             }
             // 카메라 기준 수평 방향(카메라 없으면 잠수정 전방 기준)
