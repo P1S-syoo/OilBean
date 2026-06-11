@@ -20,8 +20,8 @@ namespace Game.Tests {
         [Test]
         public void Floor_exists_far_from_origin() {
             // 바닥은 X 무한 — 원점에서 아주 먼 곳에도 생성
-            Assert.IsTrue(WorldGen.IsSolid(1, 100000, -30), "x=+100000 바닥");
-            Assert.IsTrue(WorldGen.IsSolid(1, -100000, -30), "x=-100000 바닥");
+            Assert.IsTrue(WorldGen.IsSolid(1, 100000, 0), "x=+100000 바닥");
+            Assert.IsTrue(WorldGen.IsSolid(1, -100000, 0), "x=-100000 바닥");
             Assert.IsFalse(WorldGen.IsSolid(1, 100000, WorldGen.MaxY + 1), "Y 상한 밖은 비어야");
             Assert.IsFalse(WorldGen.IsSolid(1, 100000, WorldGen.MinY - 1), "Y 하한 밖은 비어야");
         }
@@ -30,7 +30,7 @@ namespace Game.Tests {
         public void Column_generates_specs_far_away() {
             // 청크 스트리머가 쓰는 Column도 먼 좌표에서 스펙 생성
             var specs = new List<WorldGen.Spec>();
-            WorldGen.Column(54000, -25, specs);
+            WorldGen.Column(54000, 0, specs);
             Assert.Greater(specs.Count, 0, "먼 좌표 바닥 칼럼에 블록 스펙이 있어야");
         }
 
@@ -39,8 +39,8 @@ namespace Game.Tests {
             // 같은 좌표는 항상 같은 결과(시드 고정 절차 생성)
             var a = new List<WorldGen.Spec>();
             var b = new List<WorldGen.Spec>();
-            WorldGen.Column(777, -20, a);
-            WorldGen.Column(777, -20, b);
+            WorldGen.Column(777, 0, a);
+            WorldGen.Column(777, 0, b);
             Assert.AreEqual(a.Count, b.Count);
             for (int i = 0; i < a.Count; i++) {
                 Assert.AreEqual(a[i].role, b[i].role);

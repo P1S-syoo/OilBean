@@ -11,7 +11,7 @@ namespace Game.World {
 
     // 맵 데이터 정의(절차 생성) — 섹션 시퀀스 + 경계 블렌드 + 해수면 위 강변 백드롭. VARCO export도 이걸 샘플링
     public static class WorldGen {
-        public const int MinY = -42, MaxY = 56;     // 위아래 ~2배 깊게(수중↓ + 해수면↑ + 빌딩)
+        public const int MinY = -5, MaxY = 56;      // 수중 깊이 1배 환원(바닥 상향) — 해수면 위/X 무한은 유지
         public const int SectionW = 60;
         public const int OriginX = 0;
         public const int BlendW = 8;
@@ -55,12 +55,13 @@ namespace Game.World {
 
         public static SectionType SectionAt(int x) => Sequence[SeqIndex(x)];
 
-        static float FloorTop(int x) => -18f + 3f * Mathf.Sin(x * 0.05f) + 1.5f * Mathf.Sin(x * 0.13f);
+        // 수면(24) 기준 약 17칸 깊이 — 기존 42칸의 1/2.5로 환원(굴곡 진폭도 동일 배율)
+        static float FloorTop(int x) => 7f + 1.2f * Mathf.Sin(x * 0.05f) + 0.6f * Mathf.Sin(x * 0.13f);
 
         static float CeilOf(SectionType s, int x) {
             switch (s) {
-                case SectionType.Corridor: return 16f + 3f * Mathf.Sin(x * 0.06f);
-                case SectionType.Tunnel:   return 18f;
+                case SectionType.Corridor: return 21f + 1.2f * Mathf.Sin(x * 0.06f);
+                case SectionType.Tunnel:   return 21.5f;
                 default:                    return MaxY + 6f;   // 개방=천장 없음(해수면까지 트임)
             }
         }
