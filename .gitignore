@@ -72,3 +72,7 @@ crashlytics-build.properties
 .DS_Store?
 ._*
 Thumbs.db
+
+# 유니티 크래시 복구 스냅샷
+/Assets/_Recovery/
+/Assets/_Recovery.meta
