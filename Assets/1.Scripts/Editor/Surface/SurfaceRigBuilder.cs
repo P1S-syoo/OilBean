@@ -265,6 +265,10 @@ namespace Game.Editor.Surface {
             // 수중 부유 입자(카메라 자식) — 수상 동안 끄기 위한 참조
             var camParticles = Camera.main != null ? Camera.main.GetComponentInChildren<ParticleSystem>(true) : null;
             so.FindProperty("camParticles").objectReferenceValue = camParticles;
+            // 2.5D 백드롭(블록 스트리머·하늘 퀀드) — 수상에선 강변 블록 벽이 다리처럼 보여 숨김
+            var streamer = UnityEngine.Object.FindFirstObjectByType<Game.World.ChunkStreamer>();
+            so.FindProperty("worldBlocks").objectReferenceValue = streamer != null ? streamer.gameObject : null;
+            so.FindProperty("skyQuad").objectReferenceValue = GameObject.Find("Sky");
             so.ApplyModifiedPropertiesWithoutUndo();
             if (game != null) {
                 // 씬 시작을 수상 항해로 전환

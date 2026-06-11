@@ -21,7 +21,10 @@ namespace Game.Editor.Surface {
             public float bankOffset;     // 강변에서 바깥쪽 추가 거리(수상 구조물은 음수로 강 안쪽 허용)
             public float yawOffset;      // 모델 정면축 보정(도) — 시각 확인 후 조정
             public bool floatOnWater;    // true=수면에 띄움, false=강변(수면 기준) 배치
+            public bool spanRiver;       // true=강을 가로지르는 구조물(다리) — side/bankOffset 무시, 긴 축을 강폭 방향으로
         }
+
+        const float SpanClearance = 5.5f;   // 다리 밑면-수면 간격(u) — 잠수정(잠망경 ~3u) 통과 여유
 
         // 배치 목록 — 새 명소는 여기에 추가 (roadview-to-3d 스킬로 GLB 생성 후 등록)
         static readonly LandmarkDef[] Defs = {
@@ -35,6 +38,16 @@ namespace Game.Editor.Surface {
 
                 yawOffset = 0f,
                 floatOnWater = true,
+            },
+            new LandmarkDef {
+                name = "HangangBridge",
+                assetPath = "Assets/VARCO3DImports/bridge_arch.glb",
+                realHeightM = 26f,           // 한강대교 아치 상단 수면 위 약 26m
+                t = 0.15f,                   // 출항 직후 다리 밑 통과 연출
+                side = 1,                    // spanRiver라 미사용
+                bankOffset = 0f,
+                yawOffset = 0f,
+                spanRiver = true,
             },
         };
 
@@ -100,6 +113,21 @@ namespace Game.Editor.Surface {
             tangent.y = 0f;
             tangent = tangent.sqrMagnitude > 0.0001f ? tangent.normalized : Vector3.forward;
             Vector3 right = Vector3.Cross(Vector3.up, tangent).normalized;
+
+            // 강 가로지름(다리): 긴 축을 강폭 방향으로 돌리고 중심선 위에 — 밑면은 통과 여유만큼 띄움
+            if (def.spanRiver) {
+                var spanRot = (bounds.size.x >= bounds.size.z)
+                    ? Quaternion.LookRotation(tangent)
+                    : Quaternion.LookRotation(right);
+                go.transform.rotation = spanRot * Quaternion.Euler(0f, def.yawOffset, 0f);
+                Bounds rb = CalcBounds(go);
+                Vector3 spanPos = pos;
+                float spanWaterTop = Game.World.WorldGen.WaterY + 0.45f;
+                spanPos.y = spanWaterTop + SpanClearance - (rb.min.y - go.transform.position.y);
+                go.transform.position = spanPos;
+                Debug.Log($"[LandmarkPlacer] {def.name}(span): 실물 {def.realHeightM}m → {gameHeight:F1}u, t={def.t}, 폭 {Mathf.Max(rb.size.x, rb.size.z):F1}u, 밑면 수면+{SpanClearance}u");
+                return true;
+            }
 
             // 수평 위치: 중심선 → 강변 측으로 (강폭 절반 + 오프셋)
             Vector3 worldPos = pos + right * def.side * (RiverHalfWidth + def.bankOffset);

@@ -116,11 +116,8 @@ namespace Game.Editor.Surface {
             float bankExtra = 5f + (h >> 3) % 7;                          // 강변에서 5~11u 물러남
             Vector3 worldPos = pos + right * side * (RiverHalfWidth + bankExtra);
 
-            // 바닥 스냅(수면 기준) + 일부 동은 침하(폐허)
+            // 바닥 스냅(수면 기준) — 침하 변주는 저층만 남아 부서진 다리처럼 오독돼 제거
             float baseline = Game.World.WorldGen.WaterY + 0.45f;
-            if (h % 4 == 0) {
-                baseline -= 1.2f + (h % 13) * 0.1f;                       // 1.2~2.4u 가라앉음
-            }
             go.transform.rotation = Quaternion.identity;
             Bounds sb = CalcBounds(go);
             worldPos.y = baseline - (sb.min.y - go.transform.position.y);

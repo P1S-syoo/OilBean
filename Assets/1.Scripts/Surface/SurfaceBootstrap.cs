@@ -20,6 +20,8 @@ namespace Game.Surface {
         [SerializeField] Transform sideTarget;        // 2.5D 잠수정(블렌드 종료 프레이밍 기준)
         [SerializeField] Toast toast;                 // 잠수 가능 안내
         [SerializeField] ParticleSystem camParticles; // 수중용 부유 입자(카메라 자식) — 수상 동안 끔
+        [SerializeField] GameObject worldBlocks;      // 2.5D 블록 스트리머 루트 — 수상에선 강변 벽이 다리처럼 보여 숨김
+        [SerializeField] GameObject skyQuad;          // 2.5D 하늘 백드롭 퀀드 — 수상 동안 숨김(안개 하늘과 충돌)
         [SerializeField] float sideZOffset = -20f;    // CamFollow zOffset과 일치해야 끊김 없음
         [SerializeField] float blendTime = 2.2f;      // 카메라 블렌드·하강 연출 시간
         [SerializeField] float descendDepth = 8f;     // 잠수정 하강 깊이
@@ -60,6 +62,12 @@ namespace Game.Surface {
                 }
                 if (camParticles != null) {
                     camParticles.gameObject.SetActive(false);   // 수중 입자는 잠수 후에만
+                }
+                if (worldBlocks != null) {
+                    worldBlocks.SetActive(false);   // 2.5D 백드롭은 잠수 후에만
+                }
+                if (skyQuad != null) {
+                    skyQuad.SetActive(false);
                 }
             }
             if (nav != null) {
@@ -165,6 +173,12 @@ namespace Game.Surface {
             }
             if (camParticles != null) {
                 camParticles.gameObject.SetActive(true);   // 수중 입자 재개
+            }
+            if (worldBlocks != null) {
+                worldBlocks.SetActive(true);    // 2.5D 백드롭 복원
+            }
+            if (skyQuad != null) {
+                skyQuad.SetActive(true);
             }
             if (sideCamera != null) {
                 sideCamera.enabled = true;
