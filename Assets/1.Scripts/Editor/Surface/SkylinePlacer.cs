@@ -126,7 +126,10 @@ namespace Game.Editor.Surface {
                 return false;
             }
             float varied = Variants[v].heightM * heightMul * (0.8f + (h % 41) * 0.01f);   // 높이 ±20% 변주
-            float scale = LandmarkScale.GameHeight(varied) / b.size.y;
+            // 침수: 하부를 수면 아래로 잠가 수중(사이드뷰)에서도 이어져 보이게 — 잠긴 만큼 키를 더해 수면 위 높이는 유지
+            // 단 -z 강변(2.5D 카메라 쪽)은 잠긴 하부가 카메라 앞을 가려 침수 제외
+            float submerge = side < 0 ? 5f + (h % 9) * 0.5f : 0f;
+            float scale = (LandmarkScale.GameHeight(varied) + submerge) / b.size.y;
             // 파사드형 모델은 가로가 과대해질 수 있어 발자국 폭 상한(카메라 침범 방지)
             float footprintCap = 24f * heightMul;
             float widest = Mathf.Max(b.size.x, b.size.z);
@@ -136,8 +139,8 @@ namespace Game.Editor.Surface {
             Vector3 right = Vector3.Cross(Vector3.up, tangent).normalized;
             Vector3 worldPos = pos + right * side * bankDist;
 
-            // 바닥 스냅(수면 기준) — 침하 변주는 저층만 남아 부서진 다리처럼 오독돼 제거
-            float baseline = WorldGen.WaterY + 0.45f;
+            // 바닥 스냅 — 수면 아래 submerge 깊이까지 잠김(침수 도시)
+            float baseline = WorldGen.WaterY + 0.45f - submerge;
             go.transform.rotation = Quaternion.identity;
             Bounds sb = CalcBounds(go);
             worldPos.y = baseline - (sb.min.y - go.transform.position.y);

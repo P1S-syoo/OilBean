@@ -319,8 +319,8 @@ namespace Game.Editor.Surface {
             return (h % 1000 + 1000) % 1000;
         }
 
-        // 머티리얼 에셋 확보 — 있으면 로드, 없으면 생성(URP Lit 단색)
-        static Material GetOrCreateMat(string name, Color color) {
+        // 머티리얼 에셋 확보 — 있으면 로드, 없으면 생성(기본 URP Lit, shaderName 지정 시 해당 셰이더)
+        static Material GetOrCreateMat(string name, Color color, string shaderName = null) {
             const string dir = "Assets/4.Art/Materials/Surface";
             if (!AssetDatabase.IsValidFolder(dir)) {
                 AssetDatabase.CreateFolder("Assets/4.Art/Materials", "Surface");
@@ -328,8 +328,17 @@ namespace Game.Editor.Surface {
             string path = $"{dir}/{name}.mat";
             var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
             if (mat == null) {
-                mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-                mat.SetColor("_BaseColor", color);
+                var shader = shaderName != null ? Shader.Find(shaderName) : null;
+                if (shader == null) {
+                    shader = Shader.Find("Universal Render Pipeline/Lit");
+                }
+                mat = new Material(shader);
+                if (mat.HasProperty("_BaseColor")) {
+                    mat.SetColor("_BaseColor", color);
+                }
+                if (mat.HasProperty("_Color")) {
+                    mat.SetColor("_Color", color);
+                }
                 AssetDatabase.CreateAsset(mat, path);
             }
             return mat;
@@ -378,6 +387,27 @@ namespace Game.Editor.Surface {
                 d.transform.rotation = Quaternion.Euler(0f, h % 360, 0f);
                 UnityEngine.Object.DestroyImmediate(d.GetComponent<Collider>());
                 d.GetComponent<MeshRenderer>().sharedMaterial = debrisMat;
+            }
+
+            // 수중 헤이즈 막 — 수면 아래 잠긴 빌딩 하부에 물 톤(2.5D 시점에서 침수 도시 연속감), 플레이어 X 추적
+            var hazeMat = GetOrCreateMat("UnderwaterHaze", new Color(0.06f, 0.28f, 0.30f, 0.45f), "Game/UnderwaterHaze");
+            var hazeQuad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            hazeQuad.name = "UnderwaterHaze";
+            hazeQuad.transform.SetParent(env.transform, false);
+            float hazeTop = waterY + 0.58f;                    // 수면 평면 높이와 일치
+            float hazeBottom = Game.World.WorldGen.MinY;
+            hazeQuad.transform.position = new Vector3(70f, (hazeTop + hazeBottom) * 0.5f, 16f);   // 수중 지형(z+4) 뒤, 빌딩(z19+) 앞
+            hazeQuad.transform.localScale = new Vector3(400f, hazeTop - hazeBottom, 1f);
+            UnityEngine.Object.DestroyImmediate(hazeQuad.GetComponent<Collider>());
+            hazeQuad.GetComponent<MeshRenderer>().sharedMaterial = hazeMat;
+            var dive2dMove = UnityEngine.Object.FindFirstObjectByType<Game.Player.PlayerMove>();
+            if (dive2dMove != null) {
+                var follow = hazeQuad.AddComponent<Game.World.FollowX>();
+                var fso = new SerializedObject(follow);
+                fso.FindProperty("target").objectReferenceValue = dive2dMove.transform;
+                fso.FindProperty("fixedY").floatValue = hazeQuad.transform.position.y;
+                fso.FindProperty("fixedZ").floatValue = 16f;
+                fso.ApplyModifiedPropertiesWithoutUndo();
             }
 
             // 잿빛 안개 + 흐린 광원 — 레퍼런스의 흐린 하늘 톤(원경 빌딩이 안개에 잠김)
