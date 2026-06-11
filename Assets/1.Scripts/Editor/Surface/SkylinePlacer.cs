@@ -1,0 +1,159 @@
+using System;
+using UnityEditor;
+using UnityEngine;
+using UnityEngine.Splines;
+using Game.Surface;
+
+namespace Game.Editor.Surface {
+    // 강 양안 폐허 스카이라인 산포 도구 — 로드뷰→VARCO 빌딩 모델을 해시 변주(높이·기울임·침하)로 배치
+    public static class SkylinePlacer {
+        const float RiverHalfWidth = 18f;                  // LandmarkPlacer와 동일한 강폭 기준
+        const float Spacing = 14f;                         // 빌딩 간 스플라인 거리(u)
+        const float SebitMin = 0.40f, SebitMax = 0.54f;    // 세빛섬(t=0.47 우안) 주변은 비움
+
+        // 변주 소스 — (에셋 경로, 실물 높이 m). 새 빌딩은 여기에 추가
+        static readonly (string path, float heightM)[] Variants = {
+            ("Assets/VARCO3DImports/Ruins/ruin_block.glb", 22f),
+            ("Assets/VARCO3DImports/Ruins/ruin_slab.glb", 42f),
+        };
+
+        [MenuItem("Tools/한강/폐허 스카이라인 배치")]
+        public static void Place() {
+            try {
+                var rig = GameObject.Find("SurfaceRig");
+                if (rig == null) {
+                    Debug.LogError("[SkylinePlacer] SurfaceRig가 없습니다 — Tools/한강/수상 리그 생성 먼저 실행");
+                    return;
+                }
+                var river = rig.GetComponentInChildren<SplineContainer>();
+                if (river == null) {
+                    Debug.LogError("[SkylinePlacer] River 스플라인을 못 찾았습니다");
+                    return;
+                }
+
+                var old = rig.transform.Find("Skyline");
+                if (old != null) {
+                    Undo.DestroyObjectImmediate(old.gameObject);   // 재실행 시 교체
+                }
+                var root = new GameObject("Skyline");
+                root.transform.SetParent(rig.transform, false);
+                Undo.RegisterCreatedObjectUndo(root, "폐허 스카이라인 배치");
+
+                // 변주 프리팹 로드 — 없는 것은 건너뛰고 경고
+                var prefabs = new GameObject[Variants.Length];
+                int loaded = 0;
+                for (int v = 0; v < Variants.Length; v++) {
+                    prefabs[v] = AssetDatabase.LoadAssetAtPath<GameObject>(Variants[v].path);
+                    if (prefabs[v] == null) {
+                        Debug.LogWarning($"[SkylinePlacer] 모델 없음: {Variants[v].path} — roadview-to-3d로 생성 후 임포트");
+                    } else {
+                        loaded++;
+                    }
+                }
+                if (loaded == 0) {
+                    Debug.LogError("[SkylinePlacer] 사용 가능한 빌딩 모델이 없습니다");
+                    return;
+                }
+
+                float len = river.CalculateLength();
+                int steps = Mathf.Max(1, Mathf.FloorToInt(len / Spacing));
+                int placed = 0;
+                for (int i = 0; i <= steps; i++) {
+                    float t = (float)i / steps;
+                    for (int s = 0; s < 2; s++) {
+                        int side = s == 0 ? -1 : 1;
+                        if (side > 0 && t > SebitMin && t < SebitMax) {
+                            continue;   // 명소 자리 확보
+                        }
+                        int h = Hash(i * 2 + s, 91);
+                        if (h % 5 == 0) {
+                            continue;   // 듬성듬성 — 스카이라인 틈(무너져 사라진 자리)
+                        }
+                        int v = h % Variants.Length;
+                        if (prefabs[v] == null) {
+                            v = (v + 1) % Variants.Length;   // 빠진 변주는 다른 모델로 대체
+                            if (prefabs[v] == null) {
+                                continue;
+                            }
+                        }
+                        if (PlaceOne(root.transform, river, prefabs[v], Variants[v].heightM, t, side, h)) {
+                            placed++;
+                        }
+                    }
+                }
+                EditorUtility.SetDirty(rig);
+                UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(rig.scene);
+                Debug.Log($"[SkylinePlacer] 폐허 스카이라인 배치 완료 — {placed}개 (변주 {loaded}종, 간격 {Spacing}u)");
+            } catch (Exception e) {
+                Debug.LogError($"[SkylinePlacer] 배치 실패: {e.Message}\n{e.StackTrace}");
+            }
+        }
+
+        // 한 동 배치 — 실측 스케일 + 해시 변주(높이 ±20%·요 ±8°·기울임·침하)로 같은 모델 반복감 제거
+        static bool PlaceOne(Transform parent, SplineContainer river, GameObject prefab, float heightM, float t, int side, int h) {
+            var go = (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent);
+            go.name = $"Ruin_{Mathf.RoundToInt(t * 100):00}{(side < 0 ? "L" : "R")}";
+
+            Bounds b = CalcBounds(go);
+            if (b.size.y <= 0.0001f) {
+                UnityEngine.Object.DestroyImmediate(go);
+                return false;
+            }
+            float varied = heightM * (0.8f + (h % 41) * 0.01f);          // 높이 ±20% 변주
+            float scale = LandmarkScale.GameHeight(varied) / b.size.y;
+            // 파사드형 모델은 가로가 과대해질 수 있어 발자국 폭 상한(카메라 침범 방지)
+            const float footprintCap = 24f;
+            float widest = Mathf.Max(b.size.x, b.size.z);
+            scale = Mathf.Min(scale, footprintCap / Mathf.Max(widest, 0.001f));
+            go.transform.localScale = Vector3.one * scale;
+
+            // 스플라인 접선·법선으로 강변 바깥 방향 산출
+            Vector3 pos = (Vector3)river.EvaluatePosition(t);
+            Vector3 tangent = ((Vector3)(Unity.Mathematics.float3)river.EvaluateTangent(t));
+            tangent.y = 0f;
+            tangent = tangent.sqrMagnitude > 0.0001f ? tangent.normalized : Vector3.forward;
+            Vector3 right = Vector3.Cross(Vector3.up, tangent).normalized;
+            float bankExtra = 5f + (h >> 3) % 7;                          // 강변에서 5~11u 물러남
+            Vector3 worldPos = pos + right * side * (RiverHalfWidth + bankExtra);
+
+            // 바닥 스냅(수면 기준) + 일부 동은 침하(폐허)
+            float baseline = Game.World.WorldGen.WaterY + 0.45f;
+            if (h % 4 == 0) {
+                baseline -= 1.2f + (h % 13) * 0.1f;                       // 1.2~2.4u 가라앉음
+            }
+            go.transform.rotation = Quaternion.identity;
+            Bounds sb = CalcBounds(go);
+            worldPos.y = baseline - (sb.min.y - go.transform.position.y);
+            go.transform.position = worldPos;
+
+            // 정면은 강 쪽 + 요 변주, 일부 동은 기울임(붕괴 직전 무드)
+            float yaw = ((h % 17) - 8f);
+            var rot = Quaternion.LookRotation(-right * side) * Quaternion.Euler(0f, yaw, 0f);
+            if (h % 3 == 0) {
+                float lean = 2f + (h % 5);                                // 2~6° 기울임
+                rot = Quaternion.AngleAxis(lean, tangent) * rot;
+            }
+            go.transform.rotation = rot;
+            return true;
+        }
+
+        // 좌표 결정적 해시 — 재실행해도 같은 배치
+        static int Hash(int a, int b) {
+            int h = a * 73856093 ^ b * 19349663;
+            return (h % 1000 + 1000) % 1000;
+        }
+
+        // 모든 렌더러 합산 월드 바운즈
+        static Bounds CalcBounds(GameObject go) {
+            var renderers = go.GetComponentsInChildren<Renderer>();
+            if (renderers.Length == 0) {
+                return new Bounds(go.transform.position, Vector3.zero);
+            }
+            Bounds b = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++) {
+                b.Encapsulate(renderers[i].bounds);
+            }
+            return b;
+        }
+    }
+}

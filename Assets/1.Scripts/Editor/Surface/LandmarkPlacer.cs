@@ -31,7 +31,8 @@ namespace Game.Editor.Surface {
                 realHeightM = 20f,           // 세빛섬 가빛섬 실물 약 20m(4층)
                 t = 0.47f,                   // 첫 정화 목표(0.5) 직전 — 도착 시 정면에 보임
                 side = 1,                    // 실제 세빛섬은 강남측(우안)
-                bankOffset = -6f,            // 수상 구조물 — 강변보다 강 안쪽에 떠 있음
+                bankOffset = 1f,             // 수상 구조물 — 강 안쪽이되 궤도 카메라(반경 8) 침범 밖
+
                 yawOffset = 0f,
                 floatOnWater = true,
             },
