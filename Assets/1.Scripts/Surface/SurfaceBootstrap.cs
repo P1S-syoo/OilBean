@@ -19,6 +19,7 @@ namespace Game.Surface {
         [SerializeField] CinemachineCamera diveCam;   // 잠수 블렌드 목적지(사이드뷰 프레이밍)
         [SerializeField] Transform sideTarget;        // 2.5D 잠수정(블렌드 종료 프레이밍 기준)
         [SerializeField] Toast toast;                 // 잠수 가능 안내
+        [SerializeField] ParticleSystem camParticles; // 수중용 부유 입자(카메라 자식) — 수상 동안 끔
         [SerializeField] float sideZOffset = -20f;    // CamFollow zOffset과 일치해야 끊김 없음
         [SerializeField] float blendTime = 2.2f;      // 카메라 블렌드·하강 연출 시간
         [SerializeField] float descendDepth = 8f;     // 잠수정 하강 깊이
@@ -26,6 +27,10 @@ namespace Game.Surface {
         InputAction diveInput;
         bool diveReady;
         bool diving;
+        Camera mainCam;                 // 수상 동안 배경색을 안개색으로 덮고 잠수 시 원복
+        Color prevBg;
+        CameraClearFlags prevClear;
+        bool bgOverridden;
 
         public bool DiveReady => diveReady;
 
@@ -40,8 +45,22 @@ namespace Game.Surface {
 
         void Start() {
             // 수상 시작이면 사이드뷰 카메라를 끄고 궤도 카메라(Cinemachine)가 주도
-            if (game != null && game.State == GameState.Surface && sideCamera != null) {
-                sideCamera.enabled = false;
+            if (game != null && game.State == GameState.Surface) {
+                if (sideCamera != null) {
+                    sideCamera.enabled = false;
+                }
+                // 수평선이 잿빛 안개에 녹도록 배경색을 안개색과 일치(잠수 인계 때 원복)
+                mainCam = Camera.main;
+                if (mainCam != null) {
+                    prevBg = mainCam.backgroundColor;
+                    prevClear = mainCam.clearFlags;
+                    mainCam.clearFlags = CameraClearFlags.SolidColor;
+                    mainCam.backgroundColor = RenderSettings.fogColor;
+                    bgOverridden = true;
+                }
+                if (camParticles != null) {
+                    camParticles.gameObject.SetActive(false);   // 수중 입자는 잠수 후에만
+                }
             }
             if (nav != null) {
                 nav.OnArrived += OnArrived;
@@ -140,6 +159,13 @@ namespace Game.Surface {
             // 리그 비활성 후에도 트윈이 비활성 트랜스폼을 만지지 않도록 정리
             descend?.Kill(true);
             // 4) 카메라 인계 + 게임 루프 인계 + 다음 수상 목표 기록(복귀 항해 재개용)
+            if (bgOverridden && mainCam != null) {
+                mainCam.clearFlags = prevClear;      // 수중 배경색 원복
+                mainCam.backgroundColor = prevBg;
+            }
+            if (camParticles != null) {
+                camParticles.gameObject.SetActive(true);   // 수중 입자 재개
+            }
             if (sideCamera != null) {
                 sideCamera.enabled = true;
             }

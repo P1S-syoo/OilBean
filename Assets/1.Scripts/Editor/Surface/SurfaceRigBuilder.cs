@@ -98,6 +98,14 @@ namespace Game.Editor.Surface {
                 hull.AddComponent<FloatBob>();
             }
 
+            // 에디터에서도 항해 시작점에 진행 방향으로 정박 — 플레이 시 SubNavigator가 동일 지점에서 출발
+            subRoot.transform.position = river.EvaluatePosition(0f);
+            Vector3 startTangent = ((Vector3)(Unity.Mathematics.float3)river.EvaluateTangent(0f));
+            startTangent.y = 0f;
+            if (startTangent.sqrMagnitude > 0.0001f) {
+                subRoot.transform.rotation = Quaternion.LookRotation(startTangent.normalized);
+            }
+
             var nav = subRoot.AddComponent<SubNavigator>();
             var so = new SerializedObject(nav);
             so.FindProperty("river").objectReferenceValue = river;
@@ -109,7 +117,8 @@ namespace Game.Editor.Surface {
         static DeckCharacter BuildDeckPlayer(Transform sub, float deckTop, Vector2 deckHalf) {
             var playerRoot = new GameObject("DeckPlayer");
             playerRoot.transform.SetParent(sub, false);
-            playerRoot.transform.localPosition = new Vector3(0f, deckTop, -deckHalf.y * 0.4f);
+            // +0.55: 수영 클립(TreadingWater)의 힙이 원점 아래라 그대로 두면 덱에 허리까지 잠김
+            playerRoot.transform.localPosition = new Vector3(0f, deckTop + 0.55f, -deckHalf.y * 0.4f);
 
             Animator animator = null;
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(CharModelPath);
@@ -253,6 +262,9 @@ namespace Game.Editor.Surface {
             so.FindProperty("diveCam").objectReferenceValue = diveCam;
             so.FindProperty("sideTarget").objectReferenceValue = dive2d != null ? dive2d.transform : null;
             so.FindProperty("toast").objectReferenceValue = toast;
+            // 수중 부유 입자(카메라 자식) — 수상 동안 끄기 위한 참조
+            var camParticles = Camera.main != null ? Camera.main.GetComponentInChildren<ParticleSystem>(true) : null;
+            so.FindProperty("camParticles").objectReferenceValue = camParticles;
             so.ApplyModifiedPropertiesWithoutUndo();
             if (game != null) {
                 // 씬 시작을 수상 항해로 전환
@@ -300,12 +312,19 @@ namespace Game.Editor.Surface {
             var waterMat = GetOrCreateMat("MurkyWater", new Color(0.10f, 0.16f, 0.16f));
             var debrisMat = GetOrCreateMat("RuinDebris", new Color(0.20f, 0.21f, 0.22f));
 
+            // 수면 전용 셰이더(노이즈 흐름+거품)로 업그레이드 — 없으면 URP Lit 단색 유지
+            var waterShader = Shader.Find("Game/MurkyWaterFlow");
+            if (waterShader != null && waterMat.shader != waterShader) {
+                waterMat.shader = waterShader;
+                EditorUtility.SetDirty(waterMat);
+            }
+
             // 수면 — 잠수정 흘수선(WaterY+0.5) 바로 아래 탁한 평면
             var water = GameObject.CreatePrimitive(PrimitiveType.Plane);
             water.name = "WaterSurface";
             water.transform.SetParent(env.transform, false);
-            water.transform.position = new Vector3(70f, waterY + 0.45f, 0f);
-            water.transform.localScale = new Vector3(40f, 1f, 10f);   // 400×100m
+            water.transform.position = new Vector3(70f, waterY + 0.58f, 0f);   // 블록 윗면(WaterY+0.5)보다 위 — 천장 블록이 수면을 못 뚫음
+            water.transform.localScale = new Vector3(60f, 1f, 30f);   // 600×300m — 부감 와이드샷에서도 가장자리 안 보임
             UnityEngine.Object.DestroyImmediate(water.GetComponent<Collider>());
             water.GetComponent<MeshRenderer>().sharedMaterial = waterMat;
 
@@ -321,7 +340,7 @@ namespace Game.Editor.Surface {
                 d.transform.SetParent(trash.transform, false);
                 float x = -18f + (h % 100) * 1.7f;
                 float z = -8f + (h >> 2) % 17;
-                d.transform.position = new Vector3(x, waterY + 0.55f, z);
+                d.transform.position = new Vector3(x, waterY + 0.68f, z);
                 float s = 0.3f + (h % 7) * 0.12f;
                 d.transform.localScale = new Vector3(s * 1.6f, s * 0.35f, s);
                 d.transform.rotation = Quaternion.Euler(0f, h % 360, 0f);

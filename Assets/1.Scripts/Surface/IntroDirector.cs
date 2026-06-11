@@ -14,7 +14,7 @@ namespace Game.Surface {
         [SerializeField] OrbitCameraDriver orbitDriver;
         [SerializeField] SubNavigator nav;               // 컷신 동안 항해 보류 — 컷신 중 목표 도달 경합 방지
         [SerializeField] float duration = 8f;
-        [SerializeField] Vector3 startOffset = new(6f, 30f, -42f);   // 부감 시작(도시 사이 강 구도)
+        [SerializeField] Vector3 startOffset = new(-26f, 16f, -8f);  // 후방 상공 와이드 — 하류(명소·안개 스카이라인)를 향해 열린 구도
         [SerializeField] Vector3 endOffset = new(0f, 5f, -13f);      // 잠수정 가까이
 
         InputAction skip;
