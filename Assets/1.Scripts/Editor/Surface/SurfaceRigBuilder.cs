@@ -87,6 +87,7 @@ namespace Game.Editor.Surface {
                 b = CalcBounds(model);
                 deckTop = HullTopY(model);                // 함교/잠망경/프로펠러 제외한 선체 윗면
                 deckHalf = new Vector2(Mathf.Max(b.extents.x * 0.6f, 0.6f), b.extents.z * 0.8f);
+                RetintSubmarine(model);                   // 장난감 흰색 → 잿빛 군함 톤(분위기 통일)
                 model.AddComponent<FloatBob>();           // 부유 모션은 모델에만(루트는 항해 위치 고정)
             } else {
                 Debug.LogWarning($"[SurfaceRigBuilder] 잠수정 모델 없음({SubModelPath}) — 큐브 그레이박스로 대체");
@@ -153,6 +154,33 @@ namespace Game.Editor.Surface {
             dso.FindProperty("animator").objectReferenceValue = animator;
             dso.ApplyModifiedPropertiesWithoutUndo();
             return deck;
+        }
+
+        // 원본 색으로 부위 분류해 잿빛 폐허 톤으로 교체 — 주황(프로펠러)=녹슨 액센트, 시안(창)=유지, 나머지=군함 회청
+        static void RetintSubmarine(GameObject model) {
+            var hull = GetOrCreateMat("SubHull", new Color(0.30f, 0.36f, 0.38f));
+            var accent = GetOrCreateMat("SubAccent", new Color(0.42f, 0.24f, 0.12f));
+            foreach (var r in model.GetComponentsInChildren<Renderer>()) {
+                var mats = r.sharedMaterials;
+                bool changed = false;
+                for (int i = 0; i < mats.Length; i++) {
+                    var m = mats[i];
+                    if (m == null) {
+                        continue;
+                    }
+                    Color c = m.HasProperty("_BaseColor") ? m.GetColor("_BaseColor")
+                            : m.HasProperty("baseColorFactor") ? m.GetColor("baseColorFactor")
+                            : m.HasProperty("_Color") ? m.color : Color.white;
+                    if (c.b > c.r * 1.25f && c.b > 0.5f) {
+                        continue;   // 창문(시안 발광 포인트)은 원본 유지
+                    }
+                    mats[i] = (c.r > 0.45f && c.r > c.g * 1.3f) ? accent : hull;
+                    changed = true;
+                }
+                if (changed) {
+                    r.sharedMaterials = mats;
+                }
+            }
         }
 
         // 가장 부피 큰 렌더러(선체)의 윗면 Y — 함교·잠망경·프로펠러가 바운즈를 부풀리는 것을 배제

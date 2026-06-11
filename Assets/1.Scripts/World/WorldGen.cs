@@ -92,8 +92,8 @@ namespace Game.World {
                 return false;
             }
             if (layer == 3) {
-                // Shore: 해수면 위 강변 옹벽(절벽)+인도 — 하늘 영역 빌딩 블록은 3D 명소(LandmarkPlacer)로 대체됨
-                return y > WaterY && y <= SidewalkY;
+                // Shore: 강변 백드롭 전체를 3D 스카이라인(SkylinePlacer)·명소·다리가 대체 — 블록 생성 안 함
+                return false;
             }
             float floor = FloorTop(x);
             float ceil = CeilBot(x);

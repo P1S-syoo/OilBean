@@ -136,6 +136,16 @@ namespace Game.Surface {
             SetSurfaceControl(false);
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
+            // 2.5D 잠수정을 3D 잠수정 바로 아래 수중으로 — 시작 위치가 아닌 현재 지점에서 잠수(연속감)
+            if (sideTarget != null && nav != null) {
+                var divePos = new Vector3(nav.transform.position.x, Game.World.WorldGen.WaterY - 3f, 0f);
+                var rb2d = sideTarget.GetComponent<Rigidbody2D>();
+                if (rb2d != null) {
+                    rb2d.linearVelocity = Vector2.zero;   // 잔류 관성 제거
+                    rb2d.position = divePos;
+                }
+                sideTarget.position = divePos;
+            }
             // 2) 사이드뷰 프레이밍 카메라로 블렌드 시작
             if (diveCam != null && sideTarget != null) {
                 diveCam.transform.SetPositionAndRotation(
@@ -197,10 +207,19 @@ namespace Game.Surface {
                     diving = false;
                 }
             }
-            // 5) 인계 성공 시에만 수상 리그 종료 — 이 코루틴도 함께 멈추므로 반드시 마지막 줄
-            //    (W6 수면 복귀는 리그 재활성 + 배치 메뉴 상태가 전제 — 계획서 W6 참조)
+            // 5) 인계 성공 — 3D 잠수정·카메라만 끄고 환경(수면·스카이라인·다리)은 2.5D 백드롭으로 유지
+            //    (W6 수면 복귀는 이들 재활성 + 코디네이터 재enable이 전제 — 계획서 W6 참조)
             if (handedOff) {
-                gameObject.SetActive(false);
+                if (nav != null) {
+                    nav.gameObject.SetActive(false);
+                }
+                if (orbitCam != null) {
+                    orbitCam.gameObject.SetActive(false);
+                }
+                if (diveCam != null) {
+                    diveCam.gameObject.SetActive(false);
+                }
+                enabled = false;   // E 입력 종료(OnDisable) — 코루틴은 여기가 마지막이라 안전
             }
         }
 
