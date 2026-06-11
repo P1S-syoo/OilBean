@@ -20,6 +20,11 @@ namespace Game.Editor.Audio {
                 if (audio == null) {
                     audio = go.AddComponent<GameAudio>();
                 }
+                // 씬에 AudioListener가 하나도 없으면 소리가 안 들림 — 2D 사운드라 위치 무관하게 여기 부착
+                if (UnityEngine.Object.FindFirstObjectByType<AudioListener>(FindObjectsInactive.Include) == null) {
+                    go.AddComponent<AudioListener>();
+                    Debug.Log("[AudioWirer] AudioListener 없음 — GameAudio에 추가");
+                }
 
                 var so = new SerializedObject(audio);
                 int missing = 0;
