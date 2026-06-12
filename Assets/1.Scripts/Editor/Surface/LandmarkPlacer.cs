@@ -9,6 +9,7 @@ namespace Game.Editor.Surface {
     public static class LandmarkPlacer {
         const float RiverHalfWidth = 18f;    // 스플라인 중심선에서 강변까지 기본 거리(스플라인 z폭 ±6 포함)
         const float WaterDraft = 0.15f;      // 수상 구조물 흘수(수면에 살짝 잠김)
+        const float SizeMul = 2f;            // 랜드마크 전용 크기 배율 — 다리·빌딩 대비 위계 강조(가로·세로 2배)
 
         // 명소 정의 — 스플라인 정규화 거리(t), 강변 측(side: -1 좌안/+1 우안), 추가 오프셋, 실물 높이
         [Serializable]
@@ -90,7 +91,7 @@ namespace Game.Editor.Surface {
                 UnityEngine.Object.DestroyImmediate(go);
                 return false;
             }
-            float gameHeight = LandmarkScale.GameHeight(def.realHeightM);
+            float gameHeight = LandmarkScale.GameHeight(def.realHeightM) * SizeMul;
             float scale = gameHeight / bounds.size.y;
             go.transform.localScale = Vector3.one * scale;
 
@@ -113,6 +114,14 @@ namespace Game.Editor.Surface {
 
             // 정면이 강(스플라인)을 향하도록 회전 + 모델축 보정
             go.transform.rotation = Quaternion.LookRotation(-right * def.side) * Quaternion.Euler(0f, def.yawOffset, 0f);
+
+            // 2.5D 사이드뷰 통로 보호 — 빌딩과 동일 기준(z -22~+6) 침범 시 가까운 바깥쪽으로 밀어냄
+            Bounds placedBounds = CalcBounds(go);
+            if (placedBounds.max.z > SkylineStreamer.CamBankMaxZ && placedBounds.min.z < SkylineStreamer.FarBankMinZ) {
+                bool camSide = placedBounds.center.z < (SkylineStreamer.CamBankMaxZ + SkylineStreamer.FarBankMinZ) * 0.5f;
+                float push = camSide ? SkylineStreamer.CamBankMaxZ - placedBounds.max.z : SkylineStreamer.FarBankMinZ - placedBounds.min.z;
+                go.transform.position += Vector3.forward * push;
+            }
 
             Debug.Log($"[LandmarkPlacer] {def.name}: 실물 {def.realHeightM}m → {gameHeight:F1}u (scale {scale:F2}), t={def.t}, side={(def.side < 0 ? "좌안" : "우안")}");
             return true;

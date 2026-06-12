@@ -23,8 +23,8 @@ namespace Game.Surface {
         const float SpanClearance = 5.5f;              // 다리 밑면-수면 간격(u) — 잠수정 통과 여유
         const float BridgeFirstX = 90f;                // 다리 기준 X — 구 터널 섹션 중심 위치 유지(섹션 시스템 제거 후 고정 간격)
         const float BridgeInterval = 180f;             // 다리 반복 간격(u)
-        const float CamBankMaxZ = -22f;                // 카메라(-z) 강변 빌딩 z 한계 — 사이드뷰 카메라(z-20) 뒤 2u 여유
-        const float FarBankMinZ = 6f;                  // 원경(+z) 강변 빌딩 z 한계 — 2.5D Background 블록(z4) 뒤 2u 여유
+        public const float CamBankMaxZ = -22f;         // 카메라(-z) 강변 z 한계 — 사이드뷰 카메라(z-20) 뒤 2u 여유(LandmarkPlacer 공용)
+        public const float FarBankMinZ = 6f;           // 원경(+z) 강변 z 한계 — 2.5D Background 블록(z4) 뒤 2u 여유(LandmarkPlacer 공용)
 
         readonly Dictionary<int, List<GameObject>> cells = new();
         readonly Queue<int> pending = new();   // 스폰 대기 셀 — 프레임당 1셀만 채워 히치 분산(잠수 텔레포트 폭주 흡수)
