@@ -10,8 +10,9 @@ using Game.Surface;
 namespace Game.Editor.Surface {
     // 수상 리그 그레이박스 생성 도구 — Main3D에 강 스플라인·잠수정·덱 캐릭터·궤도 카메라를 코드로 배치(재생성 가능)
     public static class SurfaceRigBuilder {
-        // 실물 모델 에셋 — 없으면 그레이박스 폴백
-        const string SubModelPath = "Assets/4.Art/Models/PolyPizza/submarine1.glb";
+        // 실물 모델 에셋 — VARCO 아포칼립스 잠수정 우선, 없으면 PolyPizza→그레이박스 폴백
+        const string SubModelPath = "Assets/VARCO3DImports/sub_apoc.glb";
+        const string SubFallbackPath = "Assets/4.Art/Models/PolyPizza/submarine1.glb";
         const string CharModelPath = "Assets/4.Art/Characters/MainCharacter.fbx";
         const string CharAnimPath = "Assets/4.Art/Characters/PlayerAnim.controller";
         const float SubLength = 11f;          // 잠수정 진행축(Z) 목표 길이
@@ -73,6 +74,12 @@ namespace Game.Editor.Surface {
             var deckHalf = new Vector2(1.8f, 4.6f);
 
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(SubModelPath);
+            bool needRetint = false;
+            if (prefab == null) {
+                // VARCO 모델이 없으면 PolyPizza 폴백 — 장난감 톤이라 재도색 필요
+                prefab = AssetDatabase.LoadAssetAtPath<GameObject>(SubFallbackPath);
+                needRetint = prefab != null;
+            }
             if (prefab != null) {
                 var model = (GameObject)PrefabUtility.InstantiatePrefab(prefab, subRoot.transform);
                 model.name = "Model";
@@ -88,7 +95,9 @@ namespace Game.Editor.Surface {
                 b = CalcBounds(model);
                 deckTop = HullTopY(model);                // 함교/잠망경/프로펠러 제외한 선체 윗면
                 deckHalf = new Vector2(Mathf.Max(b.extents.x * 0.6f, 0.6f), b.extents.z * 0.8f);
-                RetintSubmarine(model);                   // 장난감 흰색 → 잿빛 군함 톤(분위기 통일)
+                if (needRetint) {
+                    RetintSubmarine(model);               // 폴백 모델만 — VARCO 모델은 자체 아포칼립스 텍스처 유지
+                }
                 model.AddComponent<FloatBob>();           // 부유 모션은 모델에만(루트는 항해 위치 고정)
             } else {
                 Debug.LogWarning($"[SurfaceRigBuilder] 잠수정 모델 없음({SubModelPath}) — 큐브 그레이박스로 대체");
