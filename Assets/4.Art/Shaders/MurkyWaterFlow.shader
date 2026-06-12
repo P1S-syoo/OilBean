@@ -12,6 +12,8 @@ Shader "Game/MurkyWaterFlow"
         _WaveScale ("Wave Scale (노이즈 밀도)", Float) = 0.10
         _FoamAmount ("Foam Amount", Range(0, 1)) = 0.16
         _SpecStrength ("Spec Strength", Float) = 0.22
+        _WaveHeight ("Wave Height (정점 진폭 m)", Float) = 0.28
+        _WaveFreq ("Wave Freq (정점 파장 밀도)", Float) = 0.35
     }
     SubShader
     {
@@ -36,10 +38,22 @@ Shader "Game/MurkyWaterFlow"
                 float _WaveScale;
                 float _FoamAmount;
                 float _SpecStrength;
+                float _WaveHeight;
+                float _WaveFreq;
             CBUFFER_END
 
             struct Attributes { float4 positionOS:POSITION; };
             struct Varyings { float4 positionCS:SV_POSITION; float3 positionWS:TEXCOORD0; float fogCoord:TEXCOORD1; };
+
+            // 정점 웨이브 — 월드 XZ 기반 3겹 사인 합(파장·방향·속도 다르게) → 평면 크기와 무관
+            float WaveY(float3 ws)
+            {
+                float t = _Time.y;
+                float w = sin(ws.x * _WaveFreq + t * 1.1) * 0.6
+                        + sin(dot(ws.xz, float2(0.7, 0.7)) * _WaveFreq * 1.7 + t * 1.7) * 0.25
+                        + sin(ws.z * _WaveFreq * 2.3 + t * 0.7) * 0.15;
+                return w * _WaveHeight;
+            }
 
             // 2D 해시 → 밸류 노이즈(텍스처 불필요)
             float Hash21(float2 p)
@@ -64,10 +78,11 @@ Shader "Game/MurkyWaterFlow"
             Varyings vert(Attributes IN)
             {
                 Varyings OUT;
-                VertexPositionInputs p = GetVertexPositionInputs(IN.positionOS.xyz);
-                OUT.positionCS = p.positionCS;
-                OUT.positionWS = p.positionWS;
-                OUT.fogCoord = ComputeFogFactor(p.positionCS.z);
+                float3 ws = TransformObjectToWorld(IN.positionOS.xyz);
+                ws.y += WaveY(ws);
+                OUT.positionCS = TransformWorldToHClip(ws);
+                OUT.positionWS = ws;
+                OUT.fogCoord = ComputeFogFactor(OUT.positionCS.z);
                 return OUT;
             }
 
@@ -126,15 +141,29 @@ Shader "Game/MurkyWaterFlow"
                 float _WaveScale;
                 float _FoamAmount;
                 float _SpecStrength;
+                float _WaveHeight;
+                float _WaveFreq;
             CBUFFER_END
 
             struct ADepth { float4 positionOS:POSITION; };
             struct VDepth { float4 positionCS:SV_POSITION; };
 
+            // ForwardLit의 WaveY와 동일 — 뎁스 패스가 어긋나면 수면 깊이가 갈라짐
+            float WaveYDepth(float3 ws)
+            {
+                float t = _Time.y;
+                float w = sin(ws.x * _WaveFreq + t * 1.1) * 0.6
+                        + sin(dot(ws.xz, float2(0.7, 0.7)) * _WaveFreq * 1.7 + t * 1.7) * 0.25
+                        + sin(ws.z * _WaveFreq * 2.3 + t * 0.7) * 0.15;
+                return w * _WaveHeight;
+            }
+
             VDepth vertDepth(ADepth IN)
             {
                 VDepth OUT;
-                OUT.positionCS = TransformObjectToHClip(IN.positionOS.xyz);
+                float3 ws = TransformObjectToWorld(IN.positionOS.xyz);
+                ws.y += WaveYDepth(ws);
+                OUT.positionCS = TransformWorldToHClip(ws);
                 return OUT;
             }
 

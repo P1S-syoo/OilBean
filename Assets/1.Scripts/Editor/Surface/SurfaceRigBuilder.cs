@@ -17,6 +17,7 @@ namespace Game.Editor.Surface {
         const string CharAnimPath = "Assets/4.Art/Characters/PlayerAnim.controller";
         const float SubLength = 11f;          // 잠수정 진행축(Z) 목표 길이
         const float CharacterHeight = 1.7f;   // 덱 캐릭터 목표 키
+        const float HullLift = 0.35f;         // 흘수 보정 — 함교 포함 바운즈 중심 정렬은 선체가 깊이 잠겨 위로 올림(extents.y 비율)
 
         [MenuItem("Tools/한강/수상 리그 생성")]
         public static void Build() {
@@ -91,9 +92,11 @@ namespace Game.Editor.Surface {
                 float scale = SubLength / Mathf.Max(b.size.z, 0.001f);
                 model.transform.localScale = Vector3.one * scale;
                 b = CalcBounds(model);
-                model.transform.position -= b.center;     // 선체 중심을 흘수선(루트 원점)에 — 반쯤 잠긴 항해 자세
+                model.transform.position -= b.center;     // 선체 중심을 흘수선(루트 원점)에
+                model.transform.position += Vector3.up * (b.extents.y * HullLift);   // 수면 위로 흘수 보정
                 b = CalcBounds(model);
-                deckTop = HullTopY(model);                // 함교/잠망경/프로펠러 제외한 선체 윗면
+                // 선체 윗면 — 단일 메시 모델은 HullTopY가 함교 꼭대기를 반환하므로 원통 선체 근사(바닥+지름)로 캡
+                deckTop = Mathf.Min(HullTopY(model), b.min.y + b.extents.x * 2f);
                 deckHalf = new Vector2(Mathf.Max(b.extents.x * 0.6f, 0.6f), b.extents.z * 0.8f);
                 if (needRetint) {
                     RetintSubmarine(model);               // 폴백 모델만 — VARCO 모델은 자체 아포칼립스 텍스처 유지
@@ -206,6 +209,46 @@ namespace Game.Editor.Surface {
                 }
             }
             return hull != null ? hull.bounds.max.y : 0.75f;
+        }
+
+        // 수면 그리드 메시 — 정점 웨이브용 분할 평면(에셋으로 저장해 씬 비대 방지, 있으면 재사용)
+        static Mesh GetOrCreateWaterGrid(float width, float depth, int segX, int segZ) {
+            const string path = "Assets/4.Art/Models/WaterGrid.asset";
+            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
+            if (mesh != null) {
+                return mesh;
+            }
+            try {
+                mesh = new Mesh { name = "WaterGrid" };
+                mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+                var verts = new Vector3[(segX + 1) * (segZ + 1)];
+                for (int z = 0; z <= segZ; z++) {
+                    for (int x = 0; x <= segX; x++) {
+                        verts[z * (segX + 1) + x] = new Vector3((x / (float)segX - 0.5f) * width, 0f, (z / (float)segZ - 0.5f) * depth);
+                    }
+                }
+                var tris = new int[segX * segZ * 6];
+                int ti = 0;
+                for (int z = 0; z < segZ; z++) {
+                    for (int x = 0; x < segX; x++) {
+                        int v = z * (segX + 1) + x;
+                        tris[ti++] = v;
+                        tris[ti++] = v + segX + 1;
+                        tris[ti++] = v + 1;
+                        tris[ti++] = v + 1;
+                        tris[ti++] = v + segX + 1;
+                        tris[ti++] = v + segX + 2;
+                    }
+                }
+                mesh.vertices = verts;
+                mesh.triangles = tris;
+                mesh.RecalculateNormals();
+                mesh.bounds = new Bounds(Vector3.zero, new Vector3(width, 2f, depth));   // 정점 웨이브 변위 컬링 여유
+                AssetDatabase.CreateAsset(mesh, path);
+            } catch (Exception e) {
+                Debug.LogError($"[SurfaceRigBuilder] 수면 그리드 생성 실패: {e.Message}");
+            }
+            return mesh;
         }
 
         // 모든 렌더러를 합친 월드 바운즈 — 모델 피벗 위치와 무관한 스케일/스냅 기준
@@ -370,13 +413,11 @@ namespace Game.Editor.Surface {
                 EditorUtility.SetDirty(waterMat);
             }
 
-            // 수면 — 잠수정 흘수선(WaterY+0.5) 바로 아래 탁한 평면
-            var water = GameObject.CreatePrimitive(PrimitiveType.Plane);
-            water.name = "WaterSurface";
+            // 수면 — 정점 웨이브용 분할 그리드(600×300m). Unity Plane(10×10)은 정점이 적어 웨이브가 안 보임
+            var water = new GameObject("WaterSurface", typeof(MeshFilter), typeof(MeshRenderer));
             water.transform.SetParent(env.transform, false);
-            water.transform.position = new Vector3(70f, waterY + 0.58f, 0f);   // 블록 윗면(WaterY+0.5)보다 위 — 천장 블록이 수면을 못 뚫음
-            water.transform.localScale = new Vector3(60f, 1f, 30f);   // 600×300m — 부감 와이드샷에서도 가장자리 안 보임
-            UnityEngine.Object.DestroyImmediate(water.GetComponent<Collider>());
+            water.transform.position = new Vector3(70f, waterY + 0.58f, 0f);   // 블록 윗면(WaterY+0.5)보다 위
+            water.GetComponent<MeshFilter>().sharedMesh = GetOrCreateWaterGrid(600f, 300f, 150, 40);
             water.GetComponent<MeshRenderer>().sharedMaterial = waterMat;
 
             // 강변 스카이라인은 그레이박스 대신 LandmarkPlacer(Tools/한강/명소 배치)가 실물 3D로 채운다
@@ -397,6 +438,14 @@ namespace Game.Editor.Surface {
                 d.transform.rotation = Quaternion.Euler(0f, h % 360, 0f);
                 UnityEngine.Object.DestroyImmediate(d.GetComponent<Collider>());
                 d.GetComponent<MeshRenderer>().sharedMaterial = debrisMat;
+                // 파도 흔들림 — 개체별 진폭/주기/위상/롤 해시 변주(일제히 같은 박자로 움직이는 것 방지)
+                var bob = d.AddComponent<FloatBob>();
+                var bso = new SerializedObject(bob);
+                bso.FindProperty("amplitude").floatValue = 0.06f + (h % 5) * 0.02f;
+                bso.FindProperty("period").floatValue = 2.2f + (h % 7) * 0.35f;
+                bso.FindProperty("rollDegrees").floatValue = 4f + (h % 9);
+                bso.FindProperty("phase").floatValue = (h % 100) / 100f;
+                bso.ApplyModifiedPropertiesWithoutUndo();
             }
 
             // 수중 헤이즈 막 — 수면 아래 잠긴 빌딩 하부에 물 톤(2.5D 시점에서 침수 도시 연속감), 플레이어 X 추적
