@@ -22,6 +22,7 @@ Shader "Game/MurkyWaterFlow"
         {
             Name "ForwardLit"
             Tags { "LightMode"="UniversalForward" }
+            Cull Off   // 수중(아래)에서 올려다봐도 수면이 보이도록 양면 렌더
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
@@ -126,6 +127,7 @@ Shader "Game/MurkyWaterFlow"
             Tags { "LightMode"="DepthOnly" }
             ZWrite On
             ColorMask R
+            Cull Off
             HLSLPROGRAM
             #pragma vertex vertDepth
             #pragma fragment fragDepth
