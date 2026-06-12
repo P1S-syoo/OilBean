@@ -62,11 +62,13 @@ namespace Game.Editor.Surface {
                 Undo.RegisterCreatedObjectUndo(root, "명소 배치");
 
                 int placed = 0;
+                var zones = new System.Collections.Generic.List<Vector3>();
                 foreach (var def in Defs) {
-                    if (PlaceOne(root.transform, river, def)) {
+                    if (PlaceOne(root.transform, river, def, zones)) {
                         placed++;
                     }
                 }
+                WriteZones(rig, zones);
                 EditorUtility.SetDirty(rig);
                 UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(rig.scene);
                 Debug.Log($"[LandmarkPlacer] 명소 배치 완료 — {placed}/{Defs.Length}개 (스케일 표준: K={LandmarkScale.Calibration}, p={LandmarkScale.Exponent}, cap={LandmarkScale.MaxHeight})");
@@ -75,7 +77,7 @@ namespace Game.Editor.Surface {
             }
         }
 
-        static bool PlaceOne(Transform parent, SplineContainer river, LandmarkDef def) {
+        static bool PlaceOne(Transform parent, SplineContainer river, LandmarkDef def, System.Collections.Generic.List<Vector3> zones) {
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(def.assetPath);
             if (prefab == null) {
                 Debug.LogError($"[LandmarkPlacer] 모델 없음: {def.assetPath} — roadview-to-3d 스킬로 생성 후 임포트하세요");
@@ -115,16 +117,37 @@ namespace Game.Editor.Surface {
             // 정면이 강(스플라인)을 향하도록 회전 + 모델축 보정
             go.transform.rotation = Quaternion.LookRotation(-right * def.side) * Quaternion.Euler(0f, def.yawOffset, 0f);
 
-            // 2.5D 사이드뷰 통로 보호 — 빌딩과 동일 기준(z -22~+6) 침범 시 가까운 바깥쪽으로 밀어냄
+            // 2.5D 사이드뷰 통로 보호 — 강변 구조물만(수상 부유체는 수면 위라 수중 시야를 안 가림 → 강 위 위치 유지)
             Bounds placedBounds = CalcBounds(go);
-            if (placedBounds.max.z > SkylineStreamer.CamBankMaxZ && placedBounds.min.z < SkylineStreamer.FarBankMinZ) {
+            if (!def.floatOnWater && placedBounds.max.z > SkylineStreamer.CamBankMaxZ && placedBounds.min.z < SkylineStreamer.FarBankMinZ) {
                 bool camSide = placedBounds.center.z < (SkylineStreamer.CamBankMaxZ + SkylineStreamer.FarBankMinZ) * 0.5f;
                 float push = camSide ? SkylineStreamer.CamBankMaxZ - placedBounds.max.z : SkylineStreamer.FarBankMinZ - placedBounds.min.z;
                 go.transform.position += Vector3.forward * push;
+                placedBounds = CalcBounds(go);
             }
 
-            Debug.Log($"[LandmarkPlacer] {def.name}: 실물 {def.realHeightM}m → {gameHeight:F1}u (scale {scale:F2}), t={def.t}, side={(def.side < 0 ? "좌안" : "우안")}");
+            // 점유 구간 기록 — 빌딩·다리가 이 X 범위를 비우도록(실측 풋프린트 + 빌딩 반폭 여유 16)
+            float zoneRadius = Mathf.Max(placedBounds.extents.x, placedBounds.extents.z) + 16f;
+            zones.Add(new Vector3(placedBounds.center.x, zoneRadius, def.side));
+
+            Debug.Log($"[LandmarkPlacer] {def.name}: 실물 {def.realHeightM}m → {gameHeight:F1}u (scale {scale:F2}), t={def.t}, side={(def.side < 0 ? "좌안" : "우안")}, 점유 x={placedBounds.center.x:F0}±{zoneRadius:F0}");
             return true;
+        }
+
+        // 점유 구간을 스카이라인 스트리머에 배선 — 이후 '폐허 스카이라인 배치' 재실행 시 반영
+        static void WriteZones(GameObject rig, System.Collections.Generic.List<Vector3> zones) {
+            var streamer = rig.GetComponentInChildren<SkylineStreamer>(true);
+            if (streamer == null) {
+                Debug.LogWarning("[LandmarkPlacer] SkylineStreamer 없음 — 수상 리그 생성 후 명소 배치→스카이라인 배치 순서로 실행하세요");
+                return;
+            }
+            var so = new SerializedObject(streamer);
+            var prop = so.FindProperty("landmarkZones");
+            prop.arraySize = zones.Count;
+            for (int i = 0; i < zones.Count; i++) {
+                prop.GetArrayElementAtIndex(i).vector3Value = zones[i];
+            }
+            so.ApplyModifiedPropertiesWithoutUndo();
         }
 
         // 모든 렌더러를 합친 월드 바운즈 (스케일 1 상태에서 호출)

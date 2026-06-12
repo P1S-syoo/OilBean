@@ -14,11 +14,12 @@ namespace Game.Surface {
         [SerializeField] GameObject bridgePrefab;      // 터널 섹션 다리 스팬
         [SerializeField] Material pillarMat;           // 침수 기둥(잠긴 콘크리트 톤)
         [SerializeField] float radius = 130f;          // 카메라 좌우 스트리밍 범위(u) — 안개 가시거리(밀도 0.011) 기준
+        [SerializeField] Vector3[] landmarkZones;      // 랜드마크 점유 구간(x=중심X, y=반경, z=강변 side, 0=양안) — LandmarkPlacer가 배선
 
         public const float RiverHalfWidth = 18f;       // LandmarkPlacer와 동일한 강폭 기준
         public const float Spacing = 11f;              // 셀(빌딩 슬롯) 간격(u)
         const float BackRowExtra = 18f;                // 원경 뒷줄 추가 후퇴
-        const float SebitMin = 0.40f, SebitMax = 0.54f; // 세빛섬(t=0.47 우안) 주변 비움
+        const float BridgeClear = 13f;                 // 다리 양끝 강변의 빌딩 제외 반경(u) — 스팬이 빌딩을 뚫지 않게
         const float BridgeHeightM = 26f;               // 한강대교 아치 수면 위 실측(m)
         const float SpanClearance = 5.5f;              // 다리 밑면-수면 간격(u) — 잠수정 통과 여유
         const float BridgeFirstX = 90f;                // 다리 기준 X — 구 터널 섹션 중심 위치 유지(섹션 시스템 제거 후 고정 간격)
@@ -96,16 +97,18 @@ namespace Game.Surface {
             }
         }
 
-        // 셀 1칸 채움 — 좌우 강변 × (근경 + 원경) + 이 셀이 소유한 터널 섹션 다리
+        // 셀 1칸 채움 — 좌우 강변 × (근경 + 원경) + 이 셀이 소유한 다리(랜드마크·다리 구간은 빌딩 제외)
         void FillCell(int i, List<GameObject> list) {
             float d = i * Spacing;
             EvalRiver(d, out var pos, out var tangent);
-            float t01 = d / riverLen;
             for (int s = 0; s < 2; s++) {
                 int side = s == 0 ? -1 : 1;
-                bool sebitGap = side > 0 && t01 > SebitMin && t01 < SebitMax;
+                // 랜드마크 점유 구간·다리 접안부는 빌딩을 비움 — 구조물끼리 관통 방지
+                if (InLandmarkZone(pos.x, side) || NearBridge(pos.x)) {
+                    continue;
+                }
                 int h = Hash(i * 2 + s, 91);
-                if (!sebitGap && h % 7 != 0) {
+                if (h % 7 != 0) {
                     PlaceOne(pos, tangent, side, RiverHalfWidth + 5f + (h >> 3) % 7, h, 1f, list);
                 }
                 int h2 = Hash(i * 2 + s, 173);
@@ -119,11 +122,31 @@ namespace Game.Surface {
             for (int k = kNear - 1; k <= kNear + 1; k++) {
                 float centerX = BridgeFirstX + k * BridgeInterval;
                 int owner = Mathf.FloorToInt((centerX - riverOrigin.x) / Spacing);
-                if (owner == i) {
+                if (owner == i && !InLandmarkZone(centerX, 0)) {
                     EvalRiver(centerX - riverOrigin.x, out var bpos, out var btan);
                     PlaceBridge(bpos, btan, k, list);
                 }
             }
+        }
+
+        // 랜드마크 점유 구간 검사 — side 0이면 강변 무관(다리용), 그 외엔 같은 강변의 구간만
+        bool InLandmarkZone(float x, int side) {
+            if (landmarkZones == null) {
+                return false;
+            }
+            foreach (var z in landmarkZones) {
+                bool sideMatch = side == 0 || z.z == 0f || Mathf.RoundToInt(z.z) == side;
+                if (sideMatch && Mathf.Abs(x - z.x) < z.y) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // 다리 접안부 근접 검사 — 다리 X 격자(BridgeFirstX + k*Interval) 주변
+        static bool NearBridge(float x) {
+            float k = Mathf.Round((x - BridgeFirstX) / BridgeInterval);
+            return Mathf.Abs(x - (BridgeFirstX + k * BridgeInterval)) < BridgeClear;
         }
 
         // 체인 거리 d(범위 밖 허용) → 강 중심선 위치·접선 — 끝 너머는 X축 직선 연장
