@@ -91,6 +91,11 @@ namespace Game.Core {
             }
         }
 
+        // 복귀 거점 좌표 갱신 — 잠수 인계 시 수면 모선(3D 잠수정) 아래 지점으로 지정
+        public void SetDockPoint(Vector3 p) {
+            dockPos = p;
+        }
+
         // 수상에서 잠수 — Surface→Dock 인계(카메라 블렌드·하강 연출은 W5에서 확장)
         public bool EnterDockFromSurface() {
             if (!Fsm.Change(GameState.Dock)) {

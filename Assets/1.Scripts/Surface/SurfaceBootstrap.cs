@@ -1,6 +1,5 @@
 using System;
 using System.Collections;
-using DG.Tweening;
 using Unity.Cinemachine;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -136,10 +135,12 @@ namespace Game.Surface {
             SetSurfaceControl(false);
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
-            // 2.5D 잠수정을 3D 잠수정 바로 아래 수중으로 — 시작 위치가 아닌 현재 지점에서 잠수(연속감)
+            // 2.5D 탐사정을 모선(3D 잠수정) 선체 바로 아래로 — 여기서부터 아래로 내려가는 잠수 연출 시작
+            float diveStartY = Game.World.WorldGen.WaterY - 1.8f;
+            Rigidbody2D rb2d = null;
             if (sideTarget != null && nav != null) {
-                var divePos = new Vector3(nav.transform.position.x, Game.World.WorldGen.WaterY - 3f, 0f);
-                var rb2d = sideTarget.GetComponent<Rigidbody2D>();
+                var divePos = new Vector3(nav.transform.position.x, diveStartY, 0f);
+                rb2d = sideTarget.GetComponent<Rigidbody2D>();
                 if (rb2d != null) {
                     rb2d.linearVelocity = Vector2.zero;   // 잔류 관성 제거
                     rb2d.position = divePos;
@@ -155,48 +156,47 @@ namespace Game.Surface {
                     orbitCam.gameObject.SetActive(false);
                 }
             }
-            // 3) 잠수정이 수면 아래로 가라앉음(블렌드와 동시 진행)
-            Tween descend = null;
-            float subY = nav != null ? nav.transform.position.y : 0f;
+            // 3) 모선은 수면에 그대로(복귀 거점) — 탐사정만 선체 아래로 하강(블렌드와 동시 진행)
             if (nav != null) {
                 nav.enabled = false;   // 항해 정지 상태 고정
-                try {
-                    descend = nav.transform.DOMoveY(subY - descendDepth, blendTime + 0.6f)
-                        .SetEase(Ease.InQuad);
-                } catch (Exception e) {
-                    Debug.LogError($"[SurfaceBootstrap] 하강 트윈 실패: {e.Message}");
-                }
             }
             bool handedOff = false;
-            // 코루틴 중단·예외 경로에서도 finally가 트윈·상태를 정리 — 인계 성공에만 2.5D 전환을 묶음
+            // 코루틴 중단·예외 경로에서도 finally가 상태를 정리 — 인계 성공에만 2.5D 전환을 묶음
             try {
-                // 블렌드 동안 DiveCam이 목표 프레이밍을 계속 추적 — 종료 위치 = CamFollow 목표 보장(인계 점프 제거)
+                // 블렌드 동안 탐사정이 InQuad로 하강, DiveCam이 계속 추적 — 종료 위치 = CamFollow 목표 보장(인계 점프 제거)
                 float t = 0f;
                 while (t < blendTime) {
                     t += Time.deltaTime;
-                    if (diveCam != null && sideTarget != null) {
-                        diveCam.transform.position = sideTarget.position + new Vector3(0f, 0f, sideZOffset);
+                    if (sideTarget != null) {
+                        float p = Mathf.Clamp01(t / blendTime);
+                        var pos = sideTarget.position;
+                        pos.y = Mathf.Lerp(diveStartY, diveStartY - descendDepth, p * p);
+                        sideTarget.position = pos;
+                        if (rb2d != null) {
+                            rb2d.position = pos;
+                            rb2d.linearVelocity = Vector2.zero;
+                        }
+                        if (diveCam != null) {
+                            diveCam.transform.position = sideTarget.position + new Vector3(0f, 0f, sideZOffset);
+                        }
                     }
                     yield return null;
                 }
-                // 4) 게임 루프 인계 — 성공해야만 2.5D로 전환
+                // 4) 거점 좌표를 하강 종착점으로 갱신 — 복귀(R/강제) 시 모선 아래로 돌아와 위로 모선이 보임
+                if (sideTarget != null) {
+                    game.SetDockPoint(sideTarget.position);
+                }
+                // 게임 루프 인계 — 성공해야만 2.5D로 전환
                 handedOff = game.EnterDockFromSurface();
                 if (handedOff && game.Run != null && nav != null) {
                     game.Run.SetSurfaceTarget(nav.TargetIndex + 1);   // 다음 수상 목표 기록(복귀 항해 재개용)
                 }
             } finally {
                 if (handedOff) {
-                    descend?.Kill(true);          // 하강 종착점 고정 — 리그 비활성 후 트윈 접근 방지
                     RestoreUnderwaterVisuals();
                 } else {
                     // 인계 거부·코루틴 중단 — 수상 상태로 되돌려 재시도 가능(데드 상태 방지)
                     Debug.LogWarning("[SurfaceBootstrap] 잠수 인계 실패 — 수상 상태로 복귀");
-                    descend?.Kill(false);
-                    if (nav != null) {
-                        var p = nav.transform.position;
-                        p.y = subY;
-                        nav.transform.position = p;
-                    }
                     if (diveCam != null) {
                         diveCam.gameObject.SetActive(false);
                     }
@@ -207,11 +207,11 @@ namespace Game.Surface {
                     diving = false;
                 }
             }
-            // 5) 인계 성공 — 3D 잠수정·카메라만 끄고 환경(수면·스카이라인·다리)은 2.5D 백드롭으로 유지
-            //    (W6 수면 복귀는 이들 재활성 + 코디네이터 재enable이 전제 — 계획서 W6 참조)
+            // 5) 인계 성공 — 모선(3D 잠수정)은 수면 거점으로 유지, 덱 캐릭터·수상 카메라만 끔
+            //    (W6 수면 복귀는 덱 캐릭터 재활성 + 코디네이터 재enable이 전제 — 계획서 W6 참조)
             if (handedOff) {
-                if (nav != null) {
-                    nav.gameObject.SetActive(false);
+                if (deck != null) {
+                    deck.gameObject.SetActive(false);   // 캐릭터는 탐사정 탑승 상태 — 덱에서 숨김
                 }
                 if (orbitCam != null) {
                     orbitCam.gameObject.SetActive(false);

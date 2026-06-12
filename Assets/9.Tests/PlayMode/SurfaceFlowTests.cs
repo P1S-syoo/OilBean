@@ -80,10 +80,10 @@ namespace Game.Tests {
                 yield return null;
             }
             boot.RequestDive();
-            for (int i = 0; i < 120 && nav.gameObject.activeSelf; i++) {
+            for (int i = 0; i < 120 && boot.enabled; i++) {
                 yield return null;
             }
-            Assert.IsFalse(nav.gameObject.activeSelf, "잠수 후 3D 잠수정 비활성");
+            Assert.IsTrue(nav.gameObject.activeSelf, "모선(3D 잠수정)은 수면 거점으로 유지");
             Assert.IsTrue(rig.activeSelf, "환경(수면·스카이라인)은 2.5D 백드롭으로 유지");
             Assert.IsFalse(boot.enabled, "수상 코디네이터 종료");
             Assert.AreEqual(GameState.Dock, ((GameBootstrap)GetGame(boot)).State, "잠수 후 거점 인계");
