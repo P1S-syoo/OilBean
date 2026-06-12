@@ -6,12 +6,14 @@ namespace Game.Surface {
     // 덱 위 3인칭 캐릭터 — 카메라 기준 WASD 로컬 이동, 덱 경계 클램프(물에 못 떨어짐)
     public class DeckCharacter : MonoBehaviour {
         [SerializeField] Transform cam;                          // 이동 방향 기준 카메라(미연결 시 Camera.main)
-        [SerializeField] float moveSpeed = 3.5f;
+        [SerializeField] float moveSpeed = 2f;                   // 보행 클립(1.3배속) 보폭에 맞춘 속도 — 미끄러짐 방지
         [SerializeField] float turnSpeed = 12f;                  // 이동 방향 회전 보간 속도
         [SerializeField] Vector2 deckHalf = new(1.8f, 4.6f);    // 덱 절반 크기(로컬 x, z) — 잠수정 선체와 일치
         [SerializeField] Animator animator;                      // 선택 — 이동 시 Speed 파라미터로 모션 전환
 
         static readonly int SpeedHash = Animator.StringToHash("Speed");
+        static readonly int OnDeckHash = Animator.StringToHash("OnDeck");
+        static readonly int DiveHash = Animator.StringToHash("Dive");
 
         InputAction move;
 
@@ -33,6 +35,16 @@ namespace Game.Surface {
 
         void OnEnable() {
             move?.Enable();
+            if (animator != null) {
+                animator.SetBool(OnDeckHash, true);   // 덱 위 — 이동 시 Swim 대신 Walk
+            }
+        }
+
+        // 잠수 입수 — RunToDive 모션 1회 재생(연출 코디네이터가 호출)
+        public void TriggerDive() {
+            if (animator != null) {
+                animator.SetTrigger(DiveHash);
+            }
         }
 
         void OnDisable() {

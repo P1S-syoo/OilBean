@@ -1,0 +1,134 @@
+using System;
+using System.Linq;
+using UnityEditor;
+using UnityEditor.Animations;
+using UnityEngine;
+
+namespace Game.Editor.Surface {
+    // PlayerAnim.controller 확장 도구 — Walk(덱 보행)·RunToDive(입수) 스테이트와 OnDeck/Dive 파라미터를 코드로 배선(재실행 안전)
+    public static class CharacterAnimBuilder {
+        const string CtrlPath = "Assets/4.Art/Characters/PlayerAnim.controller";
+        const string WalkFbx = "Assets/4.Art/Characters/Walking.fbx";
+        const string DiveFbx = "Assets/4.Art/Characters/RunToDive.fbx";
+
+        [MenuItem("Tools/한강/캐릭터 애니 갱신")]
+        public static void Build() {
+            try {
+                ConfigureImport(WalkFbx, true);
+                ConfigureImport(DiveFbx, false);
+                var ctrl = AssetDatabase.LoadAssetAtPath<AnimatorController>(CtrlPath);
+                if (ctrl == null) {
+                    Debug.LogError($"[CharacterAnimBuilder] 컨트롤러 없음: {CtrlPath}");
+                    return;
+                }
+                EnsureParam(ctrl, "OnDeck", AnimatorControllerParameterType.Bool);
+                EnsureParam(ctrl, "Dive", AnimatorControllerParameterType.Trigger);
+                var sm = ctrl.layers[0].stateMachine;
+                var idle = FindState(sm, "Idle");
+                var swim = FindState(sm, "Swim");
+                if (idle == null || swim == null) {
+                    Debug.LogError("[CharacterAnimBuilder] Idle/Swim 스테이트를 찾지 못함 — 컨트롤러 구조 확인 필요");
+                    return;
+                }
+                var walk = EnsureState(sm, "Walk", LoadClip(WalkFbx), new Vector3(420f, 60f, 0f));
+                walk.speed = 1.3f;   // 이동 속도(2.0m/s)와 보폭 동기화 — 발 미끄러짐 최소화
+                var dive = EnsureState(sm, "RunToDive", LoadClip(DiveFbx), new Vector3(420f, 180f, 0f));
+
+                // 덱 보행: Idle→Walk(Speed>0.1 & OnDeck), Walk→Idle(Speed<0.1)
+                if (!idle.transitions.Any(t => t.destinationState == walk)) {
+                    var t = idle.AddTransition(walk);
+                    t.hasExitTime = false;
+                    t.duration = 0.15f;
+                    t.AddCondition(AnimatorConditionMode.Greater, 0.1f, "Speed");
+                    t.AddCondition(AnimatorConditionMode.If, 0f, "OnDeck");
+                }
+                if (!walk.transitions.Any(t => t.destinationState == idle)) {
+                    var t = walk.AddTransition(idle);
+                    t.hasExitTime = false;
+                    t.duration = 0.15f;
+                    t.AddCondition(AnimatorConditionMode.Less, 0.1f, "Speed");
+                }
+                // 기존 Idle→Swim은 물에서만 — OnDeck=false 조건 보강
+                foreach (var t in idle.transitions.Where(t => t.destinationState == swim)) {
+                    if (!t.conditions.Any(c => c.parameter == "OnDeck")) {
+                        t.AddCondition(AnimatorConditionMode.IfNot, 0f, "OnDeck");
+                    }
+                }
+                // 입수: AnyState→RunToDive(Dive 트리거), 클립 종료 후 Swim 인계
+                if (!sm.anyStateTransitions.Any(t => t.destinationState == dive)) {
+                    var t = sm.AddAnyStateTransition(dive);
+                    t.duration = 0.1f;
+                    t.canTransitionToSelf = false;
+                    t.AddCondition(AnimatorConditionMode.If, 0f, "Dive");
+                }
+                if (!dive.transitions.Any(t => t.destinationState == swim)) {
+                    var t = dive.AddTransition(swim);
+                    t.hasExitTime = true;
+                    t.exitTime = 0.9f;
+                    t.duration = 0.25f;
+                }
+                EditorUtility.SetDirty(ctrl);
+                AssetDatabase.SaveAssets();
+                Debug.Log("[CharacterAnimBuilder] 캐릭터 애니 갱신 완료 — Walk/RunToDive + OnDeck/Dive 배선");
+            } catch (Exception e) {
+                Debug.LogError($"[CharacterAnimBuilder] 갱신 실패: {e.Message}\n{e.StackTrace}");
+            }
+        }
+
+        // FBX 임포트 설정 — 휴머노이드 리그(기존 Mixamo 클립과 동일) + 루프 여부
+        static void ConfigureImport(string path, bool loop) {
+            var imp = AssetImporter.GetAtPath(path) as ModelImporter;
+            if (imp == null) {
+                Debug.LogError($"[CharacterAnimBuilder] FBX 없음: {path}");
+                return;
+            }
+            bool dirty = false;
+            if (imp.animationType != ModelImporterAnimationType.Human) {
+                imp.animationType = ModelImporterAnimationType.Human;
+                dirty = true;
+            }
+            var clips = imp.clipAnimations.Length > 0 ? imp.clipAnimations : imp.defaultClipAnimations;
+            foreach (var c in clips) {
+                if (c.loopTime != loop) {
+                    c.loopTime = loop;
+                    dirty = true;
+                }
+            }
+            if (dirty) {
+                imp.clipAnimations = clips;
+                imp.SaveAndReimport();
+            }
+        }
+
+        static AnimationClip LoadClip(string path) {
+            var clip = AssetDatabase.LoadAllAssetsAtPath(path)
+                .OfType<AnimationClip>()
+                .FirstOrDefault(c => !c.name.StartsWith("__preview__"));
+            if (clip == null) {
+                Debug.LogError($"[CharacterAnimBuilder] 클립 없음: {path}");
+            }
+            return clip;
+        }
+
+        static void EnsureParam(AnimatorController ctrl, string name, AnimatorControllerParameterType type) {
+            if (!ctrl.parameters.Any(p => p.name == name)) {
+                ctrl.AddParameter(name, type);
+            }
+        }
+
+        static AnimatorState FindState(AnimatorStateMachine sm, string name) {
+            return sm.states.Select(s => s.state).FirstOrDefault(s => s.name == name);
+        }
+
+        static AnimatorState EnsureState(AnimatorStateMachine sm, string name, AnimationClip clip, Vector3 pos) {
+            var state = FindState(sm, name);
+            if (state == null) {
+                state = sm.AddState(name, pos);
+            }
+            if (clip != null) {
+                state.motion = clip;
+            }
+            return state;
+        }
+    }
+}

@@ -23,7 +23,9 @@ namespace Game.Surface {
         [SerializeField] GameObject skyQuad;          // 2.5D 하늘 백드롭 퀀드 — 수상 동안 숨김(안개 하늘과 충돌)
         [SerializeField] float sideZOffset = -20f;    // CamFollow zOffset과 일치해야 끊김 없음
         [SerializeField] float blendTime = 2.2f;      // 카메라 블렌드·하강 연출 시간
-        [SerializeField] float descendDepth = 8f;     // 잠수정 하강 깊이
+        [SerializeField] float descendDepth = 8f;     // 자동 하강 깊이(수면 직하 → 탐사 시작 위치)
+        [SerializeField] float plungeTime = 1.1f;     // 덱 캐릭터 입수(RunToDive) 연출 시간
+        [SerializeField] float plungeDistance = 3f;   // 입수 시 전방 도약 거리
 
         InputAction diveInput;
         bool diveReady;
@@ -131,23 +133,50 @@ namespace Game.Surface {
         }
 
         IEnumerator DiveSequence() {
-            // 1) 입력 잠금 + 커서 명시 복원(orbitDriver 생명주기에 의존하지 않음 — 누수 방지)
+            // 1) 입력 잠금 + 커서 명시 복원(orbitDriver 생명주기에 의존하지 않음 — 누수 방지) + 항해 정지
             SetSurfaceControl(false);
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
-            // 2.5D 탐사정을 모선(3D 잠수정) 선체 바로 아래로 — 여기서부터 아래로 내려가는 잠수 연출 시작
-            float diveStartY = Game.World.WorldGen.WaterY - 1.8f;
+            if (nav != null) {
+                nav.enabled = false;   // 모선은 수면에 그대로(복귀 거점)
+            }
+            // 2) 덱 캐릭터 입수 — RunToDive 모션과 함께 전방 포물선으로 물에 뛰어듦(궤도 카메라가 지켜봄)
+            Vector3 deckLocalPos = Vector3.zero;
+            Quaternion deckLocalRot = Quaternion.identity;
+            if (deck != null) {
+                deckLocalPos = deck.transform.localPosition;
+                deckLocalRot = deck.transform.localRotation;
+                deck.TriggerDive();
+                Vector3 start = deck.transform.position;
+                Vector3 fwd = deck.transform.forward;
+                fwd.y = 0f;
+                fwd = fwd.sqrMagnitude > 0.001f ? fwd.normalized : Vector3.forward;
+                float plunge = 0f;
+                while (plunge < plungeTime) {
+                    plunge += Time.deltaTime;
+                    float k = Mathf.Clamp01(plunge / plungeTime);
+                    var pos = start + fwd * (plungeDistance * k);
+                    pos.y = Mathf.Lerp(start.y, Game.World.WorldGen.WaterY - 1.2f, k * k);   // 가속 낙하(포물선)
+                    deck.transform.position = pos;
+                    yield return null;
+                }
+                deck.gameObject.SetActive(false);   // 입수 완료 — 이후는 2.5D 캐릭터가 이어받음
+            }
+            // 3) 2.5D 캐릭터를 모선 아래 수면 직하로 — 여기서부터 자동 하강
+            float diveStartY = Game.World.WorldGen.WaterY - 1.2f;
             Rigidbody2D rb2d = null;
+            Game.Player.PlayerMove mover2d = null;
             if (sideTarget != null && nav != null) {
                 var divePos = new Vector3(nav.transform.position.x, diveStartY, 0f);
                 rb2d = sideTarget.GetComponent<Rigidbody2D>();
+                mover2d = sideTarget.GetComponent<Game.Player.PlayerMove>();
                 if (rb2d != null) {
                     rb2d.linearVelocity = Vector2.zero;   // 잔류 관성 제거
                     rb2d.position = divePos;
                 }
                 sideTarget.position = divePos;
             }
-            // 2) 사이드뷰 프레이밍 카메라로 블렌드 시작
+            // 4) 사이드뷰 프레이밍 카메라로 블렌드 시작
             if (diveCam != null && sideTarget != null) {
                 diveCam.transform.SetPositionAndRotation(
                     sideTarget.position + new Vector3(0f, 0f, sideZOffset), Quaternion.identity);
@@ -156,14 +185,10 @@ namespace Game.Surface {
                     orbitCam.gameObject.SetActive(false);
                 }
             }
-            // 3) 모선은 수면에 그대로(복귀 거점) — 탐사정만 선체 아래로 하강(블렌드와 동시 진행)
-            if (nav != null) {
-                nav.enabled = false;   // 항해 정지 상태 고정
-            }
             bool handedOff = false;
             // 코루틴 중단·예외 경로에서도 finally가 상태를 정리 — 인계 성공에만 2.5D 전환을 묶음
             try {
-                // 블렌드 동안 탐사정이 InQuad로 하강, DiveCam이 계속 추적 — 종료 위치 = CamFollow 목표 보장(인계 점프 제거)
+                // 블렌드 동안 아래를 보며 자동 헤엄 하강(조작 불가), DiveCam이 계속 추적 — 종료 위치 = CamFollow 목표(인계 점프 제거)
                 float t = 0f;
                 while (t < blendTime) {
                     t += Time.deltaTime;
@@ -176,13 +201,15 @@ namespace Game.Surface {
                             rb2d.position = pos;
                             rb2d.linearVelocity = Vector2.zero;
                         }
+                        mover2d?.SetCinematicPose(-90f, 5f);   // 아래를 바라보는 헤엄 자세
                         if (diveCam != null) {
                             diveCam.transform.position = sideTarget.position + new Vector3(0f, 0f, sideZOffset);
                         }
                     }
                     yield return null;
                 }
-                // 4) 거점 좌표를 하강 종착점으로 갱신 — 복귀(R/강제) 시 모선 아래로 돌아와 위로 모선이 보임
+                mover2d?.SetCinematicPose(0f, 0f);   // 도착 — 자세 복원, 이후 플레이어 조작
+                // 5) 거점 좌표를 하강 종착점으로 갱신 — 복귀(R/강제) 시 모선 아래로 돌아와 위로 모선이 보임
                 if (sideTarget != null) {
                     game.SetDockPoint(sideTarget.position);
                 }
@@ -197,6 +224,11 @@ namespace Game.Surface {
                 } else {
                     // 인계 거부·코루틴 중단 — 수상 상태로 되돌려 재시도 가능(데드 상태 방지)
                     Debug.LogWarning("[SurfaceBootstrap] 잠수 인계 실패 — 수상 상태로 복귀");
+                    if (deck != null) {
+                        deck.gameObject.SetActive(true);   // 입수했던 캐릭터를 덱 원위치로
+                        deck.transform.localPosition = deckLocalPos;
+                        deck.transform.localRotation = deckLocalRot;
+                    }
                     if (diveCam != null) {
                         diveCam.gameObject.SetActive(false);
                     }
@@ -207,12 +239,9 @@ namespace Game.Surface {
                     diving = false;
                 }
             }
-            // 5) 인계 성공 — 모선(3D 잠수정)은 수면 거점으로 유지, 덱 캐릭터·수상 카메라만 끔
+            // 6) 인계 성공 — 모선(3D 잠수정)은 수면 거점으로 유지, 수상 카메라만 끔(덱 캐릭터는 입수 단계에서 숨김)
             //    (W6 수면 복귀는 덱 캐릭터 재활성 + 코디네이터 재enable이 전제 — 계획서 W6 참조)
             if (handedOff) {
-                if (deck != null) {
-                    deck.gameObject.SetActive(false);   // 캐릭터는 탐사정 탑승 상태 — 덱에서 숨김
-                }
                 if (orbitCam != null) {
                     orbitCam.gameObject.SetActive(false);
                 }

@@ -15,7 +15,7 @@ namespace Game.Editor.Surface {
         const string SubFallbackPath = "Assets/4.Art/Models/PolyPizza/submarine1.glb";
         const string CharModelPath = "Assets/4.Art/Characters/MainCharacter.fbx";
         const string CharAnimPath = "Assets/4.Art/Characters/PlayerAnim.controller";
-        const float SubLength = 11f;          // 잠수정 진행축(Z) 목표 길이
+        const float SubLength = 15f;          // 잠수정 진행축(Z) 목표 길이 — 덱 보행 공간 확보
         const float CharacterHeight = 1.7f;   // 덱 캐릭터 목표 키
         const float HullLift = 0.35f;         // 흘수 보정 — 함교 포함 바운즈 중심 정렬은 선체가 깊이 잠겨 위로 올림(extents.y 비율)
 
@@ -131,8 +131,8 @@ namespace Game.Editor.Surface {
         static DeckCharacter BuildDeckPlayer(Transform sub, float deckTop, Vector2 deckHalf) {
             var playerRoot = new GameObject("DeckPlayer");
             playerRoot.transform.SetParent(sub, false);
-            // +0.55: 수영 클립(TreadingWater)의 힙이 원점 아래라 그대로 두면 덱에 허리까지 잠김
-            playerRoot.transform.localPosition = new Vector3(0f, deckTop + 0.55f, -deckHalf.y * 0.4f);
+            // 루트는 덱 윗면 — 수영 클립의 힙 오프셋은 ClipHipOffset이 상태별로 보정. 함교와 안 겹치게 선미 쪽
+            playerRoot.transform.localPosition = new Vector3(0f, deckTop, -deckHalf.y * 0.6f);
 
             Animator animator = null;
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(CharModelPath);
@@ -150,6 +150,12 @@ namespace Game.Editor.Surface {
                 var ctrl = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(CharAnimPath);
                 if (animator != null && ctrl != null) {
                     animator.runtimeAnimatorController = ctrl;
+                    // 클립별 루트 기준 보정 — 수영 vs 보행/입수(발 기준). 0.85: 덱에서 무릎 잠김 실측 보정
+                    var hip = model.AddComponent<ClipHipOffset>();
+                    var hso = new SerializedObject(hip);
+                    hso.FindProperty("animator").objectReferenceValue = animator;
+                    hso.FindProperty("swimOffset").floatValue = 0.85f;
+                    hso.ApplyModifiedPropertiesWithoutUndo();
                 }
             } else {
                 Debug.LogWarning($"[SurfaceRigBuilder] 캐릭터 모델 없음({CharModelPath}) — 캡슐 그레이박스로 대체");

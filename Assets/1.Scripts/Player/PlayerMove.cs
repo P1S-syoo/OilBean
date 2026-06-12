@@ -67,6 +67,18 @@ namespace Game.Player {
         public Vector2 Velocity => rb != null ? rb.linearVelocity : Vector2.zero;
         public float Heading => heading;   // 현재 기수각(테스트/검증용)
 
+        // 연출용 — 입력 없이 기수각·헤엄 속도를 외부에서 구동(잠수 자동 하강, 비활성 상태에서도 동작)
+        public void SetCinematicPose(float headingDeg, float animSpeed) {
+            heading = headingDeg;
+            ApplyModel();
+            if (searchLight != null) {
+                searchLight.rotation = Quaternion.Euler(0f, 0f, heading);
+            }
+            if (animator != null) {
+                animator.SetFloat("Speed", animSpeed);
+            }
+        }
+
         // 즉시 정지(강제 복귀 시 관성 제거)
         public void Halt() {
             input = Vector2.zero;
