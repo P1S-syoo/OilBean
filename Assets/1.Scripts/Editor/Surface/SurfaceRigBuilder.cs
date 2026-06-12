@@ -30,8 +30,8 @@ namespace Game.Editor.Surface {
                 Undo.RegisterCreatedObjectUndo(root, "수상 리그 생성");
 
                 var river = BuildRiver(root.transform);
-                var (nav, deckTop, deckHalf) = BuildSub(root.transform, river);
-                var player = BuildDeckPlayer(nav.transform, deckTop, deckHalf);
+                var (nav, deckTop, deckHalf, deckCols) = BuildSub(root.transform, river);
+                var player = BuildDeckPlayer(nav.transform, deckTop, deckHalf, deckCols);
                 var (orbitCam, orbitDriver) = BuildOrbitCamera(root.transform, player);
                 var diveCam = BuildDiveCam(root.transform);
                 BuildIntro(root.transform, nav, player, orbitCam, orbitDriver);
@@ -67,12 +67,13 @@ namespace Game.Editor.Surface {
             return container;
         }
 
-        // 잠수정 — 실물 모델(submarine1) 바운즈 기반 축 정렬·스케일, 없으면 큐브 그레이박스 폴백
-        static (SubNavigator nav, float deckTop, Vector2 deckHalf) BuildSub(Transform parent, SplineContainer river) {
+        // 잠수정 — 실물 모델 바운즈 기반 축 정렬·스케일, 없으면 큐브 그레이박스 폴백. 선체 콜라이더로 보행 표면 제공
+        static (SubNavigator nav, float deckTop, Vector2 deckHalf, Collider[] deckCols) BuildSub(Transform parent, SplineContainer river) {
             var subRoot = new GameObject("Sub3D");
             subRoot.transform.SetParent(parent, false);
             float deckTop = 0.75f;                        // 그레이박스 선체 윗면 기본값
             var deckHalf = new Vector2(1.8f, 4.6f);
+            var deckCols = new System.Collections.Generic.List<Collider>();
 
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(SubModelPath);
             bool needRetint = false;
@@ -101,6 +102,14 @@ namespace Game.Editor.Surface {
                 if (needRetint) {
                     RetintSubmarine(model);               // 폴백 모델만 — VARCO 모델은 자체 아포칼립스 텍스처 유지
                 }
+                // 선체 메시 콜라이더 — 캐릭터가 실제 곡면 표면 위로만 걷도록(레이캐스트 표적)
+                foreach (var mf in model.GetComponentsInChildren<MeshFilter>()) {
+                    if (mf.sharedMesh != null) {
+                        var mc = mf.gameObject.AddComponent<MeshCollider>();
+                        mc.sharedMesh = mf.sharedMesh;
+                        deckCols.Add(mc);
+                    }
+                }
                 model.AddComponent<FloatBob>();           // 부유 모션은 모델에만(루트는 항해 위치 고정)
             } else {
                 Debug.LogWarning($"[SurfaceRigBuilder] 잠수정 모델 없음({SubModelPath}) — 큐브 그레이박스로 대체");
@@ -124,11 +133,11 @@ namespace Game.Editor.Surface {
             var so = new SerializedObject(nav);
             so.FindProperty("river").objectReferenceValue = river;
             so.ApplyModifiedPropertiesWithoutUndo();
-            return (nav, deckTop, deckHalf);
+            return (nav, deckTop, deckHalf, deckCols.ToArray());
         }
 
         // 덱 위 캐릭터 — 2.5D와 같은 수영 플레이어 모델(MainCharacter+PlayerAnim) 재사용, 없으면 캡슐 폴백
-        static DeckCharacter BuildDeckPlayer(Transform sub, float deckTop, Vector2 deckHalf) {
+        static DeckCharacter BuildDeckPlayer(Transform sub, float deckTop, Vector2 deckHalf, Collider[] deckCols) {
             var playerRoot = new GameObject("DeckPlayer");
             playerRoot.transform.SetParent(sub, false);
             // 루트는 덱 윗면 — 수영 클립의 힙 오프셋은 ClipHipOffset이 상태별로 보정. 함교와 안 겹치게 선미 쪽
@@ -171,6 +180,12 @@ namespace Game.Editor.Surface {
             var dso = new SerializedObject(deck);
             dso.FindProperty("deckHalf").vector2Value = deckHalf;
             dso.FindProperty("animator").objectReferenceValue = animator;
+            // 선체 콜라이더 배선 — 실제 표면 위로만 보행
+            var colsProp = dso.FindProperty("deckColliders");
+            colsProp.arraySize = deckCols != null ? deckCols.Length : 0;
+            for (int i = 0; i < colsProp.arraySize; i++) {
+                colsProp.GetArrayElementAtIndex(i).objectReferenceValue = deckCols[i];
+            }
             dso.ApplyModifiedPropertiesWithoutUndo();
             return deck;
         }

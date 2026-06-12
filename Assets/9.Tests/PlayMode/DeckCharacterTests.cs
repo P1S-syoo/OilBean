@@ -55,6 +55,35 @@ namespace Game.Tests {
         }
 
         [UnityTest]
+        public IEnumerator Walks_at_human_speed() {
+            // 1초간 전진 입력 → 실제 사람 보행 속도(1.4m/s ±5%)로 이동해야
+            var dc = Make();
+            yield return null;
+            for (int i = 0; i < 50; i++) {
+                dc.Step(new Vector2(0f, 1f), 0.02f);
+            }
+            Assert.AreEqual(1.4f, dc.transform.localPosition.z, 0.07f, "1초 이동 거리 = 보행 속도(1.4m/s)");
+        }
+
+        [UnityTest]
+        public IEnumerator Walk_limited_to_hull_surface() {
+            // 선체 콜라이더 배선 시 레이캐스트 명중 면 위로만 이동 — 콜라이더 밖(물 위 허공)으로 못 나감
+            var dc = Make();
+            SetField(dc, "deckHalf", new Vector2(10f, 10f));   // 거친 클램프는 느슨하게 — 콜라이더가 한계
+            var deckGo = new GameObject("Hull");
+            deckGo.transform.SetParent(sub.transform, false);
+            var box = deckGo.AddComponent<BoxCollider>();
+            box.size = new Vector3(4f, 0.5f, 6f);
+            SetField(dc, "deckColliders", new Collider[] { box });
+            yield return null;
+            for (int i = 0; i < 600; i++) {
+                dc.Step(new Vector2(1f, 0f), 0.02f);   // 우측으로 계속 밀어붙임
+            }
+            Assert.LessOrEqual(dc.transform.localPosition.x, 2.05f, "콜라이더 가장자리(x=2)에서 멈춰야");
+            Assert.AreEqual(0.25f, dc.transform.localPosition.y, 0.05f, "발이 콜라이더 윗면에 스냅");
+        }
+
+        [UnityTest]
         public IEnumerator Moving_deck_does_not_slide_character() {
             var dc = Make();
             yield return null;

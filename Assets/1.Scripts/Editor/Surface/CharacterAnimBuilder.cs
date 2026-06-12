@@ -10,12 +10,14 @@ namespace Game.Editor.Surface {
         const string CtrlPath = "Assets/4.Art/Characters/PlayerAnim.controller";
         const string WalkFbx = "Assets/4.Art/Characters/Walking.fbx";
         const string DiveFbx = "Assets/4.Art/Characters/RunToDive.fbx";
+        const string IdleFbx = "Assets/4.Art/Characters/IdleStand.fbx";
 
         [MenuItem("Tools/한강/캐릭터 애니 갱신")]
         public static void Build() {
             try {
                 ConfigureImport(WalkFbx, true);
                 ConfigureImport(DiveFbx, false);
+                ConfigureImport(IdleFbx, true);
                 var ctrl = AssetDatabase.LoadAssetAtPath<AnimatorController>(CtrlPath);
                 if (ctrl == null) {
                     Debug.LogError($"[CharacterAnimBuilder] 컨트롤러 없음: {CtrlPath}");
@@ -31,19 +33,35 @@ namespace Game.Editor.Surface {
                     return;
                 }
                 var walk = EnsureState(sm, "Walk", LoadClip(WalkFbx), new Vector3(420f, 60f, 0f));
-                walk.speed = 1.3f;   // 이동 속도(2.0m/s)와 보폭 동기화 — 발 미끄러짐 최소화
+                walk.speed = 1f;   // 이동 속도(1.4m/s)와 보폭 동기화 — 클립 원배속이 실제 보행과 일치
                 var dive = EnsureState(sm, "RunToDive", LoadClip(DiveFbx), new Vector3(420f, 180f, 0f));
+                var idleDeck = EnsureState(sm, "IdleDeck", LoadClip(IdleFbx), new Vector3(420f, -60f, 0f));
 
-                // 덱 보행: Idle→Walk(Speed>0.1 & OnDeck), Walk→Idle(Speed<0.1)
-                if (!idle.transitions.Any(t => t.destinationState == walk)) {
-                    var t = idle.AddTransition(walk);
+                // 구버전 전환 정리 — Idle(트레딩)↔Walk 직결을 IdleDeck 경유로 교체
+                RemoveTransitions(idle, walk);
+                RemoveTransitions(walk, idle);
+                // 덱 진입/이탈: Idle(물)↔IdleDeck(덱 서있기)
+                if (!idle.transitions.Any(t => t.destinationState == idleDeck)) {
+                    var t = idle.AddTransition(idleDeck);
+                    t.hasExitTime = false;
+                    t.duration = 0.15f;
+                    t.AddCondition(AnimatorConditionMode.If, 0f, "OnDeck");
+                }
+                if (!idleDeck.transitions.Any(t => t.destinationState == idle)) {
+                    var t = idleDeck.AddTransition(idle);
+                    t.hasExitTime = false;
+                    t.duration = 0.15f;
+                    t.AddCondition(AnimatorConditionMode.IfNot, 0f, "OnDeck");
+                }
+                // 덱 보행: IdleDeck↔Walk(Speed 임계 0.1)
+                if (!idleDeck.transitions.Any(t => t.destinationState == walk)) {
+                    var t = idleDeck.AddTransition(walk);
                     t.hasExitTime = false;
                     t.duration = 0.15f;
                     t.AddCondition(AnimatorConditionMode.Greater, 0.1f, "Speed");
-                    t.AddCondition(AnimatorConditionMode.If, 0f, "OnDeck");
                 }
-                if (!walk.transitions.Any(t => t.destinationState == idle)) {
-                    var t = walk.AddTransition(idle);
+                if (!walk.transitions.Any(t => t.destinationState == idleDeck)) {
+                    var t = walk.AddTransition(idleDeck);
                     t.hasExitTime = false;
                     t.duration = 0.15f;
                     t.AddCondition(AnimatorConditionMode.Less, 0.1f, "Speed");
@@ -118,6 +136,13 @@ namespace Game.Editor.Surface {
 
         static AnimatorState FindState(AnimatorStateMachine sm, string name) {
             return sm.states.Select(s => s.state).FirstOrDefault(s => s.name == name);
+        }
+
+        // 특정 목적지로 가는 전환 전부 제거(구버전 배선 정리용)
+        static void RemoveTransitions(AnimatorState from, AnimatorState to) {
+            foreach (var t in from.transitions.Where(t => t.destinationState == to).ToArray()) {
+                from.RemoveTransition(t);
+            }
         }
 
         static AnimatorState EnsureState(AnimatorStateMachine sm, string name, AnimationClip clip, Vector3 pos) {

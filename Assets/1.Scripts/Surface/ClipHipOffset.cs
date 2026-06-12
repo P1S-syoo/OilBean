@@ -18,7 +18,7 @@ namespace Game.Surface {
                 return;
             }
             var s = animator.GetCurrentAnimatorStateInfo(0);
-            bool feetBased = s.IsName("Walk") || s.IsName("RunToDive");
+            bool feetBased = s.IsName("Walk") || s.IsName("RunToDive") || s.IsName("IdleDeck");
             float target = baseY + (feetBased ? 0f : swimOffset);
             var p = transform.localPosition;
             p.y = Mathf.MoveTowards(p.y, target, lerpSpeed * Time.deltaTime);
