@@ -21,6 +21,10 @@ namespace Game.Surface {
         const float SebitMin = 0.40f, SebitMax = 0.54f; // 세빛섬(t=0.47 우안) 주변 비움
         const float BridgeHeightM = 26f;               // 한강대교 아치 수면 위 실측(m)
         const float SpanClearance = 5.5f;              // 다리 밑면-수면 간격(u) — 잠수정 통과 여유
+        const float BridgeFirstX = 90f;                // 다리 기준 X — 구 터널 섹션 중심 위치 유지(섹션 시스템 제거 후 고정 간격)
+        const float BridgeInterval = 180f;             // 다리 반복 간격(u)
+        const float CamBankMaxZ = -22f;                // 카메라(-z) 강변 빌딩 z 한계 — 사이드뷰 카메라(z-20) 뒤 2u 여유
+        const float FarBankMinZ = 6f;                  // 원경(+z) 강변 빌딩 z 한계 — 2.5D Background 블록(z4) 뒤 2u 여유
 
         readonly Dictionary<int, List<GameObject>> cells = new();
         readonly Queue<int> pending = new();   // 스폰 대기 셀 — 프레임당 1셀만 채워 히치 분산(잠수 텔레포트 폭주 흡수)
@@ -109,29 +113,30 @@ namespace Game.Surface {
                     PlaceOne(pos, tangent, side, RiverHalfWidth + BackRowExtra + 6f + (h2 >> 3) % 9, h2, 1.25f, list);
                 }
             }
-            // 다리 소유: 섹션 중심의 소유 셀 인덱스(정수 규칙)가 이 셀이면 배치 — float 경계 중복/누락 없음
+            // 다리 소유: 다리 X(기준+간격 반복)의 소유 셀 인덱스(정수 규칙)가 이 셀이면 배치 — float 경계 중복/누락 없음
             float cellMidX = riverOrigin.x + d + Spacing * 0.5f;
-            int giNear = Mathf.FloorToInt((cellMidX - WorldGen.OriginX) / WorldGen.SectionW);
-            for (int gi = giNear - 1; gi <= giNear + 1; gi++) {
-                if (WorldGen.SectionAt(Mathf.RoundToInt(WorldGen.OriginX + (gi + 0.5f) * WorldGen.SectionW)) != SectionType.Tunnel) {
-                    continue;
-                }
-                float centerX = WorldGen.OriginX + (gi + 0.5f) * WorldGen.SectionW;
+            int kNear = Mathf.RoundToInt((cellMidX - BridgeFirstX) / BridgeInterval);
+            for (int k = kNear - 1; k <= kNear + 1; k++) {
+                float centerX = BridgeFirstX + k * BridgeInterval;
                 int owner = Mathf.FloorToInt((centerX - riverOrigin.x) / Spacing);
                 if (owner == i) {
                     EvalRiver(centerX - riverOrigin.x, out var bpos, out var btan);
-                    PlaceBridge(bpos, btan, gi, list);
+                    PlaceBridge(bpos, btan, k, list);
                 }
             }
         }
 
-        // 체인 거리 d(범위 밖 허용) → 강 중심선 위치·접선 — 끝 너머는 끝 접선 방향 직선 연장
+        // 체인 거리 d(범위 밖 허용) → 강 중심선 위치·접선 — 끝 너머는 X축 직선 연장
         void EvalRiver(float d, out Vector3 pos, out Vector3 tangent) {
             float t = Mathf.Clamp01(d / riverLen);
             pos = (Vector3)river.EvaluatePosition(t);
             tangent = ((Vector3)(Unity.Mathematics.float3)river.EvaluateTangent(t));
             tangent.y = 0f;
             tangent = tangent.sqrMagnitude > 0.0001f ? tangent.normalized : Vector3.forward;
+            if (d < 0f || d > riverLen) {
+                // 끝 접선의 z 성분을 버리고 X로만 연장 — 멀어질수록 강변이 사이드뷰 카메라 통로로 표류하는 문제 방지
+                tangent = tangent.x >= 0f ? Vector3.right : Vector3.left;
+            }
             pos += tangent * (d - t * riverLen);
         }
 
@@ -179,11 +184,22 @@ namespace Game.Surface {
                 rot = Quaternion.AngleAxis(2f + (h % 5), tangent) * rot;   // 2~6° 기울임(붕괴 직전 무드)
             }
             go.transform.rotation = rot;
+            ClampCorridor(go, side);
             outList.Add(go);
             if (submerge > 0f) {
                 AddPillar(go, outList);   // 침수 동은 강바닥 아래까지 질량 연장
             }
             return go;
+        }
+
+        // 강 굽이/연장으로 빌딩이 2.5D 사이드뷰 통로(카메라 z-20 ~ 플레이필드)를 침범하면 z 바깥으로 밀어냄
+        void ClampCorridor(GameObject go, int side) {
+            Bounds b = CalcBounds(go);
+            if (side > 0 && b.max.z > CamBankMaxZ) {
+                go.transform.position += Vector3.forward * (CamBankMaxZ - b.max.z);
+            } else if (side < 0 && b.min.z < FarBankMinZ) {
+                go.transform.position += Vector3.forward * (FarBankMinZ - b.min.z);
+            }
         }
 
         // 침수 하부 기둥 — 빌딩 발자국 크기의 어두운 실루엣 박스를 강바닥 아래까지

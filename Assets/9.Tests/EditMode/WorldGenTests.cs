@@ -7,14 +7,14 @@ namespace Game.Tests {
     public class WorldGenTests {
 
         [Test]
-        public void Sections_cycle_infinitely() {
-            // 시퀀스(일반→터널→통로)가 X 양방향으로 무한 순환
-            Assert.AreEqual(SectionType.Open, WorldGen.SectionAt(0), "시작 섹션은 Open");
-            Assert.AreEqual(SectionType.Tunnel, WorldGen.SectionAt(60));
-            Assert.AreEqual(SectionType.Corridor, WorldGen.SectionAt(120));
-            Assert.AreEqual(SectionType.Open, WorldGen.SectionAt(180), "한 바퀴 돌아 다시 Open");
-            Assert.AreEqual(SectionType.Corridor, WorldGen.SectionAt(-60), "음수 방향도 순환(왼쪽 이웃=마지막 타입)");
-            Assert.AreEqual(SectionType.Open, WorldGen.SectionAt(100000 - (100000 % 180)), "먼 좌표도 주기 일치");
+        public void No_ceiling_blocks_above_floor() {
+            // 섹션/천장 제거 — 바닥 위부터 해수면까지 전 구간이 비어 있어야(구 터널 x=60~120 구간 포함)
+            for (int x = -200; x <= 200; x += 7) {
+                for (int y = 12; y <= WorldGen.WaterY; y++) {
+                    Assert.IsFalse(WorldGen.IsSolid(1, x, y), $"({x},{y}) Playfield 천장 블록 잔존");
+                    Assert.IsFalse(WorldGen.IsSolid(0, x, y), $"({x},{y}) Background 천장 블록 잔존");
+                }
+            }
         }
 
         [Test]
