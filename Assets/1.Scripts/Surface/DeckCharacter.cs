@@ -11,8 +11,8 @@ namespace Game.Surface {
         [SerializeField] Vector2 deckHalf = new(1.8f, 4.6f);    // 덱 절반 크기(로컬 x, z) — 1차 클램프(거친 한계)
         [SerializeField] Animator animator;                      // 선택 — 이동 시 Speed 파라미터로 모션 전환
         [SerializeField] Collider[] deckColliders;               // 선체 메시 콜라이더 — 실제 표면 위로만 보행 허용
-        [SerializeField] float walkableNormalY = 0.65f;          // 보행 가능 경사 한계(표면 법선 y) — 측면으로 못 내려감
-        [SerializeField] float maxStepUp = 0.35f;                // 단차 한계(m) — 함교·배관 등 높은 구조물로는 이동 차단
+        [SerializeField] float walkableNormalY = 0.5f;           // 보행 가능 경사 한계(표면 법선 y≈60°) — 둥근 선체 어깨까지 허용, 측면 급경사는 차단
+        [SerializeField] float maxStepUp = 0.45f;                // 단차 한계(m) — 함교·배관 등 높은 구조물로는 이동 차단
         [SerializeField] float footSink = 0.12f;                 // 발을 표면에 묻는 깊이(m) — 확실한 접지감
         [SerializeField] float snapLerp = 6f;                    // 발 높이 추종 속도(m/s) — 요철에서 튀지 않게 부드럽게
 

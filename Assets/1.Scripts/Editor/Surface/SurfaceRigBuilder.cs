@@ -98,7 +98,8 @@ namespace Game.Editor.Surface {
                 b = CalcBounds(model);
                 // 선체 윗면 — 단일 메시 모델은 HullTopY가 함교 꼭대기를 반환하므로 원통 선체 근사(바닥+지름)로 캡
                 deckTop = Mathf.Min(HullTopY(model), b.min.y + b.extents.x * 2f);
-                deckHalf = new Vector2(Mathf.Max(b.extents.x * 0.6f, 0.6f), b.extents.z * 0.8f);
+                // 1차 클램프는 거친 한계만 — 실제 보행 경계는 선체 콜라이더 레이캐스트가 결정하므로 넉넉히
+                deckHalf = new Vector2(Mathf.Max(b.extents.x * 0.92f, 0.6f), b.extents.z * 0.92f);
                 if (needRetint) {
                     RetintSubmarine(model);               // 폴백 모델만 — VARCO 모델은 자체 아포칼립스 텍스처 유지
                 }
