@@ -151,17 +151,30 @@ namespace Game.Editor.Surface {
         static DeckCharacter BuildDeckPlayer(Transform sub, float deckTop, Vector2 deckHalf, Collider[] deckCols) {
             var playerRoot = new GameObject("DeckPlayer");
             playerRoot.transform.SetParent(sub, false);
-            // 루트는 덱 윗면 — 수영 클립의 힙 오프셋은 ClipHipOffset이 상태별로 보정. 함교와 안 겹치게 선미 쪽
-            var spawnLocal = new Vector3(0f, deckTop, -deckHalf.y * 0.6f);
-            // 스폰 높이 실측 — 선체 콜라이더 레이캐스트로 접지(컷신·조작 잠금 동안에도 떠 있지 않게, footSink 0.12 일치)
+            // 함교(중앙)를 피한 측면 통로·약간 선미에 스폰 — 평평한 선체 윗면이 보장되는 위치
+            var spawnLocal = new Vector3(deckHalf.x * 0.45f, deckTop, -deckHalf.y * 0.4f);
+            // 스폰 높이 실측 — 모델 전체 높이를 덮는 긴 하향 레이로 평평한(walkable) 선체 윗면만 채택(안테나·함교 곡면 건너뜀)
             if (deckCols != null && deckCols.Length > 0) {
-                var ray = new Ray(sub.TransformPoint(spawnLocal + Vector3.up * 2f), Vector3.down);
-                float best = float.MaxValue;
-                foreach (var c in deckCols) {
-                    if (c != null && c.Raycast(ray, out var hit, 6f) && hit.distance < best) {
-                        best = hit.distance;
-                        spawnLocal.y = sub.InverseTransformPoint(hit.point).y - 0.12f;
+                Physics.SyncTransforms();   // 에디터 — 갓 추가된 MeshCollider를 물리 씬에 반영해야 Raycast 적중
+                Bounds mb = deckCols[0].bounds;
+                for (int i = 1; i < deckCols.Length; i++) {
+                    if (deckCols[i] != null) {
+                        mb.Encapsulate(deckCols[i].bounds);
                     }
+                }
+                Vector3 worldXZ = sub.TransformPoint(new Vector3(spawnLocal.x, 0f, spawnLocal.z));
+                var ray = new Ray(new Vector3(worldXZ.x, mb.max.y + 2f, worldXZ.z), Vector3.down);
+                float bestDist = float.MaxValue;
+                bool found = false;
+                foreach (var c in deckCols) {
+                    if (c != null && c.Raycast(ray, out var hit, mb.size.y + 4f) && hit.normal.y >= 0.5f && hit.distance < bestDist) {
+                        bestDist = hit.distance;
+                        spawnLocal.y = sub.InverseTransformPoint(hit.point).y - 0.12f;
+                        found = true;
+                    }
+                }
+                if (!found) {
+                    Debug.LogWarning("[SurfaceRigBuilder] 덱 스폰 면을 못 찾음 — deckTop 폴백(공중부양 가능)");
                 }
             }
             playerRoot.transform.localPosition = spawnLocal;
