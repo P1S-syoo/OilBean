@@ -77,20 +77,21 @@ namespace Game.Tests {
 
         [Test]
         public void TryAdd_succeeds_until_capacity() {
+            // maxWeight 값에 비의존 — 한계만큼 채우면 가득 차고 추가 적재 거부
             var run = Make();
-            for (int i = 0; i < 5; i++) {
-                Assert.IsTrue(run.TryAdd(ResourceKind.Scrap, 10f), $"{i}번째 적재는 성공해야");
-            }
-            Assert.AreEqual(50f, run.Weight, 0.001f);
+            float cap = run.MaxWeight;
+            Assert.IsTrue(run.TryAdd(ResourceKind.Scrap, cap), "한계만큼 적재는 성공");
+            Assert.AreEqual(cap, run.Weight, 0.001f);
             Assert.IsFalse(run.HasRoom(0.01f), "한계 도달 후 여유 없음");
         }
 
         [Test]
         public void TryAdd_rejects_when_over_capacity() {
             var run = Make();
-            run.TryAdd(ResourceKind.Scrap, 50f);   // 가득
+            float cap = run.MaxWeight;
+            run.TryAdd(ResourceKind.Scrap, cap);   // 가득
             Assert.IsFalse(run.TryAdd(ResourceKind.Scrap, 1f), "초과 적재는 거부");
-            Assert.AreEqual(50f, run.Weight, 0.001f, "거부 시 무게 변화 없음");
+            Assert.AreEqual(cap, run.Weight, 0.001f, "거부 시 무게 변화 없음");
         }
 
         [Test]
@@ -110,6 +111,68 @@ namespace Game.Tests {
             run.ResetRun();
             Assert.AreEqual(0f, run.Weight, 0.001f);
             Assert.AreEqual(0, run.ScrapCount);
+        }
+
+        [Test]
+        public void Bank_steel_accumulates_and_consumes() {
+            var run = Make();
+            run.AddSteel(0, 16f);
+            run.AddSteel(0, 8f);
+            Assert.AreEqual(24f, run.GetSteel(0), 0.001f);
+            Assert.IsFalse(run.TryConsumeSteel(0, 25f), "부족하면 거부");
+            Assert.IsTrue(run.TryConsumeSteel(0, 24f));
+            Assert.AreEqual(0f, run.GetSteel(0), 0.001f);
+        }
+
+        [Test]
+        public void Bank_samples_track_by_level() {
+            var run = Make();
+            run.AddSampleAt(1);
+            run.AddSampleAt(1);
+            run.AddSampleAt(3);
+            Assert.AreEqual(2, run.GetSampleCount(1));
+            Assert.AreEqual(0, run.GetSampleCount(2));
+            Assert.AreEqual(1, run.GetSampleCount(3));
+            Assert.IsTrue(run.TryConsumeSampleAt(1));
+            Assert.AreEqual(1, run.GetSampleCount(1));
+            Assert.IsFalse(run.TryConsumeSampleAt(2), "없으면 거부");
+        }
+
+        [Test]
+        public void Research_points_and_max_level() {
+            var run = Make();
+            run.AddResearchPoints(1);
+            run.AddResearchPoints(3);
+            run.AddResearchPoints(2);
+            Assert.AreEqual(6, run.ResearchPoints);
+            Assert.AreEqual(3, run.MaxAnalyzedLevel, "최고 분석 오염수준 갱신");
+        }
+
+        [Test]
+        public void Buoy_stage_gates_depth() {
+            var run = Make();
+            Assert.AreEqual(15f, run.MaxDepth(), 0.001f, "기본 진입 수심");
+            run.SetBuoyStage(1);
+            Assert.AreEqual(35f, run.MaxDepth(), 0.001f);
+            run.SetBuoyStage(2);
+            Assert.AreEqual(50f, run.MaxDepth(), 0.001f);
+            run.SetBuoyStage(99);
+            Assert.AreEqual(3, run.BuoyStage, "단계 클램프");
+        }
+
+        [Test]
+        public void Reset_clears_bank_and_research() {
+            var run = Make();
+            run.AddSteel(1, 10f);
+            run.AddSampleAt(2);
+            run.AddResearchPoints(3);
+            run.SetBuoyStage(2);
+            run.ResetRun();
+            Assert.AreEqual(0f, run.GetSteel(1), 0.001f);
+            Assert.AreEqual(0, run.GetSampleCount(2));
+            Assert.AreEqual(0, run.ResearchPoints);
+            Assert.AreEqual(0, run.MaxAnalyzedLevel);
+            Assert.AreEqual(0, run.BuoyStage);
         }
 
         [Test]

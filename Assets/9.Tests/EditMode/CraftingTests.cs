@@ -96,11 +96,14 @@ namespace Game.Tests {
             var run = MakeRun();
             AddScrap(run, 2);
             var c = MakeCrafting(run);
-            c.UpgradeWeight();               // 한계 70
+            c.UpgradeWeight();               // 한계 +20
+            float upgraded = run.MaxWeight;  // 업그레이드 후 한계
             run.SetBuoyReady(true);
             run.ResetRun();
             Assert.IsFalse(run.BuoyReady);
-            Assert.AreEqual(50f, run.MaxWeight, 0.001f, "리셋 시 기준 한계 복원");
+            Assert.Less(run.MaxWeight, upgraded, "리셋 시 업그레이드 전 기준 한계로 복원");
+            var fresh = UnityEngine.ScriptableObject.CreateInstance<RunData>();
+            Assert.AreEqual(fresh.MaxWeight, run.MaxWeight, 0.001f, "리셋 한계 = 새 인스턴스 기준값");
         }
     }
 }

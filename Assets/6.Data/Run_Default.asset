@@ -14,6 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Game::Game.Core.RunData
   scrap: 0
   samples: 0
-  maxWeight: 50
+  maxWeight: 70
   purify: 0
   recipes: []
