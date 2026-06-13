@@ -6,17 +6,16 @@ namespace Game.Surface {
     // 덱 위 3인칭 캐릭터 — 카메라 기준 WASD 로컬 이동, 덱 경계 클램프(물에 못 떨어짐)
     public class DeckCharacter : MonoBehaviour {
         [SerializeField] Transform cam;                          // 이동 방향 기준 카메라(미연결 시 Camera.main)
-        [SerializeField] float moveSpeed = 1.4f;                 // 실제 사람 보행 속도(≈5km/h) — Walk 클립 원배속과 일치
+        [SerializeField] float moveSpeed = 1.6f;                 // 보행 속도(사람보다 살짝 빠름) — Walk 클립과 큰 어긋남 없음
         [SerializeField] float turnSpeed = 12f;                  // 이동 방향 회전 보간 속도
         [SerializeField] Vector2 deckHalf = new(1.8f, 4.6f);    // 덱 절반 크기(로컬 x, z) — 1차 클램프(거친 한계)
         [SerializeField] Animator animator;                      // 선택 — 이동 시 Speed 파라미터로 모션 전환
         [SerializeField] Collider[] deckColliders;               // 선체 메시 콜라이더 — 실제 표면 위로만 보행 허용
         [SerializeField] float walkableNormalY = 0.45f;          // 보행 가능 경사 한계(표면 법선 y≈63°) — 완만~중경사 허용, 수직 벽은 차단
-        [SerializeField] float maxStepUp = 0.6f;                 // 오를 수 있는 단차/경사 한계(m) — 이보다 높은 벽(함교)은 차단
+        [SerializeField] float maxStepUp = 0.7f;                 // 오를 수 있는 단차/경사 한계(m) — 배관·돌출 턱은 넘되 함교 벽은 차단
         [SerializeField] float maxStepDown = 0.7f;               // 내려갈 수 있는 단차 한계(m) — 절벽(물)으로 못 떨어짐
-        [SerializeField] float bodyRadius = 0.35f;               // 캡슐 근사 반경(m) — 주변 프로브로 경사·모서리에서 발 안정
         [SerializeField] float footSink = 0.12f;                 // 발을 표면에 묻는 깊이(m) — 확실한 접지감
-        [SerializeField] float snapLerp = 8f;                    // 발 높이 추종 속도(m/s) — 경사를 부드럽게 오르내림
+        [SerializeField] float snapLerp = 16f;                   // 발 높이 추종 속도(m/s) — 경사·턱을 덜컹임 없이 부드럽게
 
         static readonly int SpeedHash = Animator.StringToHash("Speed");
         static readonly int OnDeckHash = Animator.StringToHash("OnDeck");
@@ -117,27 +116,18 @@ namespace Game.Surface {
             }
         }
 
-        // 캡슐 근사 보행 — 중심 + 주변 링을 프로브해 경사·단차를 부드럽게 오르내림(발 높이 스냅)
+        // 발 밑 선체 표면 프로브 — 중심 기둥의 표면 높이로 스냅. 단차는 한 번에 잡고 snapLerp가 부드럽게 보간
         bool TrySnapToDeck(Vector3 localPos, out Vector3 snapped) {
             snapped = localPos;
             if (deckColliders == null || deckColliders.Length == 0) {
                 return true;   // 콜라이더 미배선(그레이박스 폴백) — 기존 클램프만으로 동작
             }
             float footY = transform.localPosition.y;
-            // 중심은 보행 가능면(완만)이어야 — 가장자리 밖/수직 벽이면 이동 취소
-            if (!ProbeColumn(localPos, out float centerY, out float centerN) || centerN < walkableNormalY) {
+            // 발 밑이 보행 가능면(완만)이어야 — 가장자리 밖/수직 벽이면 이동 취소(물로 못 나감)
+            if (!ProbeColumn(localPos, out float surfaceY, out float surfaceN) || surfaceN < walkableNormalY) {
                 return false;
             }
-            // 주변 링에서 더 높은 보행 가능면이 있으면 그 높이 채택 — 경사·단차를 발 반경으로 타고 오름
-            float targetLocalY = centerY;
-            for (int i = 0; i < 4; i++) {
-                float a = i * Mathf.PI * 0.5f;
-                Vector3 off = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * bodyRadius;
-                if (ProbeColumn(localPos + off, out float oY, out float oN) && oN >= walkableNormalY && oY > targetLocalY) {
-                    targetLocalY = oY;
-                }
-            }
-            float targetY = targetLocalY - footSink;
+            float targetY = surfaceY - footSink;
             if (targetY - footY > maxStepUp) {
                 return false;   // 너무 높은 벽(함교 지붕 등) — 못 올라감
             }

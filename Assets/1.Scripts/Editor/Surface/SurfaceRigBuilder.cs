@@ -151,8 +151,8 @@ namespace Game.Editor.Surface {
         static DeckCharacter BuildDeckPlayer(Transform sub, float deckTop, Vector2 deckHalf, Collider[] deckCols) {
             var playerRoot = new GameObject("DeckPlayer");
             playerRoot.transform.SetParent(sub, false);
-            // 함교(중앙)를 피한 측면 통로·약간 선미에 스폰 — 평평한 선체 윗면이 보장되는 위치
-            var spawnLocal = new Vector3(deckHalf.x * 0.45f, deckTop, -deckHalf.y * 0.4f);
+            // 중앙·선미 쪽 스폰(함교는 보통 중앙이라 선미는 비어 있음) — robust 레이가 평평한 선체 윗면을 보장
+            var spawnLocal = new Vector3(0f, deckTop, -deckHalf.y * 0.6f);
             // 스폰 높이 실측 — 모델 전체 높이를 덮는 긴 하향 레이로 평평한(walkable) 선체 윗면만 채택(안테나·함교 곡면 건너뜀)
             if (deckCols != null && deckCols.Length > 0) {
                 Physics.SyncTransforms();   // 에디터 — 갓 추가된 MeshCollider를 물리 씬에 반영해야 Raycast 적중

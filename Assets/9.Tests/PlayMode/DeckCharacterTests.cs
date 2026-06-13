@@ -56,13 +56,41 @@ namespace Game.Tests {
 
         [UnityTest]
         public IEnumerator Walks_at_human_speed() {
-            // 1초간 전진 입력 → 실제 사람 보행 속도(1.4m/s ±5%)로 이동해야
+            // 1초간 전진 입력 → 보행 속도(1.6m/s ±5%)로 이동해야
             var dc = Make();
             yield return null;
             for (int i = 0; i < 50; i++) {
                 dc.Step(new Vector2(0f, 1f), 0.02f);
             }
-            Assert.AreEqual(1.4f, dc.transform.localPosition.z, 0.07f, "1초 이동 거리 = 보행 속도(1.4m/s)");
+            Assert.AreEqual(1.6f, dc.transform.localPosition.z, 0.08f, "1초 이동 거리 = 보행 속도(1.6m/s)");
+        }
+
+        [UnityTest]
+        public IEnumerator Climbs_step_ledge() {
+            // 낮은 바닥(y=0)에서 전진하다 0.4m 턱을 만나면 멈추지 않고 올라서야(경사·단차 보정)
+            var dc = Make();
+            SetField(dc, "deckHalf", new Vector2(10f, 10f));
+            var floorGo = new GameObject("Floor");
+            floorGo.transform.SetParent(sub.transform, false);
+            var floor = floorGo.AddComponent<BoxCollider>();
+            floor.size = new Vector3(20f, 0.5f, 4f);          // z<2 바닥(윗면 y=0.25)
+            floorGo.transform.localPosition = new Vector3(0f, 0f, 0f);
+            var ledgeGo = new GameObject("Ledge");
+            ledgeGo.transform.SetParent(sub.transform, false);
+            var ledge = ledgeGo.AddComponent<BoxCollider>();
+            ledge.size = new Vector3(20f, 0.9f, 6f);          // 바닥에 인접(z 2..8), 윗면 y=0.65 → 바닥(0.25) 대비 +0.4 단차
+            ledgeGo.transform.localPosition = new Vector3(0f, 0.2f, 5f);
+            SetField(dc, "deckColliders", new Collider[] { floor, ledge });
+            SetField(dc, "cam", sub.transform);   // 이동 기준 +z 고정(Camera.main 의존 제거)
+            dc.enabled = false;                    // 컴포넌트 Update의 중복 idle-Step 차단 — 수동 Step만
+            dc.transform.localPosition = new Vector3(0f, 0.13f, -1f);
+            yield return null;
+            Physics.SyncTransforms();              // 동기 Step 루프 전 박스 콜라이더를 물리 씬에 반영(스위트 순서 무관)
+            for (int i = 0; i < 200; i++) {
+                dc.Step(new Vector2(0f, 1f), 0.02f);          // 턱을 향해 전진
+            }
+            Assert.Greater(dc.transform.localPosition.z, 3f, "턱에 막히지 않고 넘어가 전진해야");
+            Assert.Greater(dc.transform.localPosition.y, 0.5f, "턱 윗면(≈0.58)으로 올라서야");
         }
 
         [UnityTest]
@@ -75,7 +103,10 @@ namespace Game.Tests {
             var box = deckGo.AddComponent<BoxCollider>();
             box.size = new Vector3(4f, 0.5f, 6f);
             SetField(dc, "deckColliders", new Collider[] { box });
+            SetField(dc, "cam", sub.transform);   // 이동 기준 +x/+z 고정
+            dc.enabled = false;                    // 수동 Step만
             yield return null;
+            Physics.SyncTransforms();              // 동기 Step 루프 전 콜라이더 물리 씬 반영
             for (int i = 0; i < 600; i++) {
                 dc.Step(new Vector2(1f, 0f), 0.02f);   // 우측으로 계속 밀어붙임
             }
