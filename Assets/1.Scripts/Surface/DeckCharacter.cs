@@ -11,10 +11,12 @@ namespace Game.Surface {
         [SerializeField] Vector2 deckHalf = new(1.8f, 4.6f);    // 덱 절반 크기(로컬 x, z) — 1차 클램프(거친 한계)
         [SerializeField] Animator animator;                      // 선택 — 이동 시 Speed 파라미터로 모션 전환
         [SerializeField] Collider[] deckColliders;               // 선체 메시 콜라이더 — 실제 표면 위로만 보행 허용
-        [SerializeField] float walkableNormalY = 0.5f;           // 보행 가능 경사 한계(표면 법선 y≈60°) — 둥근 선체 어깨까지 허용, 측면 급경사는 차단
-        [SerializeField] float maxStepUp = 0.45f;                // 단차 한계(m) — 함교·배관 등 높은 구조물로는 이동 차단
+        [SerializeField] float walkableNormalY = 0.45f;          // 보행 가능 경사 한계(표면 법선 y≈63°) — 완만~중경사 허용, 수직 벽은 차단
+        [SerializeField] float maxStepUp = 0.6f;                 // 오를 수 있는 단차/경사 한계(m) — 이보다 높은 벽(함교)은 차단
+        [SerializeField] float maxStepDown = 0.7f;               // 내려갈 수 있는 단차 한계(m) — 절벽(물)으로 못 떨어짐
+        [SerializeField] float bodyRadius = 0.35f;               // 캡슐 근사 반경(m) — 주변 프로브로 경사·모서리에서 발 안정
         [SerializeField] float footSink = 0.12f;                 // 발을 표면에 묻는 깊이(m) — 확실한 접지감
-        [SerializeField] float snapLerp = 6f;                    // 발 높이 추종 속도(m/s) — 요철에서 튀지 않게 부드럽게
+        [SerializeField] float snapLerp = 8f;                    // 발 높이 추종 속도(m/s) — 경사를 부드럽게 오르내림
 
         static readonly int SpeedHash = Animator.StringToHash("Speed");
         static readonly int OnDeckHash = Animator.StringToHash("OnDeck");
@@ -115,34 +117,60 @@ namespace Game.Surface {
             }
         }
 
-        // 후보 로컬 위치 위에서 아래로 선체 콜라이더 레이캐스트 — 명중 + 완만한 면일 때만 유효(발 높이 스냅)
+        // 캡슐 근사 보행 — 중심 + 주변 링을 프로브해 경사·단차를 부드럽게 오르내림(발 높이 스냅)
         bool TrySnapToDeck(Vector3 localPos, out Vector3 snapped) {
             snapped = localPos;
             if (deckColliders == null || deckColliders.Length == 0) {
                 return true;   // 콜라이더 미배선(그레이박스 폴백) — 기존 클램프만으로 동작
             }
+            float footY = transform.localPosition.y;
+            // 중심은 보행 가능면(완만)이어야 — 가장자리 밖/수직 벽이면 이동 취소
+            if (!ProbeColumn(localPos, out float centerY, out float centerN) || centerN < walkableNormalY) {
+                return false;
+            }
+            // 주변 링에서 더 높은 보행 가능면이 있으면 그 높이 채택 — 경사·단차를 발 반경으로 타고 오름
+            float targetLocalY = centerY;
+            for (int i = 0; i < 4; i++) {
+                float a = i * Mathf.PI * 0.5f;
+                Vector3 off = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * bodyRadius;
+                if (ProbeColumn(localPos + off, out float oY, out float oN) && oN >= walkableNormalY && oY > targetLocalY) {
+                    targetLocalY = oY;
+                }
+            }
+            float targetY = targetLocalY - footSink;
+            if (targetY - footY > maxStepUp) {
+                return false;   // 너무 높은 벽(함교 지붕 등) — 못 올라감
+            }
+            if (footY - targetY > maxStepDown) {
+                return false;   // 절벽(물) — 못 떨어짐
+            }
+            snapped = new Vector3(localPos.x, targetY, localPos.z);
+            return true;
+        }
+
+        // 한 지점 기둥 프로브 — 현재 발 높이 기준 stepUp 위에서 stepDown 아래까지 하향 레이캐스트(경사·단차 모두 포착)
+        bool ProbeColumn(Vector3 localPos, out float localY, out float normalY) {
+            localY = 0f;
+            normalY = 0f;
             Vector3 world = transform.parent.TransformPoint(localPos);
-            var ray = new Ray(world + Vector3.up * 2.5f, Vector3.down);
+            Vector3 origin = world + Vector3.up * (maxStepUp + 1f);
+            float len = maxStepUp + 1f + maxStepDown;
             float best = float.MaxValue;
             RaycastHit bestHit = default;
             bool found = false;
+            var ray = new Ray(origin, Vector3.down);
             foreach (var c in deckColliders) {
-                if (c != null && c.Raycast(ray, out var hit, 6f) && hit.distance < best) {
+                if (c != null && c.Raycast(ray, out var hit, len) && hit.distance < best) {
                     best = hit.distance;
                     bestHit = hit;
                     found = true;
                 }
             }
-            if (!found || bestHit.normal.y < walkableNormalY) {
+            if (!found) {
                 return false;
             }
-            Vector3 local = transform.parent.InverseTransformPoint(bestHit.point);
-            float targetY = local.y - footSink;
-            // 단차 한계 — 현재 발 높이보다 크게 솟은 면(함교 지붕·배관 위)으로는 못 올라감
-            if (targetY - transform.localPosition.y > maxStepUp) {
-                return false;
-            }
-            snapped = new Vector3(localPos.x, targetY, localPos.z);
+            localY = transform.parent.InverseTransformPoint(bestHit.point).y;
+            normalY = bestHit.normal.y;
             return true;
         }
     }

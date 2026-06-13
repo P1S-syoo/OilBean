@@ -16,6 +16,7 @@ namespace Game.Editor.Surface {
         const string CharModelPath = "Assets/4.Art/Characters/MainCharacter.fbx";
         const string CharAnimPath = "Assets/4.Art/Characters/PlayerAnim.controller";
         const float SubLength = 15f;          // 잠수정 진행축(Z) 목표 길이 — 덱 보행 공간 확보
+        const float SubWidthMul = 1.5f;       // 가로(X) 추가 배수 — 함교 양옆 통로 확보(앞↔뒤 이동 가능)
         const float CharacterHeight = 1.7f;   // 덱 캐릭터 목표 키
         const float HullLift = 0.35f;         // 흘수 보정 — 함교 포함 바운즈 중심 정렬은 선체가 깊이 잠겨 위로 올림(extents.y 비율)
 
@@ -86,12 +87,21 @@ namespace Game.Editor.Surface {
                 var model = (GameObject)PrefabUtility.InstantiatePrefab(prefab, subRoot.transform);
                 model.name = "Model";
                 var b = CalcBounds(model);
+                bool rotated = false;
                 if (b.size.x > b.size.z) {
                     model.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);   // 긴 축을 진행축(Z)으로
                     b = CalcBounds(model);
+                    rotated = true;
                 }
                 float scale = SubLength / Mathf.Max(b.size.z, 0.001f);
-                model.transform.localScale = Vector3.one * scale;
+                // 폭 배수는 '월드 X'에 닿는 로컬 축에 적용 — Y90 회전 시 월드 X = 모델 로컬 Z
+                var ls = Vector3.one * scale;
+                if (rotated) {
+                    ls.z *= SubWidthMul;
+                } else {
+                    ls.x *= SubWidthMul;
+                }
+                model.transform.localScale = ls;
                 b = CalcBounds(model);
                 model.transform.position -= b.center;     // 선체 중심을 흘수선(루트 원점)에
                 model.transform.position += Vector3.up * (b.extents.y * HullLift);   // 수면 위로 흘수 보정
