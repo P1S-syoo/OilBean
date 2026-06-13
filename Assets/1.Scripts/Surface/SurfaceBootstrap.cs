@@ -25,7 +25,7 @@ namespace Game.Surface {
         [SerializeField] float blendTime = 2.2f;      // 카메라 블렌드·하강 연출 시간
         [SerializeField] float descendDepth = 8f;     // 자동 하강 깊이(수면 직하 → 탐사 시작 위치)
         [SerializeField] float plungeTime = 1.1f;     // 덱 캐릭터 입수(RunToDive) 연출 시간
-        [SerializeField] float plungeDistance = 3f;   // 입수 시 전방 도약 거리
+        [SerializeField] float plungeDistance = 6f;   // 입수 시 측면 도약 거리 — 넓어진 선체를 확실히 넘어 물로
 
         InputAction diveInput;
         bool diveReady;
@@ -148,9 +148,17 @@ namespace Game.Surface {
                 deckLocalRot = deck.transform.localRotation;
                 deck.TriggerDive();
                 Vector3 start = deck.transform.position;
-                Vector3 fwd = deck.transform.forward;
+                // 입수 방향 = 잠수정 측면(가까운 현 = 강물 쪽) — 캐릭터가 선체 쪽을 봐도 물로 뛰게 고정(잠수정 관통 방지)
+                Vector3 fwd;
+                if (nav != null) {
+                    float beamSign = deck.transform.localPosition.x >= 0f ? 1f : -1f;   // 가까운 현
+                    fwd = nav.transform.right * beamSign;
+                } else {
+                    fwd = deck.transform.forward;
+                }
                 fwd.y = 0f;
-                fwd = fwd.sqrMagnitude > 0.001f ? fwd.normalized : Vector3.forward;
+                fwd = fwd.sqrMagnitude > 0.001f ? fwd.normalized : Vector3.right;
+                deck.transform.rotation = Quaternion.LookRotation(fwd);   // 뛰는 방향(물)을 바라보게
                 float plunge = 0f;
                 while (plunge < plungeTime) {
                     plunge += Time.deltaTime;

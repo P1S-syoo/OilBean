@@ -12,7 +12,7 @@ namespace Game.Surface {
         [SerializeField] Animator animator;                      // 선택 — 이동 시 Speed 파라미터로 모션 전환
         [SerializeField] Collider[] deckColliders;               // 선체 메시 콜라이더 — 실제 표면 위로만 보행 허용
         [SerializeField] float walkableNormalY = 0.45f;          // 보행 가능 경사 한계(표면 법선 y≈63°) — 완만~중경사 허용, 수직 벽은 차단
-        [SerializeField] float maxStepUp = 0.7f;                 // 오를 수 있는 단차/경사 한계(m) — 배관·돌출 턱은 넘되 함교 벽은 차단
+        [SerializeField] float maxStepUp = 1.1f;                 // 오를 수 있는 단차/경사 한계(m) — 웬만한 턱·계단은 넘되 함교 벽은 차단
         [SerializeField] float maxStepDown = 0.7f;               // 내려갈 수 있는 단차 한계(m) — 절벽(물)으로 못 떨어짐
         [SerializeField] float footSink = 0.12f;                 // 발을 표면에 묻는 깊이(m) — 확실한 접지감
         [SerializeField] float snapLerp = 16f;                   // 발 높이 추종 속도(m/s) — 경사·턱을 덜컹임 없이 부드럽게
