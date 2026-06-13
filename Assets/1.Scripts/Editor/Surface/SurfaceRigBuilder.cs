@@ -141,7 +141,19 @@ namespace Game.Editor.Surface {
             var playerRoot = new GameObject("DeckPlayer");
             playerRoot.transform.SetParent(sub, false);
             // 루트는 덱 윗면 — 수영 클립의 힙 오프셋은 ClipHipOffset이 상태별로 보정. 함교와 안 겹치게 선미 쪽
-            playerRoot.transform.localPosition = new Vector3(0f, deckTop, -deckHalf.y * 0.6f);
+            var spawnLocal = new Vector3(0f, deckTop, -deckHalf.y * 0.6f);
+            // 스폰 높이 실측 — 선체 콜라이더 레이캐스트로 접지(컷신·조작 잠금 동안에도 떠 있지 않게, footSink 0.12 일치)
+            if (deckCols != null && deckCols.Length > 0) {
+                var ray = new Ray(sub.TransformPoint(spawnLocal + Vector3.up * 2f), Vector3.down);
+                float best = float.MaxValue;
+                foreach (var c in deckCols) {
+                    if (c != null && c.Raycast(ray, out var hit, 6f) && hit.distance < best) {
+                        best = hit.distance;
+                        spawnLocal.y = sub.InverseTransformPoint(hit.point).y - 0.12f;
+                    }
+                }
+            }
+            playerRoot.transform.localPosition = spawnLocal;
 
             Animator animator = null;
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(CharModelPath);

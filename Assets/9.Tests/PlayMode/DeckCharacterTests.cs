@@ -80,7 +80,7 @@ namespace Game.Tests {
                 dc.Step(new Vector2(1f, 0f), 0.02f);   // 우측으로 계속 밀어붙임
             }
             Assert.LessOrEqual(dc.transform.localPosition.x, 2.05f, "콜라이더 가장자리(x=2)에서 멈춰야");
-            Assert.AreEqual(0.2f, dc.transform.localPosition.y, 0.04f, "발이 콜라이더 윗면에 스냅(footSink 0.05 묻힘)");
+            Assert.AreEqual(0.13f, dc.transform.localPosition.y, 0.04f, "발이 콜라이더 윗면에 스냅(footSink 0.12 묻힘)");
         }
 
         [UnityTest]

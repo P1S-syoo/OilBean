@@ -36,7 +36,7 @@ namespace Game.Tests {
             SetField(director, "deck", deck);   // introCam/focus 미연결
             dirGo.SetActive(true);
             yield return null;
-            Assert.IsTrue(deck.enabled, "참조 없으면 컷신 생략하고 즉시 조작 가능");
+            Assert.IsFalse(deck.ControlLocked, "참조 없으면 컷신 생략하고 즉시 조작 가능");
             Assert.IsFalse(director.Running);
         }
 
@@ -62,13 +62,14 @@ namespace Game.Tests {
             SetField(director, "duration", 0.2f);
             dirGo.SetActive(true);
             yield return null;
-            Assert.IsFalse(deck.enabled, "컷신 중 조작 잠금");
+            Assert.IsTrue(deck.ControlLocked, "컷신 중 조작 잠금(접지 스냅은 유지)");
+            Assert.IsTrue(deck.enabled, "컷신 중에도 컴포넌트는 살아서 접지 스냅 동작");
             Assert.IsTrue(director.Running);
             // 돌리 종료까지 대기
             for (int i = 0; i < 120 && director.Running; i++) {
                 yield return null;
             }
-            Assert.IsTrue(deck.enabled, "컷신 종료 후 조작 해제");
+            Assert.IsFalse(deck.ControlLocked, "컷신 종료 후 조작 해제");
             Assert.IsFalse(introCam.gameObject.activeSelf, "종료 시 인트로 카메라 비활성");
         }
 

@@ -111,7 +111,7 @@ namespace Game.Surface {
 
         void SetControl(bool on) {
             if (deck != null) {
-                deck.enabled = on;
+                deck.ControlLocked = !on;   // 입력만 잠금 — 컷신 동안에도 접지 스냅은 유지
             }
             if (orbitDriver != null) {
                 orbitDriver.enabled = on;

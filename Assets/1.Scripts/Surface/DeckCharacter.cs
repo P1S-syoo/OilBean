@@ -13,7 +13,7 @@ namespace Game.Surface {
         [SerializeField] Collider[] deckColliders;               // 선체 메시 콜라이더 — 실제 표면 위로만 보행 허용
         [SerializeField] float walkableNormalY = 0.65f;          // 보행 가능 경사 한계(표면 법선 y) — 측면으로 못 내려감
         [SerializeField] float maxStepUp = 0.35f;                // 단차 한계(m) — 함교·배관 등 높은 구조물로는 이동 차단
-        [SerializeField] float footSink = 0.05f;                 // 발을 표면에 살짝 묻는 깊이(m) — 떠 보임 방지
+        [SerializeField] float footSink = 0.12f;                 // 발을 표면에 묻는 깊이(m) — 확실한 접지감
         [SerializeField] float snapLerp = 6f;                    // 발 높이 추종 속도(m/s) — 요철에서 튀지 않게 부드럽게
 
         static readonly int SpeedHash = Animator.StringToHash("Speed");
@@ -21,6 +21,9 @@ namespace Game.Surface {
         static readonly int DiveHash = Animator.StringToHash("Dive");
 
         InputAction move;
+
+        // 입력만 잠금(컷신용) — 접지 스냅은 계속 동작. 완전 정지는 enabled=false(잠수 연출의 수동 이동과 충돌 방지)
+        public bool ControlLocked { get; set; }
 
         void Awake() {
             try {
@@ -64,7 +67,7 @@ namespace Game.Surface {
             if (move == null) {
                 return;
             }
-            Step(move.ReadValue<Vector2>(), Time.deltaTime);
+            Step(ControlLocked ? Vector2.zero : move.ReadValue<Vector2>(), Time.deltaTime);
         }
 
         // 이동 1스텝 — 테스트에서 입력을 직접 주입할 수 있게 분리

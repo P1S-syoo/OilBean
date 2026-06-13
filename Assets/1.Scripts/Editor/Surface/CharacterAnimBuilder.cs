@@ -36,6 +36,10 @@ namespace Game.Editor.Surface {
                 walk.speed = 1f;   // 이동 속도(1.4m/s)와 보폭 동기화 — 클립 원배속이 실제 보행과 일치
                 var dive = EnsureState(sm, "RunToDive", LoadClip(DiveFbx), new Vector3(420f, 180f, 0f));
                 var idleDeck = EnsureState(sm, "IdleDeck", LoadClip(IdleFbx), new Vector3(420f, -60f, 0f));
+                // 기본 스테이트 = 덱 서있기 — 수상 시작 직후 수영 모션이 한 프레임 깜빡이는 문제 방지
+                if (sm.defaultState != idleDeck) {
+                    sm.defaultState = idleDeck;
+                }
 
                 // 구버전 전환 정리 — Idle(트레딩)↔Walk 직결을 IdleDeck 경유로 교체
                 RemoveTransitions(idle, walk);
@@ -107,12 +111,13 @@ namespace Game.Editor.Surface {
             }
             var clips = imp.clipAnimations.Length > 0 ? imp.clipAnimations : imp.defaultClipAnimations;
             foreach (var c in clips) {
-                if (c.loopTime != loop || !c.lockRootPositionXZ || !c.lockRootHeightY || !c.lockRootRotation) {
+                if (c.loopTime != loop || c.lockRootPositionXZ || !c.lockRootHeightY || !c.lockRootRotation) {
                     c.loopTime = loop;
-                    // 루트 이동/회전을 포즈에 베이크 — 이동형 클립(Walking 등)이 제자리 재생돼 루프마다 튕기지 않음
-                    c.lockRootPositionXZ = true;
-                    c.lockRootHeightY = true;
-                    c.lockRootRotation = true;
+                    // XZ 이동은 베이크 OFF(루트모션으로 추출) — applyRootMotion=false가 버려서 진짜 제자리 재생
+                    // (베이크 ON이면 이동이 포즈에 남아 몸이 전진했다 루프마다 원복됨)
+                    c.lockRootPositionXZ = false;
+                    c.lockRootHeightY = true;    // 힙 상하 바운스는 포즈 유지
+                    c.lockRootRotation = true;   // 회전 드리프트는 포즈에 고정
                     dirty = true;
                 }
             }
