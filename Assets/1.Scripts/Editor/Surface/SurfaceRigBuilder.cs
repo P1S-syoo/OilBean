@@ -159,6 +159,7 @@ namespace Game.Editor.Surface {
                 var ctrl = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(CharAnimPath);
                 if (animator != null && ctrl != null) {
                     animator.runtimeAnimatorController = ctrl;
+                    animator.applyRootMotion = false;   // 이동은 DeckCharacter가 전담 — 클립 루트 모션으로 드리프트 금지
                     // 클립별 루트 기준 보정 — 수영 vs 보행/입수(발 기준). 0.85: 덱에서 무릎 잠김 실측 보정
                     var hip = model.AddComponent<ClipHipOffset>();
                     var hso = new SerializedObject(hip);

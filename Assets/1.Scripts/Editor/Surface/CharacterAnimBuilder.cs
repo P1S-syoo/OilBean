@@ -107,8 +107,12 @@ namespace Game.Editor.Surface {
             }
             var clips = imp.clipAnimations.Length > 0 ? imp.clipAnimations : imp.defaultClipAnimations;
             foreach (var c in clips) {
-                if (c.loopTime != loop) {
+                if (c.loopTime != loop || !c.lockRootPositionXZ || !c.lockRootHeightY || !c.lockRootRotation) {
                     c.loopTime = loop;
+                    // 루트 이동/회전을 포즈에 베이크 — 이동형 클립(Walking 등)이 제자리 재생돼 루프마다 튕기지 않음
+                    c.lockRootPositionXZ = true;
+                    c.lockRootHeightY = true;
+                    c.lockRootRotation = true;
                     dirty = true;
                 }
             }

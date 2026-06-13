@@ -12,6 +12,9 @@ namespace Game.Surface {
         [SerializeField] Animator animator;                      // 선택 — 이동 시 Speed 파라미터로 모션 전환
         [SerializeField] Collider[] deckColliders;               // 선체 메시 콜라이더 — 실제 표면 위로만 보행 허용
         [SerializeField] float walkableNormalY = 0.65f;          // 보행 가능 경사 한계(표면 법선 y) — 측면으로 못 내려감
+        [SerializeField] float maxStepUp = 0.35f;                // 단차 한계(m) — 함교·배관 등 높은 구조물로는 이동 차단
+        [SerializeField] float footSink = 0.05f;                 // 발을 표면에 살짝 묻는 깊이(m) — 떠 보임 방지
+        [SerializeField] float snapLerp = 6f;                    // 발 높이 추종 속도(m/s) — 요철에서 튀지 않게 부드럽게
 
         static readonly int SpeedHash = Animator.StringToHash("Speed");
         static readonly int OnDeckHash = Animator.StringToHash("OnDeck");
@@ -74,8 +77,9 @@ namespace Game.Surface {
                 return;
             }
             if (mag * mag < 0.0001f) {
-                // 정지 중에도 부유하는 선체 표면에 발을 붙임
+                // 정지 중에도 부유하는 선체 표면에 발을 붙임(부드럽게 추종)
                 if (TrySnapToDeck(transform.localPosition, out var idleSnap)) {
+                    idleSnap.y = Mathf.MoveTowards(transform.localPosition.y, idleSnap.y, snapLerp * dt);
                     transform.localPosition = idleSnap;
                 }
                 return;
@@ -98,6 +102,7 @@ namespace Game.Surface {
             p.x = Mathf.Clamp(p.x, -deckHalf.x, deckHalf.x);
             p.z = Mathf.Clamp(p.z, -deckHalf.y, deckHalf.y);
             if (TrySnapToDeck(p, out var snapped)) {
+                snapped.y = Mathf.MoveTowards(transform.localPosition.y, snapped.y, snapLerp * dt);
                 transform.localPosition = snapped;
             }
             // 이동 방향으로 몸 회전
@@ -129,7 +134,12 @@ namespace Game.Surface {
                 return false;
             }
             Vector3 local = transform.parent.InverseTransformPoint(bestHit.point);
-            snapped = new Vector3(localPos.x, local.y, localPos.z);
+            float targetY = local.y - footSink;
+            // 단차 한계 — 현재 발 높이보다 크게 솟은 면(함교 지붕·배관 위)으로는 못 올라감
+            if (targetY - transform.localPosition.y > maxStepUp) {
+                return false;
+            }
+            snapped = new Vector3(localPos.x, targetY, localPos.z);
             return true;
         }
     }
