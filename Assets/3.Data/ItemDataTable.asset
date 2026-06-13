@@ -1,0 +1,204 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8638a404ae0b9594598cfcaa3236d0df, type: 3}
+  m_Name: ItemDataTable
+  m_EditorClassIdentifier: Game::Game.Core.ItemDataTable
+  items:
+  - id: scrap_Can
+    kind: 0
+    displayName: "\uC555\uCD95 \uCE94 \uB354\uBBF8"
+    grade: 0
+    weight: 4
+    minSpawnY: -3
+    maxSpawnY: 0
+    pollutionLevel: 0
+    prefab: {fileID: 919132149155446097, guid: c2f53ac633311d54a97e86e8de5b2277, type: 3}
+  - id: scrap_Bicycle
+    kind: 0
+    displayName: "\uB179\uC2A8 \uC790\uC804\uAC70 \uD504\uB808\uC784"
+    grade: 0
+    weight: 7
+    minSpawnY: -15
+    maxSpawnY: 0
+    pollutionLevel: 0
+    prefab: {fileID: 919132149155446097, guid: fd2ccd421c154844c914655bd4317147, type: 3}
+  - id: scrap_Cart
+    kind: 0
+    displayName: "\uB9C8\uD2B8 \uCE74\uD2B8 \uC794\uD574"
+    grade: 0
+    weight: 8
+    minSpawnY: -12
+    maxSpawnY: 0
+    pollutionLevel: 0
+    prefab: {fileID: 919132149155446097, guid: 1a4720664c6fe564f86cee0d63d59fdb, type: 3}
+  - id: scrap_Cone
+    kind: 0
+    displayName: "\uAD50\uD1B5 \uCF58 \uBB36\uC74C"
+    grade: 0
+    weight: 5
+    minSpawnY: -8
+    maxSpawnY: 0
+    pollutionLevel: 0
+    prefab: {fileID: 919132149155446097, guid: faf4ce53eb6c92c44b84e4ecb4b65d18, type: 3}
+  - id: scrap_Wire
+    kind: 0
+    displayName: "\uC9C0\uD558\uCCA0 \uBC30\uC120 \uBB49\uCE58"
+    grade: 0
+    weight: 9
+    minSpawnY: -30
+    maxSpawnY: 0
+    pollutionLevel: 1
+    prefab: {fileID: 919132149155446097, guid: 366c5826f86b2424d9798d0f545c6b83, type: 3}
+  - id: scrap_Rebar
+    kind: 0
+    displayName: "\uACF5\uC0AC\uC6A9 \uCCA0\uADFC"
+    grade: 1
+    weight: 10
+    minSpawnY: -30
+    maxSpawnY: 5
+    pollutionLevel: 1
+    prefab: {fileID: 919132149155446097, guid: 14cc724a13cb408409598edda0444b2a, type: 3}
+  - id: scrap_Manhole
+    kind: 0
+    displayName: "\uB9E8\uD640 \uB69C\uAED1"
+    grade: 1
+    weight: 14
+    minSpawnY: -30
+    maxSpawnY: 8
+    pollutionLevel: 1
+    prefab: {fileID: 919132149155446097, guid: 28ff62aa31298bd499b81e37209c0b1b, type: 3}
+  - id: scrap_Scaffolding
+    kind: 0
+    displayName: "\uBE44\uACC4 \uD30C\uC774\uD504 \uBB36\uC74C"
+    grade: 1
+    weight: 11
+    minSpawnY: -32
+    maxSpawnY: 2
+    pollutionLevel: 1
+    prefab: {fileID: 919132149155446097, guid: f4b9edd8a07145f4fa9f2432d6062cd3, type: 3}
+  - id: scrap_Bolt
+    kind: 0
+    displayName: "\uAD50\uAC01 \uBCFC\uD2B8 \uC138\uD2B8"
+    grade: 2
+    weight: 15
+    minSpawnY: -50
+    maxSpawnY: -20
+    pollutionLevel: 2
+    prefab: {fileID: 919132149155446097, guid: 28ac0eac987a309458b6682abe4ee0fa, type: 3}
+  - id: scrap_Hbeam
+    kind: 0
+    displayName: "H\uBE54"
+    grade: 2
+    weight: 30
+    minSpawnY: -50
+    maxSpawnY: -37
+    pollutionLevel: 2
+    prefab: {fileID: 919132149155446097, guid: e56ab0348bdf4664dbfb1e50a9f9b01a, type: 3}
+  - id: scrap_Anchor
+    kind: 0
+    displayName: "\uC120\uBC15 \uB2FB \uD30C\uD3B8"
+    grade: 2
+    weight: 18
+    minSpawnY: -50
+    maxSpawnY: -35
+    pollutionLevel: 2
+    prefab: {fileID: 919132149155446097, guid: aa909c0d5988bb241beec7b25a097ca7, type: 3}
+  - id: sample_sewage
+    kind: 1
+    displayName: "\uC0DD\uD65C\uD558\uC218 \uC751\uACE0\uCCB4"
+    grade: 0
+    weight: 3
+    minSpawnY: -8
+    maxSpawnY: 0
+    pollutionLevel: 1
+    prefab: {fileID: 919132149155446097, guid: ffe1c64ea923bc142abdd6afdfa95342, type: 3}
+  - id: sample_microplastic
+    kind: 1
+    displayName: "\uBBF8\uC138\uD50C\uB77C\uC2A4\uD2F1 \uC2AC\uB7EC\uC9C0"
+    grade: 0
+    weight: 4
+    minSpawnY: -12
+    maxSpawnY: 0
+    pollutionLevel: 1
+    prefab: {fileID: 919132149155446097, guid: a8e15f36753cadc4299f78c746a8e595, type: 3}
+  - id: sample_algae
+    kind: 1
+    displayName: "\uB179\uC870 \uB18D\uCD95\uBB3C"
+    grade: 0
+    weight: 3
+    minSpawnY: -6
+    maxSpawnY: 0
+    pollutionLevel: 1
+    prefab: {fileID: 919132149155446097, guid: 6380e19ed4bda5d438fb3a99dc1ab544, type: 3}
+  - id: sample_detergent
+    kind: 1
+    displayName: "\uACC4\uBA74\uD65C\uC131\uC81C \uAC70\uD488"
+    grade: 0
+    weight: 4
+    minSpawnY: -10
+    maxSpawnY: 0
+    pollutionLevel: 1
+    prefab: {fileID: 919132149155446097, guid: 3c845299a9b1a70439c1d753204627d7, type: 3}
+  - id: sample_sludge
+    kind: 1
+    displayName: "\uACF5\uC7A5 \uD3D0\uC218 \uC2AC\uB7EC\uC9C0"
+    grade: 1
+    weight: 7
+    minSpawnY: -30
+    maxSpawnY: 0
+    pollutionLevel: 2
+    prefab: {fileID: 919132149155446097, guid: 385990df8e6fa4643b9de042ed6c0a0a, type: 3}
+  - id: sample_heavymetal
+    kind: 1
+    displayName: "\uC911\uAE08\uC18D \uCE68\uC804\uBB3C"
+    grade: 1
+    weight: 8
+    minSpawnY: -35
+    maxSpawnY: -5
+    pollutionLevel: 2
+    prefab: {fileID: 919132149155446097, guid: 3e8598ca07eaf0c41bfa803f2949ad25, type: 3}
+  - id: sample_paint
+    kind: 1
+    displayName: "\uAC74\uC124 \uB3C4\uB8CC \uCE68\uC804\uBB3C"
+    grade: 1
+    weight: 6
+    minSpawnY: -25
+    maxSpawnY: 5
+    pollutionLevel: 2
+    prefab: {fileID: 919132149155446097, guid: 9f35148c83a422047897cdcef4ba8a9c, type: 3}
+  - id: sample_chemicalbarrel
+    kind: 1
+    displayName: "\uD654\uD559 \uB4DC\uB7FC\uD1B5 \uC794\uB958\uBB3C"
+    grade: 2
+    weight: 9
+    minSpawnY: -42
+    maxSpawnY: -20
+    pollutionLevel: 3
+    prefab: {fileID: 919132149155446097, guid: ebfd640cb2ff7f74091c6f247ee01dc8, type: 3}
+  - id: sample_pcb
+    kind: 1
+    displayName: "PCB \uC624\uC5FC \uD1F4\uC801\uBB3C"
+    grade: 2
+    weight: 8
+    minSpawnY: -50
+    maxSpawnY: -40
+    pollutionLevel: 3
+    prefab: {fileID: 919132149155446097, guid: 6c36b0e69e4b4904aa84b8dc89656047, type: 3}
+  - id: sample_oil_clump
+    kind: 1
+    displayName: "\uC911\uC9C8\uC720 \uB369\uC5B4\uB9AC"
+    grade: 2
+    weight: 10
+    minSpawnY: -50
+    maxSpawnY: -40
+    pollutionLevel: 3
+    prefab: {fileID: 919132149155446097, guid: ed0dcc75a3e873a4b8a4acb660a78f37, type: 3}
