@@ -105,8 +105,8 @@ namespace Game.World {
                 }
             }
 
-            // 군집 중심 셀 — 깊은 곳에 희귀 센터피스 1개(심해 보상)
-            if (inCluster && dist < cellWidth * 0.5f) {
+            // 군집 중심 셀 — 앵커를 '포함하는' 셀에만 1회(앵커가 셀 경계면 인접 두 셀 중복 방지)
+            if (inCluster && Mathf.FloorToInt(anchor / cellWidth) == cell) {
                 float deepY = Mathf.Lerp(DepthMap.SeabedY + SpawnBottomMargin, DepthMap.SurfaceY - SpawnTopMargin, 0.18f);
                 float deepExcel = (deepY - DepthMap.SurfaceY) / unitPerM;
                 var rare = PickRarest(deepExcel);
@@ -124,15 +124,15 @@ namespace Game.World {
             return Mathf.Round((x - bridgeAnchorX) / clusterInterval) * clusterInterval + bridgeAnchorX;
         }
 
-        // 바닥에 안 묻히게 — IsSolid면 위로 올림
+        // 바닥에 안 묻히게 — 솔리드면 위로 올림. 비솔리드면 원본 float 깊이 유지(정수 양자화 방지)
         float FloorClamp(float x, float yWorld) {
             int xi = Mathf.RoundToInt(x);
-            int yi = Mathf.RoundToInt(yWorld);
+            int yi = Mathf.FloorToInt(yWorld);
             int guard = 0;
             while (WorldGen.IsSolid(1, xi, yi) && yi < WorldGen.WaterY && guard++ < 40) {
                 yi++;
             }
-            return yi;
+            return Mathf.Max(yWorld, yi);   // 안 올렸으면 yWorld(연속), 올렸으면 정리된 정수 높이
         }
 
         // 해당 수심에서 가장 희귀한 아이템(오염수준>등급 우선) — 센터피스용

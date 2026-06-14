@@ -160,6 +160,9 @@ namespace Game.Surface {
                 if (orbitCam != null) {
                     orbitCam.gameObject.SetActive(true);
                 }
+                // 복귀 시점의 수중 상태를 새 원복 기준으로 재캡처 — 반복 잠수/복귀에서 누적 오류 방지
+                prevCaptured = false;
+                bgOverridden = false;
                 ApplySurfaceVisuals();   // 사이드뷰 끔 + 안개 배경 + 2.5D 백드롭 숨김
                 // 항해 재개 — nav가 정지 상태로 남아 있으니 다음 목표로 재출발
                 if (nav != null) {

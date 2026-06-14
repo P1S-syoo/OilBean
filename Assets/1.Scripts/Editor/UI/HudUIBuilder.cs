@@ -674,6 +674,16 @@ namespace Game.Editor.UI {
             rt.offsetMin = new Vector2(UITheme.SpaceLG, UITheme.SpaceXS);
             rt.offsetMax = new Vector2(-UITheme.SpaceLG, -UITheme.SpaceXS);
             t.fontStyle = FontStyles.Bold;
+
+            // 우상단 닫기 버튼 — 연구/제작 패널을 출발 상태(거점/수상)로 복귀(HubCloseButton)
+            var closeBtn = UITheme.MakeButton("CloseBtn", header.transform, "닫기 ✕", UITheme.FontBody,
+                new Vector2(104f, 36f), Vector2.zero, UITheme.BgBorder, UITheme.TextPrimary);
+            var cbRt = closeBtn.GetComponent<RectTransform>();
+            cbRt.anchorMin = new Vector2(1f, 0.5f);
+            cbRt.anchorMax = new Vector2(1f, 0.5f);
+            cbRt.sizeDelta = new Vector2(104f, 36f);
+            cbRt.anchoredPosition = new Vector2(-UITheme.SpaceLG - 52f, 0f);
+            closeBtn.gameObject.AddComponent<Game.UI.HubCloseButton>();
         }
 
         // 컬럼 타이틀 텍스트 (anchorY 중심)

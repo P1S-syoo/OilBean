@@ -25,6 +25,9 @@ namespace Game.Core {
 
         GameFsm fsm;
         Vector3 dockPos;
+        GameState hubOrigin = GameState.Dock;   // 연구/제작을 연 출발 상태 — 닫을 때 이 상태로 복귀
+        InputAction researchInput;               // 수상/거점에서 연구 열기(1)
+        InputAction craftInput;                  // 수상/거점에서 제작 열기(2)
 
         // 지연 생성 — EditMode 테스트처럼 Awake 없이 접근해도 동작(기존 필드 초기화와 동등)
         GameFsm Fsm {
@@ -78,6 +81,13 @@ namespace Game.Core {
                 returnInput = new InputAction("Return", InputActionType.Button, "<Keyboard>/r");
                 returnInput.performed += OnReturnInput;
                 returnInput.Enable();
+                // 수상(정화선 거점)·Dock에서 연구/제작 열기 — 기획서의 '거점에서 연구·제작'
+                researchInput = new InputAction("Research", InputActionType.Button, "<Keyboard>/1");
+                researchInput.performed += OnResearchInput;
+                researchInput.Enable();
+                craftInput = new InputAction("Craft", InputActionType.Button, "<Keyboard>/2");
+                craftInput.performed += OnCraftInput;
+                craftInput.Enable();
                 Debug.Log($"[GameBootstrap] 시작 상태: {Fsm.Current}");
             } catch (System.Exception e) {
                 Debug.LogError($"[GameBootstrap] Awake 오류: {e.Message}\n{e.StackTrace}");
@@ -129,6 +139,28 @@ namespace Game.Core {
                 returnInput.performed -= OnReturnInput;
                 returnInput.Disable();
                 returnInput.Dispose();
+            }
+            if (researchInput != null) {
+                researchInput.performed -= OnResearchInput;
+                researchInput.Disable();
+                researchInput.Dispose();
+            }
+            if (craftInput != null) {
+                craftInput.performed -= OnCraftInput;
+                craftInput.Disable();
+                craftInput.Dispose();
+            }
+        }
+
+        // 수상/거점에서만 연구·제작 열기(1/2키) — 탐사 중엔 무시
+        void OnResearchInput(InputAction.CallbackContext ctx) {
+            if (Fsm.Current == GameState.Surface || Fsm.Current == GameState.Dock) {
+                GoResearch();
+            }
+        }
+        void OnCraftInput(InputAction.CallbackContext ctx) {
+            if (Fsm.Current == GameState.Surface || Fsm.Current == GameState.Dock) {
+                GoCraft();
             }
         }
 
@@ -231,8 +263,21 @@ namespace Game.Core {
         // 인스펙터 우클릭으로 흐름 검증(입력 백엔드 불필요)
         [ContextMenu("탐사 시작")] public void StartDive() => Fsm.Change(GameState.Dive);
         [ContextMenu("거점 복귀")] public void ReturnDock() => Fsm.Change(GameState.Dock);
-        [ContextMenu("연구")] public void GoResearch() => Fsm.Change(GameState.Research);
-        [ContextMenu("제작")] public void GoCraft() => Fsm.Change(GameState.Craft);
+        // 연구/제작 — 연 출발 상태(Surface/Dock)를 기억해 닫을 때 복귀
+        [ContextMenu("연구")] public void GoResearch() {
+            if (Fsm.Current == GameState.Surface || Fsm.Current == GameState.Dock) {
+                hubOrigin = Fsm.Current;
+            }
+            Fsm.Change(GameState.Research);
+        }
+        [ContextMenu("제작")] public void GoCraft() {
+            if (Fsm.Current == GameState.Surface || Fsm.Current == GameState.Dock) {
+                hubOrigin = Fsm.Current;
+            }
+            Fsm.Change(GameState.Craft);
+        }
+        // 연구/제작 패널 닫기 — 연 출발 상태로 복귀(Dock 또는 Surface)
+        [ContextMenu("거점 복귀(연구/제작 닫기)")] public void CloseHub() => Fsm.Change(hubOrigin);
         [ContextMenu("정화 설치")] public void GoPurify() => Fsm.Change(GameState.Purify);
         [ContextMenu("클리어")] public void ClearStage() => Fsm.Change(GameState.Clear);
     }
