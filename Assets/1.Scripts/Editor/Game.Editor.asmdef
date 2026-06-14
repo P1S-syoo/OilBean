@@ -1,7 +1,7 @@
 {
   "name": "Game.Editor",
   "rootNamespace": "Game.Editor",
-  "references": ["Game", "Unity.Splines", "Unity.Mathematics", "Unity.Cinemachine"],
+  "references": ["Game", "Unity.Splines", "Unity.Mathematics", "Unity.Cinemachine", "Unity.TextMeshPro", "UnityEngine.UI"],
   "includePlatforms": ["Editor"],
   "autoReferenced": false
 }
