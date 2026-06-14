@@ -1077,10 +1077,11 @@ namespace Game.Editor.UI {
         // SerializedObject를 통한 private 필드 배선
         static void AssignRef(SerializedObject so, string propName, Object value) {
             try {
-                so.Update();
+                // so.Update()를 호출당 부르면 직전 미적용 변경을 폐기하므로, 각 배선을 즉시 적용해 누락 방지
                 var prop = so.FindProperty(propName);
                 if (prop != null) {
                     prop.objectReferenceValue = value;
+                    so.ApplyModifiedPropertiesWithoutUndo();
                 } else {
                     Debug.LogWarning($"[HudUIBuilder] 프로퍼티 '{propName}' 를 찾지 못했습니다.");
                 }
