@@ -9,6 +9,7 @@ namespace Game.Editor.Data {
     public static class ItemTableBuilder {
         const string FbxDir = "Assets/NCAI_Asset";
         const string TablePath = "Assets/3.Data/ItemDataTable.asset";
+        const float TargetSize = 1.6f;   // 수집물 최장축 목표 크기(m)
 
         // 엑셀 1행 = {id, kind, 표시명, grade(0~2), weight, minY, maxY, pollutionLevel, fbx하위경로}
         struct Row {
@@ -69,6 +70,7 @@ namespace Game.Editor.Data {
                         id = r.id, kind = r.kind, displayName = r.name, grade = r.grade,
                         weight = r.weight, minSpawnY = r.minY, maxSpawnY = r.maxY,
                         pollutionLevel = r.pol, prefab = prefab,
+                        spawnScale = MeasureScale(prefab),   // 에디터에서 정확히 측정(런타임 stale 회피)
                     });
                 }
                 table.items = defs.ToArray();
@@ -77,6 +79,28 @@ namespace Game.Editor.Data {
                 Debug.Log($"[ItemTableBuilder] 테이블 생성 완료 — {defs.Count}종 (FBX 누락 {missing}) → {TablePath}");
             } catch (Exception e) {
                 Debug.LogError($"[ItemTableBuilder] 생성 실패: {e.Message}\n{e.StackTrace}");
+            }
+        }
+
+        // prefab 최장축을 TargetSize로 맞추는 스케일 — 에디터 임시 인스턴스로 정확 측정
+        static float MeasureScale(GameObject prefab) {
+            if (prefab == null) {
+                return 1f;
+            }
+            var tmp = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+            try {
+                var rs = tmp.GetComponentsInChildren<Renderer>();
+                if (rs.Length == 0) {
+                    return 1f;
+                }
+                Bounds b = rs[0].bounds;
+                for (int i = 1; i < rs.Length; i++) {
+                    b.Encapsulate(rs[i].bounds);
+                }
+                float longest = Mathf.Max(b.size.x, Mathf.Max(b.size.y, b.size.z));
+                return longest > 0.0001f ? TargetSize / longest : 1f;
+            } finally {
+                UnityEngine.Object.DestroyImmediate(tmp);
             }
         }
 

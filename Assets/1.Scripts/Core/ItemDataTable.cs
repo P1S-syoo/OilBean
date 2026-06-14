@@ -15,6 +15,7 @@ namespace Game.Core {
         public int maxSpawnY;          // 출현 최대 Y
         public int pollutionLevel;     // 오염수준 0~3 — 샘플 분석 시 분석포인트로 사용
         public GameObject prefab;      // FBX 모델(배치·스폰용)
+        public float spawnScale = 1f;  // 스폰 스케일 — 에디터에서 prefab 바운즈 측정해 목표 크기로 정규화(런타임 stale 회피)
     }
 
     // 수집물 마스터 데이터 — 고철 11종 + 샘플 10종. 스폰·수집·연구·제작이 공통 참조

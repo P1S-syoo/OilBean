@@ -13,8 +13,7 @@ namespace Game.World {
         [SerializeField] int radiusCells = 6;       // 좌우 로드 반경(셀) — 화면+α
         [SerializeField] int slotsPerCell = 2;      // 셀당 최대 수집물
         [SerializeField] int density = 70;          // 슬롯 채움 확률(%)
-        [SerializeField] float pickupScale = 1.3f;  // 수집물 표시 스케일
-        [SerializeField] float colliderRadius = 0.9f; // 수집 트리거 반경
+        [SerializeField] float colliderRadius = 1f; // 수집 트리거 월드 반경(m)
 
         readonly Dictionary<int, List<GameObject>> cells = new();
         readonly List<ItemDef> candidates = new();   // PickByDepth 무할당 재사용
@@ -69,9 +68,11 @@ namespace Game.World {
                 if (h % 100 >= density) {
                     continue;
                 }
-                float x = cell * cellWidth + ((h % 1000) / 1000f) * cellWidth;
+                // 31비트 해시에서 비트대역을 분리 추출(독립 난수) — x분산 / 깊이 / 아이템선택
+                float x = cell * cellWidth + ((h & 0x3FF) / 1024f) * cellWidth;
+                float depthT = ((h >> 10) & 0x3FF) / 1024f;
                 // 수중 깊이 — 수면 바로 아래 ~ 바닥 위
-                float yWorld = Mathf.Lerp(DepthMap.SurfaceY - 1.5f, DepthMap.SeabedY + 1f, ((h >> 10) % 1000) / 1000f);
+                float yWorld = Mathf.Lerp(DepthMap.SurfaceY - 1.5f, DepthMap.SeabedY + 1f, depthT);
                 float excelY = (yWorld - DepthMap.SurfaceY) / unitPerM;   // 게임y → 엑셀 수심
                 var def = PickByDepth(excelY, h);
                 if (def == null || def.prefab == null) {
@@ -105,7 +106,7 @@ namespace Game.World {
             if (candidates.Count == 0) {
                 return null;
             }
-            return candidates[(h >> 18) % candidates.Count];
+            return candidates[((h >> 20) & 0x3FF) % candidates.Count];
         }
 
         GameObject Spawn(ItemDef def, Vector3 pos) {
@@ -113,10 +114,13 @@ namespace Game.World {
                 float yaw = Hash(Mathf.RoundToInt(pos.x), def.id.Length) % 360;
                 var go = Instantiate(def.prefab, pos, Quaternion.Euler(0f, yaw, 0f), transform);
                 go.name = "Pickup_" + def.id;
-                go.transform.localScale = Vector3.one * pickupScale;
+                // 사이즈 정규화 — prefab 임포트 스케일에 추가 배율을 곱함(덮어쓰면 임포트 보정이 날아감)
+                float scale = def.spawnScale > 0.0001f ? def.spawnScale : 1f;
+                go.transform.localScale *= scale;
+                // 수집 트리거(2D) — 최종 월드 스케일로 보정해 트리거 반경 일정
                 var col = go.AddComponent<CircleCollider2D>();
                 col.isTrigger = true;
-                col.radius = colliderRadius;
+                col.radius = colliderRadius / Mathf.Max(go.transform.lossyScale.x, 0.0001f);
                 var pk = go.AddComponent<Game.Items.Pickup>();
                 pk.SetDef(def);
                 return go;
@@ -126,10 +130,13 @@ namespace Game.World {
             }
         }
 
-        // 좌표 결정적 해시 — 어느 시점에 스트리밍돼도 같은 배치
+        // 좌표 결정적 해시 — 어느 시점에 스트리밍돼도 같은 배치(31비트 양수)
         static int Hash(int a, int b) {
-            int h = a * 73856093 ^ b * 19349663;
-            return (h % 100000 + 100000) % 100000;
+            unchecked {
+                int h = a * 73856093 ^ b * 19349663;
+                h = (h ^ (h >> 13)) * 1274126177;
+                return h & 0x7FFFFFFF;
+            }
         }
     }
 }
