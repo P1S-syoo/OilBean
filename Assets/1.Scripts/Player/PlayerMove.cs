@@ -1,5 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using Game.Core;
+using Game.World;
 
 namespace Game.Player {
     // 탐사 기계 2.5D 이동 — 입력 방향으로 기수를 서서히 정렬(측면 유지: 화면 Z회전 + 좌우 flip)하며 그 방향으로 전진
@@ -11,11 +13,18 @@ namespace Game.Player {
         [SerializeField] float turnSpeed = 360f;  // 기수 선회 각속도(deg/s) — '서서히' 정도
         [SerializeField] Transform searchLight;   // 전방 서치라이트(진행 방향 회전)
         [SerializeField] Animator animator;       // 캐릭터 애니(Idle↔Swim) — 속도로 전환
+        [SerializeField] RunData run;             // 수심 게이트(부유체 단계로 진입 한계) — 미연결 시 자동 탐색
 
         Rigidbody2D rb;
         Vector2 input;            // 정규화된 이동 입력
         InputAction move;         // WASD 2D 벡터(코드 정의)
         float heading;            // 현재 기수 화면각(도, 오른쪽=0 / 위=+90)
+        bool depthGate;           // 수심 게이트 활성(탐사 중에만 — 코디네이터가 토글)
+
+        // 수심 게이트 on/off — Dive 진입 시 켜고 그 외엔 끔(거점/연출 좌표와 충돌 방지)
+        public void SetDepthGate(bool on) {
+            depthGate = on;
+        }
 
         void Awake() {
             try {
@@ -29,6 +38,16 @@ namespace Game.Player {
                     .With("Left", "<Keyboard>/a").With("Right", "<Keyboard>/d");
             } catch (System.Exception e) {
                 Debug.LogError($"[PlayerMove] Awake 오류: {e.Message}\n{e.StackTrace}");
+            }
+        }
+
+        void Start() {
+            // 수심 게이트용 RunData 자동 연결(미연결 시 코디네이터에서)
+            if (run == null) {
+                var gb = FindFirstObjectByType<Game.Core.GameBootstrap>();
+                if (gb != null) {
+                    run = gb.Run;
+                }
             }
         }
 
@@ -112,6 +131,25 @@ namespace Game.Player {
             }
             if (animator != null) {
                 animator.SetFloat("Speed", rb.linearVelocity.magnitude);   // 이동 속도 → Idle/Swim 전환
+            }
+            ApplyDepthGate();
+        }
+
+        // 부유체 단계가 허용하는 최대 수심 아래로는 못 내려감 — 한계에서 멈추고 하강 속도 제거
+        void ApplyDepthGate() {
+            if (!depthGate || run == null) {
+                return;
+            }
+            float limitY = DepthMap.DepthToWorld(run.MaxDepth());
+            if (rb.position.y < limitY) {
+                var p = rb.position;
+                p.y = limitY;
+                rb.position = p;
+                var v = rb.linearVelocity;
+                if (v.y < 0f) {
+                    v.y = 0f;
+                }
+                rb.linearVelocity = v;
             }
         }
 

@@ -154,8 +154,14 @@ namespace Game.Core {
         void OnUnlocked() { if (toast != null) toast.Show("분석 완료 — 정화 약품 해금"); }
         void OnBuoyCrafted() { if (toast != null) toast.Show("정화 부유체 제작 완료"); }
         void OnUpgraded() { if (toast != null) toast.Show("탐사 기계 업그레이드"); }
-        // 정화 완료 → 스테이지 클리어(전환 거부 시 진단 로그)
+        // 정화 완료 — 부유체 Ⅲ(3단계) 설치만 스테이지 클리어, 그 전 단계는 구역 정화(다음 단계 유도)
         void OnPurified() {
+            if (run != null && run.BuoyStage < 3) {
+                if (toast != null) {
+                    toast.Show($"구역 정화 — 부유체 {run.BuoyStage}단계. 더 깊은 곳으로");
+                }
+                return;
+            }
             if (!Fsm.Change(GameState.Clear)) {
                 Debug.LogWarning($"[GameBootstrap] 정화 완료했으나 Clear 전환 거부됨(현재 {Fsm.Current})");
             }
@@ -179,6 +185,9 @@ namespace Game.Core {
             }
             if (hazard != null) {
                 hazard.SetArmed(to == GameState.Dive);   // 탐사 중에만 발화(Dock 복귀 후 재발화 방지)
+            }
+            if (mover != null) {
+                mover.SetDepthGate(to == GameState.Dive);   // 탐사 중에만 수심 게이트(거점/연출 좌표와 충돌 방지)
             }
             if (purify != null) {
                 purify.SetArmed(to == GameState.Dive);   // 탐사 중에만 설치 가능(복귀 시 진행 취소)

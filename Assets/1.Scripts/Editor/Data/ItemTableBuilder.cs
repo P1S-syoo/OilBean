@@ -76,7 +76,16 @@ namespace Game.Editor.Data {
                 table.items = defs.ToArray();
                 EditorUtility.SetDirty(table);
                 AssetDatabase.SaveAssets();
-                Debug.Log($"[ItemTableBuilder] 테이블 생성 완료 — {defs.Count}종 (FBX 누락 {missing}) → {TablePath}");
+                // 스폰 도달성 검사 — 출현 수심대가 스트리머 스폰 범위를 벗어나면 영영 안 나옴(경고)
+                Game.World.CollectibleStreamer.SpawnExcelRange(out float exMin, out float exMax);
+                int unreachable = 0;
+                foreach (var d in defs) {
+                    if (!(d.maxSpawnY >= exMin && d.minSpawnY <= exMax)) {
+                        Debug.LogWarning($"[ItemTableBuilder] 스폰 도달 불가: {d.id}({d.minSpawnY}~{d.maxSpawnY}) ∉ 스폰범위({exMin:F1}~{exMax:F1})");
+                        unreachable++;
+                    }
+                }
+                Debug.Log($"[ItemTableBuilder] 테이블 생성 완료 — {defs.Count}종 (FBX 누락 {missing}, 스폰 도달불가 {unreachable}) → {TablePath}");
             } catch (Exception e) {
                 Debug.LogError($"[ItemTableBuilder] 생성 실패: {e.Message}\n{e.StackTrace}");
             }

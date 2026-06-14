@@ -15,6 +15,9 @@ namespace Game.World {
         [SerializeField] int density = 70;          // 슬롯 채움 확률(%)
         [SerializeField] float colliderRadius = 1f; // 수집 트리거 월드 반경(m)
 
+        public const float SpawnTopMargin = 0.5f;   // 수면 아래 여유(u) — 얕은 수집물도 수면 근처까지
+        public const float SpawnBottomMargin = 1f;  // 바닥 위 여유(u)
+
         readonly Dictionary<int, List<GameObject>> cells = new();
         readonly List<ItemDef> candidates = new();   // PickByDepth 무할당 재사용
         int lastCenter = int.MinValue;
@@ -71,8 +74,8 @@ namespace Game.World {
                 // 31비트 해시에서 비트대역을 분리 추출(독립 난수) — x분산 / 깊이 / 아이템선택
                 float x = cell * cellWidth + ((h & 0x3FF) / 1024f) * cellWidth;
                 float depthT = ((h >> 10) & 0x3FF) / 1024f;
-                // 수중 깊이 — 수면 바로 아래 ~ 바닥 위
-                float yWorld = Mathf.Lerp(DepthMap.SurfaceY - 1.5f, DepthMap.SeabedY + 1f, depthT);
+                // 수중 깊이 — 수면 가까이 ~ 바닥 위(얕은 수집물 도달 보장)
+                float yWorld = Mathf.Lerp(DepthMap.SurfaceY - SpawnTopMargin, DepthMap.SeabedY + SpawnBottomMargin, depthT);
                 float excelY = (yWorld - DepthMap.SurfaceY) / unitPerM;   // 게임y → 엑셀 수심
                 var def = PickByDepth(excelY, h);
                 if (def == null || def.prefab == null) {
@@ -128,6 +131,13 @@ namespace Game.World {
                 Debug.LogError($"[CollectibleStreamer] {def?.id} 스폰 실패: {e.Message}");
                 return null;
             }
+        }
+
+        // 스폰 가능 엑셀 수심 범위 — excelMin(깊음) ~ excelMax(얕음, 0에 가까움). 도달성 검증·테스트용
+        public static void SpawnExcelRange(out float excelMin, out float excelMax) {
+            float unitPerM = (DepthMap.SurfaceY - DepthMap.SeabedY) / DepthMap.MaxDepthM;
+            excelMax = (DepthMap.SurfaceY - SpawnTopMargin - DepthMap.SurfaceY) / unitPerM;
+            excelMin = (DepthMap.SeabedY + SpawnBottomMargin - DepthMap.SurfaceY) / unitPerM;
         }
 
         // 좌표 결정적 해시 — 어느 시점에 스트리밍돼도 같은 배치(31비트 양수)

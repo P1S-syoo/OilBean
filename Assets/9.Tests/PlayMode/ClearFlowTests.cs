@@ -57,7 +57,9 @@ namespace Game.Tests {
             SetField(gb, "sub", sub.transform);
             sub.SetActive(true);                  // Awake → ResetRun
             run.SetBuoyReady(true);               // Awake 이후 부유체 준비
+            run.SetBuoyStage(3);                  // 부유체 Ⅲ — 설치 시 클리어(그 전 단계는 구역 정화)
             gb.StartDive();                       // Dive 진입
+            sub.transform.position = new Vector3(0f, 10f, 0f);  // 수심 게이트 한계(50m=y7) 위
             spot.transform.position = sub.transform.position;   // 트리거 겹침
             yield return new WaitForFixedUpdate();
             // 설치(0.2s) → 정화 → OnPurified → Clear 전환 대기
@@ -72,6 +74,43 @@ namespace Game.Tests {
         }
 
         [UnityTest]
+        public IEnumerator Buoy_stage_below_3_purifies_but_not_clears() {
+            run = ScriptableObject.CreateInstance<RunData>();
+            clearText = new GameObject("ClearText");
+            cvGo = new GameObject("ClearView");
+            var cv = cvGo.AddComponent<ClearView>();
+            SetField(cv, "clearText", clearText);
+            spot = new GameObject("Spot");
+            spot.AddComponent<BoxCollider2D>().isTrigger = true;
+            var inst = spot.AddComponent<PurifyInstaller>();
+            SetField(inst, "run", run);
+            SetField(inst, "installTime", 0.2f);
+            sub = new GameObject("Sub");
+            sub.SetActive(false);
+            var mover = sub.AddComponent<PlayerMove>();
+            sub.AddComponent<BoxCollider2D>().isTrigger = true;
+            var gb = sub.AddComponent<GameBootstrap>();
+            SetField(gb, "run", run);
+            SetField(gb, "purify", inst);
+            SetField(gb, "clearView", cv);
+            SetField(gb, "mover", mover);
+            SetField(gb, "sub", sub.transform);
+            sub.SetActive(true);
+            run.SetBuoyReady(true);
+            run.SetBuoyStage(1);   // 부유체 Ⅰ — 구역 정화이되 클리어는 아님
+            gb.StartDive();
+            sub.transform.position = new Vector3(0f, 14f, 0f);   // 1단계 한계(35m=y12.1) 위
+            spot.transform.position = sub.transform.position;
+            yield return new WaitForFixedUpdate();
+            for (int i = 0; i < 120; i++) {
+                if (run.Purify >= 1f) break;
+                yield return null;
+            }
+            Assert.AreEqual(1f, run.Purify, 0.001f, "설치는 완료(구역 정화)");
+            Assert.AreNotEqual(GameState.Clear, gb.State, "부유체 Ⅲ 전에는 클리어 아님");
+        }
+
+        [UnityTest]
         public IEnumerator ForceReturn_during_install_cancels_and_no_clear() {
             run = ScriptableObject.CreateInstance<RunData>();
             clearText = new GameObject("ClearText");
@@ -80,7 +119,7 @@ namespace Game.Tests {
             SetField(cv, "clearText", clearText);
             // 스팟은 거점(원점)과 분리해 강제복귀 시 트리거에서 빠지게
             spot = new GameObject("Spot");
-            spot.transform.position = new Vector3(3f, 0f, 0f);
+            spot.transform.position = new Vector3(3f, 20f, 0f);   // 수심 게이트 한계(15m=y18.9) 위
             spot.AddComponent<BoxCollider2D>().isTrigger = true;
             var inst = spot.AddComponent<PurifyInstaller>();
             SetField(inst, "run", run);
