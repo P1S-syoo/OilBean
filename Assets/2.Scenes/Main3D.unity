@@ -267,6 +267,58 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 6147826009795423660, guid: d025112a1b30e87419e5a0cc60782c33, type: 3}
   m_PrefabInstance: {fileID: 4124810}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &16105156
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 16105158}
+  - component: {fileID: 16105157}
+  m_Layer: 0
+  m_Name: CollectibleStreamer
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &16105157
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 16105156}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b142a76765ad86346a8a058970bc92cf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game::Game.World.CollectibleStreamer
+  target: {fileID: 996603743}
+  table: {fileID: 11400000, guid: c68fc9ab8dc17a142905cfd5f60e1cb6, type: 2}
+  cellWidth: 6
+  radiusCells: 6
+  slotsPerCell: 2
+  density: 70
+  pickupScale: 1.3
+  colliderRadius: 0.9
+--- !u!4 &16105158
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 16105156}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &26957442
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -31648,7 +31700,7 @@ MonoBehaviour:
     m_Value: 0
   OutputChannel: 1
   StandbyUpdate: 2
-  m_StreamingVersion: 0
+  m_StreamingVersion: 20241001
   m_LegacyPriority: 0
   Target:
     TrackingTarget: {fileID: 2087694934}
@@ -31774,8 +31826,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1952108327}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalRotation: {x: 0.22294196, y: 0, z: 0, w: 0.97483176}
+  m_LocalPosition: {x: -24.10803, y: 29.46564, z: -8.121956}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -34461,3 +34513,4 @@ SceneRoots:
   - {fileID: 939228898}
   - {fileID: 772908911}
   - {fileID: 180379554}
+  - {fileID: 16105158}

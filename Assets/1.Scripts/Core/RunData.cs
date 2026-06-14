@@ -164,6 +164,13 @@ namespace Game.Core {
             }
         }
 
+        // 탐사 적재 비우기(복귀 시) — 거점 보유분(bank)은 수집 즉시 입고되므로 유지, 세션 적재만 초기화
+        public void ClearCarry() {
+            weight = 0f;
+            scrapCount = 0;
+            sampleCount = 0;
+        }
+
         // 무게 한계 업그레이드
         public void AddMaxWeight(float d) {
             maxWeight += Mathf.Max(0f, d);

@@ -86,6 +86,15 @@ namespace Game.Items {
                 OnFull?.Invoke();   // 적재 한계 — 복귀 유도
                 return false;
             }
+            // 거점 보유 소재 입고 — 고철=강재 등급별 kg, 샘플=오염수준별 개수(데이터 주도)
+            var def = target.Def;
+            if (def != null) {
+                if (def.kind == ResourceKind.Scrap) {
+                    run.AddSteel(def.grade, def.weight);
+                } else {
+                    run.AddSampleAt(def.pollutionLevel);
+                }
+            }
             inRange.Remove(target);
             OnCollect?.Invoke(target.Kind);
             Destroy(target.gameObject);

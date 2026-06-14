@@ -187,7 +187,7 @@ namespace Game.Core {
             }
         }
 
-        // 거점 복귀 정산 — 위치/관성 리셋 + 배터리 재충전(자원은 RunData에 유지)
+        // 거점 복귀 정산 — 위치/관성 리셋 + 배터리 재충전 + 탐사 적재 비우기(거점 보유분은 유지)
         void OnReturnedToDock() {
             if (sub != null) {
                 sub.position = dockPos;
@@ -197,6 +197,9 @@ namespace Game.Core {
             }
             if (battery != null) {
                 battery.Refill();
+            }
+            if (run != null) {
+                run.ClearCarry();   // 다음 탐사를 위해 세션 적재 초기화(입고분은 거점에 남음)
             }
         }
 
