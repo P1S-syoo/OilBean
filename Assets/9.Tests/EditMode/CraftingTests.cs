@@ -5,13 +5,15 @@ using Game.Core;
 using Game.Craft;
 
 namespace Game.Tests {
-    // Crafting 제작/업그레이드 + RunData 고철 소비·무게 업그레이드 EditMode 테스트
+    // Crafting 제작(부유체 3단계·업그레이드 3종, 강재 등급별 kg 소비) EditMode 테스트
     public class CraftingTests {
         GameObject go;
 
         [TearDown]
         public void Cleanup() {
-            if (go != null) Object.DestroyImmediate(go);
+            if (go != null) {
+                Object.DestroyImmediate(go);
+            }
         }
 
         static void SetField(object o, string name, object v) {
@@ -19,91 +21,99 @@ namespace Game.Tests {
         }
 
         RunData MakeRun() {
-            return ScriptableObject.CreateInstance<RunData>();   // maxWeight 50
+            return ScriptableObject.CreateInstance<RunData>();
         }
 
         Crafting MakeCrafting(RunData run) {
             go = new GameObject("Crafting");
             var c = go.AddComponent<Crafting>();
             SetField(c, "run", run);
-            SetField(c, "recipeId", "purifier");
-            SetField(c, "buoyScrap", 3);
-            SetField(c, "upgradeScrap", 2);
-            SetField(c, "scrapUnitWeight", 8f);
-            SetField(c, "weightBonus", 20f);
             return c;
         }
 
-        static void AddScrap(RunData run, int n) {
-            for (int i = 0; i < n; i++) run.TryAdd(ResourceKind.Scrap, 8f);
-        }
-
         [Test]
-        public void ConsumeScrap_reduces_count_and_weight() {
+        public void Buoy1_needs_agent_and_steel() {
             var run = MakeRun();
-            AddScrap(run, 3);                 // 24kg
-            Assert.IsTrue(run.TryConsumeScrap(2, 8f));
-            Assert.AreEqual(1, run.ScrapCount);
-            Assert.AreEqual(8f, run.Weight, 0.001f);
-        }
-
-        [Test]
-        public void ConsumeScrap_fails_when_insufficient() {
-            var run = MakeRun();
-            AddScrap(run, 1);
-            Assert.IsFalse(run.TryConsumeScrap(3, 8f));
-            Assert.AreEqual(1, run.ScrapCount);
-        }
-
-        [Test]
-        public void CraftBuoy_needs_recipe_and_scrap() {
-            var run = MakeRun();
-            AddScrap(run, 3);
+            run.AddSteel(0, 24f);   // 일반강재 24kg
             var c = MakeCrafting(run);
-            Assert.IsFalse(c.CanCraftBuoy, "레시피 해금 전엔 제작 불가");
-            Assert.IsFalse(c.CraftBuoy());
-            run.Unlock("purifier");
-            Assert.IsTrue(c.CanCraftBuoy);
-            Assert.IsTrue(c.CraftBuoy());
-            Assert.IsTrue(run.BuoyReady);
-            Assert.AreEqual(0, run.ScrapCount, "고철 3개 소비");
+            Assert.IsFalse(c.CanCraft("buoy_1"), "약품 미해금이면 제작 불가");
+            run.Unlock("agent_mild");
+            Assert.IsTrue(c.CanCraft("buoy_1"));
+            Assert.IsTrue(c.Craft("buoy_1"));
+            Assert.AreEqual(1, run.BuoyStage, "부유체 1단계");
+            Assert.AreEqual(0f, run.GetSteel(0), 0.001f, "강재 24kg 소비");
         }
 
         [Test]
-        public void CraftBuoy_only_once() {
+        public void Buoy_must_be_sequential() {
             var run = MakeRun();
-            AddScrap(run, 6);
-            run.Unlock("purifier");
+            run.AddSteel(1, 30f);
+            run.Unlock("agent_mid");
             var c = MakeCrafting(run);
-            Assert.IsTrue(c.CraftBuoy());
-            Assert.IsFalse(c.CanCraftBuoy, "이미 제작됨 → 재제작 불가");
-            Assert.IsFalse(c.CraftBuoy());
+            Assert.IsFalse(c.CanCraft("buoy_2"), "1단계 없이 2단계 불가(순차)");
         }
 
         [Test]
-        public void UpgradeWeight_raises_cap() {
+        public void Insufficient_steel_blocks_craft() {
             var run = MakeRun();
-            AddScrap(run, 2);
+            run.AddSteel(0, 20f);   // 24 미만
+            run.Unlock("agent_mild");
+            var c = MakeCrafting(run);
+            Assert.IsFalse(c.CanCraft("buoy_1"));
+            Assert.IsFalse(c.Craft("buoy_1"));
+        }
+
+        [Test]
+        public void Upgrade_cargo_raises_cap_and_consumes_steel() {
+            var run = MakeRun();
+            run.AddSteel(0, 16f);
             var c = MakeCrafting(run);
             float before = run.MaxWeight;
-            Assert.IsTrue(c.UpgradeWeight());
+            Assert.IsTrue(c.Craft("up_cargo"));
             Assert.AreEqual(before + 20f, run.MaxWeight, 0.001f);
-            Assert.AreEqual(0, run.ScrapCount);
+            Assert.AreEqual(0f, run.GetSteel(0), 0.001f);
         }
 
         [Test]
-        public void Reset_clears_buoy_and_restores_cap() {
+        public void Hull_armor_once() {
             var run = MakeRun();
-            AddScrap(run, 2);
+            run.AddSteel(2, 60f);
             var c = MakeCrafting(run);
-            c.UpgradeWeight();               // 한계 +20
-            float upgraded = run.MaxWeight;  // 업그레이드 후 한계
-            run.SetBuoyReady(true);
+            Assert.IsTrue(c.Craft("gear_hull"));
+            Assert.IsTrue(run.HullArmor);
+            Assert.IsFalse(c.CanCraft("gear_hull"), "이미 장착이면 재제작 불가");
+            Assert.IsTrue(run.ConsumeHullArmor(), "충돌 1회 흡수");
+            Assert.IsFalse(run.HullArmor, "흡수 후 소진");
+        }
+
+        [Test]
+        public void Legacy_api_buoy_and_upgrade() {
+            // CraftPanel 호환 — CraftBuoy()=다음 단계, UpgradeWeight()=up_cargo
+            var run = MakeRun();
+            run.AddSteel(0, 24f);
+            run.Unlock("agent_mild");
+            var c = MakeCrafting(run);
+            Assert.IsTrue(c.CanCraftBuoy);
+            Assert.IsTrue(c.CraftBuoy());
+            Assert.AreEqual(1, run.BuoyStage);
+            run.AddSteel(0, 16f);
+            Assert.IsTrue(c.CanUpgrade);
+            Assert.IsTrue(c.UpgradeWeight());
+        }
+
+        [Test]
+        public void Reset_clears_buoy_hull_and_cap() {
+            var run = MakeRun();
+            run.AddSteel(0, 16f);
+            var c = MakeCrafting(run);
+            c.Craft("up_cargo");
+            float upgraded = run.MaxWeight;
+            run.SetBuoyStage(2);
+            run.SetHullArmor(true);
             run.ResetRun();
-            Assert.IsFalse(run.BuoyReady);
-            Assert.Less(run.MaxWeight, upgraded, "리셋 시 업그레이드 전 기준 한계로 복원");
-            var fresh = UnityEngine.ScriptableObject.CreateInstance<RunData>();
-            Assert.AreEqual(fresh.MaxWeight, run.MaxWeight, 0.001f, "리셋 한계 = 새 인스턴스 기준값");
+            Assert.AreEqual(0, run.BuoyStage);
+            Assert.IsFalse(run.HullArmor);
+            Assert.Less(run.MaxWeight, upgraded, "리셋 시 기준 한계 복원");
         }
     }
 }

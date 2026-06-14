@@ -91,8 +91,8 @@ namespace Game.UI {
                 upgradeBtn.interactable = crafting.CanUpgrade;
             }
             if (statusText != null && run != null) {
-                string buoy = run.BuoyReady ? "부유체 준비됨" : "부유체 미제작";
-                statusText.text = $"고철 {run.ScrapCount}  한계 {run.MaxWeight:0}kg  {buoy}";
+                string buoy = run.BuoyStage > 0 ? $"부유체 {run.BuoyStage}단계" : "부유체 미제작";
+                statusText.text = $"강재 일{run.GetSteel(0):0}/합{run.GetSteel(1):0}/특{run.GetSteel(2):0}kg  한계 {run.MaxWeight:0}  {buoy}";
             }
         }
     }

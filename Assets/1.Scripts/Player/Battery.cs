@@ -41,6 +41,13 @@ namespace Game.Player {
             emptied = false;
         }
 
+        // 용량 업그레이드(배터리 셀 제작) — 최대치↑, 늘린 만큼 현재치도 채움
+        public void AddCapacity(float d) {
+            d = Mathf.Max(0f, d);
+            max += d;
+            current = Mathf.Min(max, current + d);
+        }
+
         // 소모 on/off(탐사 중에만 소모) — 코디네이터가 상태에 맞춰 토글
         public void SetDraining(bool on) {
             draining = on;

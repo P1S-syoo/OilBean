@@ -26,6 +26,7 @@ namespace Game.Core {
         [SerializeField] float purify;        // 정화 진행도 0~1
         [SerializeField] bool buoyReady;      // 정화 부유체 제작 완료(설치 대기)
         [SerializeField] int buoyStage;       // 정화 부유체 단계 0~3 (수심 게이트: 0=~15m 1=~35m 2=~50m 3=클리어)
+        [SerializeField] bool hullArmor;      // 내압 프레임 — 오염원 충돌 1회 흡수(제작 장비)
         [SerializeField] int researchProgress; // 연구로 분석한 샘플 수(리셋 대상)
         [SerializeField] List<string> recipes = new();  // 해금된 레시피 id
         [SerializeField] int surfaceTargetIdx; // 수상 항해 현재 목표 인덱스(잠수 시 +1 기록 — 복귀 항해 재개용)
@@ -37,6 +38,7 @@ namespace Game.Core {
         public float Purify => purify;
         public bool BuoyReady => buoyReady;
         public int BuoyStage => buoyStage;
+        public bool HullArmor => hullArmor;
         public int ResearchProgress => researchProgress;
         public int ResearchPoints => researchPoints;
         public int MaxAnalyzedLevel => maxAnalyzedLevel;
@@ -157,6 +159,20 @@ namespace Game.Core {
             buoyStage = Mathf.Clamp(s, 0, 3);
         }
 
+        // 내압 프레임 장착/해제
+        public void SetHullArmor(bool v) {
+            hullArmor = v;
+        }
+
+        // 충돌 시 내압 프레임으로 1회 흡수 — 흡수했으면 true(장갑 소진)
+        public bool ConsumeHullArmor() {
+            if (hullArmor) {
+                hullArmor = false;
+                return true;
+            }
+            return false;
+        }
+
         // 배열 직렬화 누락/길이 불일치 방어
         void EnsureBanks() {
             if (bankSteel == null || bankSteel.Length != 3) {
@@ -210,6 +226,7 @@ namespace Game.Core {
             purify = 0f;
             buoyReady = false;
             buoyStage = 0;
+            hullArmor = false;
             researchProgress = 0;
             researchPoints = 0;
             maxAnalyzedLevel = 0;

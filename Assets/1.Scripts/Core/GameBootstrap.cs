@@ -135,7 +135,14 @@ namespace Game.Core {
         void OnBatteryEmpty() => ForceReturn("배터리 방전");
         // 적재 한계 — 강제 복귀 대신 경고만(복귀는 R키로 플레이어 선택)
         void OnInvFull() { if (toast != null) toast.Show("적재 한계 — R키로 정화선 복귀"); }
-        void OnHazardHit() => ForceReturn("오염원 충돌");
+        void OnHazardHit() {
+            // 내압 프레임 장착 시 충돌 1회 흡수(장갑 소진) — 복귀 면제
+            if (run != null && run.ConsumeHullArmor()) {
+                if (toast != null) toast.Show("내압 프레임 — 충돌 흡수");
+                return;
+            }
+            ForceReturn("오염원 충돌");
+        }
         // 플레이어 수동 복귀(R) — 탐사 중에만 동작
         void OnReturnInput(InputAction.CallbackContext ctx) {
             if (Fsm.Current == GameState.Dive) {
