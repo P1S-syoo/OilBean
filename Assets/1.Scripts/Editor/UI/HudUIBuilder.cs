@@ -20,11 +20,14 @@ namespace Game.Editor.UI {
     public static class HudUIBuilder {
 
         const string CANVAS_NAME = "GameCanvas";
+        const string ROUND_SPRITE_PATH = "Assets/4.Art/UI/RoundedRect.png";
 
         // ── 진입점 ────────────────────────────────────────────────────────────
         [MenuItem("Tools/한강/UI/HUD·패널 생성")]
         static void Build() {
             try {
+                // 라운드 코너 스프라이트 준비 + 주입 — 전 패널 공통 룩(둥근 모서리)
+                UITheme.RoundSprite = EnsureRoundedSprite();
                 // 기존 Canvas 재활용 또는 신규 생성
                 var canvasGo = GetOrCreateCanvas();
                 var canvasTr = canvasGo.transform;
@@ -118,6 +121,7 @@ namespace Game.Editor.UI {
                 new Vector2(UITheme.SpaceLG, UITheme.SpaceLG),
                 new Vector2(-UITheme.SpaceSM, -72f - UITheme.SpaceSM),
                 UITheme.BgPanel);
+            UITheme.AddShadow(center, 0.4f, 0f, -3f);
 
             // 주행동: 탐사 시작 (대형 버튼)
             var diveBtn = UITheme.MakeButton("DiveBtn", center.transform,
@@ -128,6 +132,7 @@ namespace Game.Editor.UI {
                 new Vector2(0f, 1f), new Vector2(1f, 1f),
                 new Vector2(UITheme.SpaceMD, -UITheme.SpaceMD - 72f),
                 new Vector2(-UITheme.SpaceMD, -UITheme.SpaceMD));
+            UITheme.AddShadow(diveBtn.gameObject, 0.5f, 0f, -3f);   // 주행동 버튼 강조 깊이
 
             // 보조 버튼 행 (연구 / 제작 / 정화 설치)
             float subBtnY = -UITheme.SpaceMD * 2f - 72f - UITheme.SpaceSM;
@@ -135,8 +140,35 @@ namespace Game.Editor.UI {
             Button craftBtn    = MakeSubButton("CraftBtn",     center.transform, "제작",    subBtnY, 1f);
             Button purifyBtn   = MakeSubButton("PurifyBtn",    center.transform, "정화 설치", subBtnY, 2f);
 
-            // 구분선
-            UITheme.MakeDivider("Div1", center.transform, UITheme.SpaceMD);
+            // ── 중앙 하단: 탐사 브리핑 — 버튼 아래 빈 공간을 안내 정보로 채움 ──
+            var brief = UITheme.MakePanel("Brief", center.transform,
+                new Vector2(0f, 0f), new Vector2(1f, 1f),
+                new Vector2(UITheme.SpaceMD, UITheme.SpaceMD),
+                new Vector2(-UITheme.SpaceMD, -190f),
+                UITheme.BgHeader);
+            UITheme.MakeAccentBar("BriefBar", brief.transform, 1f, 2f, 0f, UITheme.AccentDim);
+
+            var briefTitle = UITheme.MakeText("BriefTitle", brief.transform,
+                "탐사 브리핑", UITheme.FontCaption, UITheme.Accent, TextAlignmentOptions.Left);
+            var briefTitleRt = briefTitle.GetComponent<RectTransform>();
+            briefTitleRt.anchorMin = new Vector2(0f, 1f);
+            briefTitleRt.anchorMax = new Vector2(1f, 1f);
+            briefTitleRt.offsetMin = new Vector2(UITheme.SpaceMD, -UITheme.SpaceMD - 18f);
+            briefTitleRt.offsetMax = new Vector2(-UITheme.SpaceMD, -UITheme.SpaceMD);
+            briefTitle.fontStyle = FontStyles.Bold;
+
+            var briefBody = MakeStretchText("BriefBody", brief.transform,
+                "· 수중에서 고철과 오염 샘플을 수집해 거점으로 가져옵니다.\n" +
+                "· 배터리 방전·적재 한계·오염원 충돌 전에 복귀하세요.\n" +
+                "· 연구로 정화제를 해금하고, 제작으로 정화 부유체를 만듭니다.\n" +
+                "· 부유체 단계가 오를수록 더 깊은 수심까지 탐사할 수 있습니다.",
+                UITheme.FontBody, UITheme.TextSecondary,
+                new Vector2(0f, 0f), new Vector2(1f, 1f),
+                new Vector2(UITheme.SpaceMD, UITheme.SpaceMD),
+                new Vector2(-UITheme.SpaceMD, -UITheme.SpaceMD - 28f),
+                TextAlignmentOptions.TopLeft);
+            briefBody.enableWordWrapping = true;
+            briefBody.overflowMode = TextOverflowModes.Ellipsis;
 
             // ── 우측: 현재 목표 카드 ─────────────────────────────────────────
             var goalCard = UITheme.MakePanel("GoalCard", root.transform,
@@ -144,6 +176,7 @@ namespace Game.Editor.UI {
                 new Vector2(UITheme.SpaceSM, UITheme.SpaceLG),
                 new Vector2(-UITheme.SpaceLG, -72f - UITheme.SpaceSM),
                 UITheme.BgPanel);
+            UITheme.AddShadow(goalCard, 0.4f, 0f, -3f);
 
             var goalTitle = UITheme.MakeText("GoalTitle", goalCard.transform,
                 "현재 목표", UITheme.FontHeading, UITheme.Accent, TextAlignmentOptions.Left);
@@ -153,14 +186,16 @@ namespace Game.Editor.UI {
             goalTitleRt.offsetMin = new Vector2(UITheme.SpaceMD, -UITheme.SpaceMD - UITheme.FontHeading - 4f);
             goalTitleRt.offsetMax = new Vector2(-UITheme.SpaceMD, -UITheme.SpaceMD);
 
-            UITheme.MakeDivider("GoalDiv", goalCard.transform, UITheme.SpaceMD);
+            // 제목 아래 구분선 — 카드 상단에 배치(정중앙 배치 버그 회피)
+            UITheme.MakeAccentBar("GoalDiv", goalCard.transform, 0.86f, 1f, UITheme.SpaceMD, UITheme.BgBorder);
 
             var goalBody = MakeStretchText("GoalBody", goalCard.transform,
                 "수심 15m까지 탐사 가능\n샘플을 수집하고 복귀하여\n연구를 진행하세요.",
                 UITheme.FontBody, UITheme.TextPrimary,
-                new Vector2(0f, 0f), new Vector2(1f, 0.6f),
-                new Vector2(UITheme.SpaceMD, UITheme.SpaceSM),
-                new Vector2(-UITheme.SpaceMD, -UITheme.SpaceMD));
+                new Vector2(0f, 0f), new Vector2(1f, 0.84f),
+                new Vector2(UITheme.SpaceMD, UITheme.SpaceMD),
+                new Vector2(-UITheme.SpaceMD, -UITheme.SpaceMD),
+                TextAlignmentOptions.TopLeft);
             goalBody.enableWordWrapping = true;
             goalBody.overflowMode = TextOverflowModes.Overflow;
 
@@ -189,6 +224,7 @@ namespace Game.Editor.UI {
             var btn = UITheme.MakeButton(name, parent, label, UITheme.FontBody,
                 Vector2.zero, Vector2.zero,
                 UITheme.BgBorder, UITheme.TextPrimary);
+            UITheme.AddShadow(btn.gameObject, 0.35f, 0f, -2f);
             var rt = btn.GetComponent<RectTransform>();
             float w = 1f / 3f;
             rt.anchorMin = new Vector2(w * idx, 1f);
@@ -216,6 +252,7 @@ namespace Game.Editor.UI {
                 new Vector2(UITheme.SpaceMD, -136f),
                 new Vector2(220f, -UITheme.SpaceMD),
                 UITheme.BgPanel);
+            UITheme.AddShadow(batBlock, 0.5f, 0f, -3f);
 
             var batLabel = UITheme.MakeText("BatLabel", batBlock.transform,
                 "배터리", UITheme.FontCaption, UITheme.TextSecondary);
@@ -237,6 +274,7 @@ namespace Game.Editor.UI {
                 new Vector2(-220f, -136f),
                 new Vector2(-UITheme.SpaceMD, -UITheme.SpaceMD),
                 UITheme.BgPanel);
+            UITheme.AddShadow(cargoBlock, 0.5f, 0f, -3f);
 
             var cargoLabel = UITheme.MakeText("CargoLabel", cargoBlock.transform,
                 "적재", UITheme.FontCaption, UITheme.TextSecondary);
@@ -358,9 +396,9 @@ namespace Game.Editor.UI {
             MakeColTitle(leftCol.transform, "보유 샘플");
 
             // 샘플 수량 — 3레벨(오염수준 1/2/3)
-            var smp1Txt = MakeSampleRow(leftCol.transform, "Lv.1  오염 저농도", UITheme.DepthCommon,   0.75f);
-            var smp2Txt = MakeSampleRow(leftCol.transform, "Lv.2  오염 중농도", UITheme.DepthUncommon, 0.55f);
-            var smp3Txt = MakeSampleRow(leftCol.transform, "Lv.3  오염 고농도", UITheme.DepthRare,     0.35f);
+            var smp1Txt = MakeSampleRow(leftCol.transform, "Lv.1  오염 저농도", UITheme.DepthCommon,   0.80f);
+            var smp2Txt = MakeSampleRow(leftCol.transform, "Lv.2  오염 중농도", UITheme.DepthUncommon, 0.69f);
+            var smp3Txt = MakeSampleRow(leftCol.transform, "Lv.3  오염 고농도", UITheme.DepthRare,     0.58f);
 
             UITheme.MakeDivider("Div", leftCol.transform, UITheme.SpaceMD);
 
@@ -395,10 +433,13 @@ namespace Game.Editor.UI {
 
             MakeColTitle(rightCol.transform, "정화제 해금");
 
-            float cardH = 0.28f;
-            var card1 = BuildAgentCard(rightCol.transform, "정화제 Ⅰ   약품 3pt", "agent_mild",   UITheme.ColInfo,    0.7f,  cardH);
-            var card2 = BuildAgentCard(rightCol.transform, "정화제 Ⅱ   약품 8pt", "agent_mid",    UITheme.Accent,     0.4f,  cardH);
-            var card3 = BuildAgentCard(rightCol.transform, "정화제 Ⅲ   약품 15pt", "agent_strong", UITheme.ColDanger,  0.1f,  cardH);
+            float cardH = 0.27f;
+            var card1 = BuildAgentCard(rightCol.transform, "정화제 Ⅰ", "agent_mild",   UITheme.ColInfo,    0.71f, cardH,
+                "얕은 수심 오염 정화 · 부유체 Ⅰ 제작 재료", "필요 분석 3pt");
+            var card2 = BuildAgentCard(rightCol.transform, "정화제 Ⅱ", "agent_mid",    UITheme.Accent,     0.40f, cardH,
+                "중간 수심 오염 정화 · 부유체 Ⅱ 제작 재료", "필요 분석 8pt · 정화제 Ⅰ 선행");
+            var card3 = BuildAgentCard(rightCol.transform, "정화제 Ⅲ", "agent_strong", UITheme.ColDanger,  0.09f, cardH,
+                "심해 고농도 오염 정화 · 부유체 Ⅲ 제작 재료", "필요 분석 15pt · 고농도 샘플 분석");
 
             // ResearchPanel 컴포넌트 배선 (기존 ResearchPanel.cs)
             var resComp = root.AddComponent<ResearchPanel>();
@@ -460,9 +501,9 @@ namespace Game.Editor.UI {
                 UITheme.BgPanel);
 
             MakeColTitle(leftCol.transform, "보유 자원");
-            var steel0Txt = MakeResourceRow(leftCol.transform, "일반 강재", UITheme.ColInfo,    0.78f);
-            var steel1Txt = MakeResourceRow(leftCol.transform, "합금 강재", UITheme.Accent,     0.62f);
-            var steel2Txt = MakeResourceRow(leftCol.transform, "특수 강재", UITheme.ColSuccess, 0.46f);
+            var steel0Txt = MakeResourceRow(leftCol.transform, "일반 강재", UITheme.ColInfo,    0.82f);
+            var steel1Txt = MakeResourceRow(leftCol.transform, "합금 강재", UITheme.Accent,     0.71f);
+            var steel2Txt = MakeResourceRow(leftCol.transform, "특수 강재", UITheme.ColSuccess, 0.60f);
 
             UITheme.MakeDivider("Div", leftCol.transform, UITheme.SpaceMD);
 
@@ -622,7 +663,9 @@ namespace Game.Editor.UI {
                 new Vector2(0f, 1f), new Vector2(1f, 1f),
                 new Vector2(0f, -56f), new Vector2(0f, 0f),
                 UITheme.BgHeader);
-            UITheme.MakeDivider("HeaderBorder", parent, 0f);
+            UITheme.AddShadow(header, 0.5f, 0f, -2f);
+            // 헤더 하단 액센트 언더라인(이전엔 패널 정중앙에 잘못 배치되던 버그 수정)
+            UITheme.MakeAccentBar("HeaderUnderline", header.transform, 0f, 2f, 0f, UITheme.Accent);
             var t = UITheme.MakeText("HeaderTitle", header.transform,
                 title, UITheme.FontHeading, UITheme.Accent, TextAlignmentOptions.Left);
             var rt = t.GetComponent<RectTransform>();
@@ -702,15 +745,17 @@ namespace Game.Editor.UI {
             return cnt;
         }
 
-        // 약품 해금 카드
+        // 약품 해금 카드 — 좌측 액센트 바 + 이름/배지(상단) + 설명/요구(하단)로 카드 전체를 채움
         static GameObject BuildAgentCard(Transform parent, string label, string id,
-                Color accentColor, float anchorYBottom, float anchorHeight) {
+                Color accentColor, float anchorYBottom, float anchorHeight,
+                string desc, string req) {
             var card = UITheme.MakePanel("AgentCard_" + id, parent,
                 new Vector2(0f, anchorYBottom),
                 new Vector2(1f, anchorYBottom + anchorHeight),
                 new Vector2(UITheme.SpaceXS, UITheme.SpaceXS),
                 new Vector2(-UITheme.SpaceXS, -UITheme.SpaceXS),
                 UITheme.BgPanel);
+            UITheme.AddShadow(card, 0.4f, 0f, -2f);
 
             // 좌측 색상 바
             var bar = new GameObject("AccentBar");
@@ -718,29 +763,51 @@ namespace Game.Editor.UI {
             var barRt = bar.AddComponent<RectTransform>();
             barRt.anchorMin = new Vector2(0f, 0f);
             barRt.anchorMax = new Vector2(0f, 1f);
-            barRt.offsetMin = new Vector2(0f, 0f);
-            barRt.offsetMax = new Vector2(4f, 0f);
+            barRt.offsetMin = new Vector2(UITheme.SpaceXS, UITheme.SpaceXS);
+            barRt.offsetMax = new Vector2(UITheme.SpaceXS + 5f, -UITheme.SpaceXS);
             var barImg = bar.AddComponent<Image>();
             barImg.color = accentColor;
+            UITheme.ApplyRound(barImg, 4f);
 
-            // 약품명
+            // 약품명(상단 좌)
             var nameTxt = UITheme.MakeText("Name", card.transform,
                 label, UITheme.FontBody, UITheme.TextPrimary);
             var nameRt = nameTxt.GetComponent<RectTransform>();
-            nameRt.anchorMin = new Vector2(0f, 0.5f);
-            nameRt.anchorMax = new Vector2(0.75f, 1f);
+            nameRt.anchorMin = new Vector2(0f, 0.58f);
+            nameRt.anchorMax = new Vector2(0.7f, 1f);
             nameRt.offsetMin = new Vector2(UITheme.SpaceMD, 0f);
-            nameRt.offsetMax = new Vector2(0f, -UITheme.SpaceXS);
+            nameRt.offsetMax = new Vector2(0f, -UITheme.SpaceSM);
             nameTxt.fontStyle = FontStyles.Bold;
 
-            // 상태 배지
+            // 상태 배지(상단 우)
             var badgeTxt = UITheme.MakeText("Badge", card.transform,
                 "잠금", UITheme.FontCaption, UITheme.TextDisabled, TextAlignmentOptions.Right);
             var badgeRt = badgeTxt.GetComponent<RectTransform>();
-            badgeRt.anchorMin = new Vector2(0.75f, 0.5f);
+            badgeRt.anchorMin = new Vector2(0.6f, 0.58f);
             badgeRt.anchorMax = new Vector2(1f, 1f);
             badgeRt.offsetMin = new Vector2(0f, 0f);
-            badgeRt.offsetMax = new Vector2(-UITheme.SpaceMD, -UITheme.SpaceXS);
+            badgeRt.offsetMax = new Vector2(-UITheme.SpaceMD, -UITheme.SpaceSM);
+            badgeTxt.fontStyle = FontStyles.Bold;
+
+            // 설명(중단) — 카드 하단 공간을 채움
+            var descTxt = UITheme.MakeText("Desc", card.transform,
+                desc, UITheme.FontCaption, UITheme.TextSecondary);
+            var descRt = descTxt.GetComponent<RectTransform>();
+            descRt.anchorMin = new Vector2(0f, 0.3f);
+            descRt.anchorMax = new Vector2(1f, 0.56f);
+            descRt.offsetMin = new Vector2(UITheme.SpaceMD, 0f);
+            descRt.offsetMax = new Vector2(-UITheme.SpaceMD, 0f);
+            descTxt.enableWordWrapping = true;
+            descTxt.overflowMode = TextOverflowModes.Ellipsis;
+
+            // 요구 조건(하단)
+            var reqTxt = UITheme.MakeText("Req", card.transform,
+                req, UITheme.FontCaption, accentColor);
+            var reqRt = reqTxt.GetComponent<RectTransform>();
+            reqRt.anchorMin = new Vector2(0f, 0.06f);
+            reqRt.anchorMax = new Vector2(1f, 0.28f);
+            reqRt.offsetMin = new Vector2(UITheme.SpaceMD, 0f);
+            reqRt.offsetMax = new Vector2(-UITheme.SpaceMD, 0f);
 
             // id 텍스트(숨김 — ExtUI가 참조용으로 id 식별)
             var idTxt = UITheme.MakeText("AgentId", card.transform,
@@ -761,12 +828,27 @@ namespace Game.Editor.UI {
             rt.anchorMax = new Vector2(1f, anchorY2);
             rt.offsetMin = new Vector2(UITheme.SpaceSM, UITheme.SpaceXS);
             rt.offsetMax = new Vector2(-UITheme.SpaceSM, -UITheme.SpaceXS);
+            UITheme.AddShadow(btn.gameObject, 0.35f, 0f, -2f);
+
+            // 좌측 액센트 바 — 부유체(0~2)는 청록, 업그레이드(3~5)는 성공색으로 구분
+            var bar = new GameObject("AccentBar");
+            bar.transform.SetParent(btn.transform, false);
+            var barRt = bar.AddComponent<RectTransform>();
+            barRt.anchorMin = new Vector2(0f, 0.18f);
+            barRt.anchorMax = new Vector2(0f, 0.82f);
+            barRt.offsetMin = new Vector2(UITheme.SpaceSM, 0f);
+            barRt.offsetMax = new Vector2(UITheme.SpaceSM + 4f, 0f);
+            var barImg = bar.AddComponent<Image>();
+            barImg.color = idx < 3 ? UITheme.Accent : UITheme.ColSuccess;
+            UITheme.ApplyRound(barImg, 4f);
 
             // 레이블 텍스트(버튼 자식의 Label은 이미 있음)
             var lbl = btn.transform.Find("Label")?.GetComponent<TMP_Text>();
             if (lbl != null) {
                 lbl.text = name;
                 lbl.alignment = TextAlignmentOptions.Left;
+                var lrt = lbl.GetComponent<RectTransform>();
+                lrt.offsetMin = new Vector2(UITheme.SpaceMD + 6f, lrt.offsetMin.y);
             }
 
             // 소재 요구 텍스트
@@ -871,6 +953,59 @@ namespace Game.Editor.UI {
             rt.anchorMax = new Vector2(1f, anchorYMax);
             rt.offsetMin = new Vector2(padLeft, padBottom);
             rt.offsetMax = new Vector2(-padRight, -padTop);
+        }
+
+        // ── 라운드 스프라이트 생성 ────────────────────────────────────────────
+
+        // 9슬라이스용 라운드 사각형 스프라이트를 1회 생성(없으면) 후 로드
+        static Sprite EnsureRoundedSprite() {
+            try {
+                var existing = AssetDatabase.LoadAssetAtPath<Sprite>(ROUND_SPRITE_PATH);
+                if (existing != null) {
+                    return existing;
+                }
+                const int S = 64;
+                const int radius = 22;
+                var tex = new Texture2D(S, S, TextureFormat.RGBA32, false);
+                for (int y = 0; y < S; y++) {
+                    for (int x = 0; x < S; x++) {
+                        tex.SetPixel(x, y, new Color(1f, 1f, 1f, RoundedAlpha(x, y, S, radius)));
+                    }
+                }
+                tex.Apply();
+                var dir = System.IO.Path.GetDirectoryName(ROUND_SPRITE_PATH);
+                if (!System.IO.Directory.Exists(dir)) {
+                    System.IO.Directory.CreateDirectory(dir);
+                }
+                System.IO.File.WriteAllBytes(ROUND_SPRITE_PATH, tex.EncodeToPNG());
+                Object.DestroyImmediate(tex);
+                AssetDatabase.ImportAsset(ROUND_SPRITE_PATH, ImportAssetOptions.ForceUpdate);
+                var imp = (TextureImporter)AssetImporter.GetAtPath(ROUND_SPRITE_PATH);
+                if (imp != null) {
+                    imp.textureType = TextureImporterType.Sprite;
+                    imp.spriteImportMode = SpriteImportMode.Single;
+                    imp.spriteBorder = new Vector4(radius, radius, radius, radius);
+                    imp.filterMode = FilterMode.Bilinear;
+                    imp.alphaIsTransparency = true;
+                    imp.mipmapEnabled = false;
+                    imp.wrapMode = TextureWrapMode.Clamp;
+                    imp.SaveAndReimport();
+                }
+                Debug.Log("[HudUIBuilder] 라운드 스프라이트 생성: " + ROUND_SPRITE_PATH);
+                return AssetDatabase.LoadAssetAtPath<Sprite>(ROUND_SPRITE_PATH);
+            } catch (System.Exception e) {
+                Debug.LogError($"[HudUIBuilder] 라운드 스프라이트 생성 실패: {e.Message}");
+                return null;
+            }
+        }
+
+        // 라운드 사각형 안티에일리어싱 알파 — 모서리 원호 거리(1px 페더)
+        static float RoundedAlpha(int x, int y, int size, float radius) {
+            float px = x + 0.5f, py = y + 0.5f;
+            float cx = Mathf.Clamp(px, radius, size - radius);
+            float cy = Mathf.Clamp(py, radius, size - radius);
+            float d = Mathf.Sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy));
+            return Mathf.Clamp01(radius - d + 0.5f);
         }
 
         // ── 에셋·컴포넌트 검색 ────────────────────────────────────────────────

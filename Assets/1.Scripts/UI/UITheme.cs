@@ -56,7 +56,30 @@ namespace Game.UI {
         public const float GaugeHeight = 10f;
         public const float GaugeThin   = 6f;
 
+        // ── 라운드 코너 / 깊이 ──────────────────────────────────────
+        // 에디터 빌더가 생성·주입하는 9슬라이스 라운드 스프라이트. null이면 직각 폴백(런타임 빌드는 씬에 베이크됨)
+        public static Sprite RoundSprite;
+        public static float RoundPixelsPerUnit = 1.2f;   // 작을수록 코너 반경 큼
+
         // ── 공통 헬퍼 ───────────────────────────────────────────────
+
+        // 라운드 스프라이트가 주입돼 있으면 9슬라이스로 적용(직각→둥근 모서리)
+        public static void ApplyRound(Image img, float pxPerUnit = 0f) {
+            if (RoundSprite == null || img == null) {
+                return;
+            }
+            img.sprite = RoundSprite;
+            img.type = Image.Type.Sliced;
+            img.pixelsPerUnitMultiplier = pxPerUnit > 0f ? pxPerUnit : RoundPixelsPerUnit;
+        }
+
+        // 패널·카드·버튼에 부드러운 드롭섀도(깊이감) — 라운드 스프라이트와 함께 쓰면 카드처럼 떠 보임
+        public static Shadow AddShadow(GameObject go, float alpha = 0.45f, float dx = 0f, float dy = -3f) {
+            var sh = go.AddComponent<Shadow>();
+            sh.effectColor = new Color(0f, 0f, 0f, alpha);
+            sh.effectDistance = new Vector2(dx, dy);
+            return sh;
+        }
 
         // 패널(단색 Image) 생성 — 지정 부모 아래 RectTransform 배치
         public static GameObject MakePanel(string name, Transform parent,
@@ -72,6 +95,7 @@ namespace Game.UI {
             rt.offsetMax = offsetMax;
             var img = go.AddComponent<Image>();
             img.color = color ?? BgPanel;
+            ApplyRound(img);
             return go;
         }
 
@@ -144,6 +168,7 @@ namespace Game.UI {
             rt.anchoredPosition = anchoredPos;
             var img = go.AddComponent<Image>();
             img.color = bgColor ?? Accent;
+            ApplyRound(img);
             var btn = go.AddComponent<Button>();
 
             // 컬러 블록 — 비활성 시 dimmed
@@ -190,6 +215,7 @@ namespace Game.UI {
             bgRt.anchoredPosition = anchoredPos;
             var bgImg = bg.AddComponent<Image>();
             bgImg.color = BgBorder;
+            ApplyRound(bgImg, 3f);   // 게이지 트랙도 살짝 둥글게
 
             // 채움 막대(자식)
             var fill = new GameObject(name + "_Fill");
@@ -233,17 +259,33 @@ namespace Game.UI {
             return fillImg;
         }
 
-        // 구분선(수평 1px)
-        public static GameObject MakeDivider(string name, Transform parent, float padH = 0f) {
+        // 구분선(수평) — 부모 정중앙(anchorY 0.5)에 배치. 색·두께 선택
+        public static GameObject MakeDivider(string name, Transform parent, float padH = 0f,
+                Color? color = null, float thickness = 1f) {
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
             var rt = go.AddComponent<RectTransform>();
             rt.anchorMin = new Vector2(0f, 0.5f);
             rt.anchorMax = new Vector2(1f, 0.5f);
-            rt.offsetMin = new Vector2(padH, -0.5f);
-            rt.offsetMax = new Vector2(-padH, 0.5f);
+            rt.offsetMin = new Vector2(padH, -thickness * 0.5f);
+            rt.offsetMax = new Vector2(-padH, thickness * 0.5f);
             var img = go.AddComponent<Image>();
-            img.color = BgBorder;
+            img.color = color ?? BgBorder;
+            return go;
+        }
+
+        // 수평 액센트 바 — 부모의 특정 모서리(상/하)에 붙는 두꺼운 선(헤더 언더라인 등)
+        public static GameObject MakeAccentBar(string name, Transform parent,
+                float anchorY, float thickness, float padH, Color color) {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            var rt = go.AddComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0f, anchorY);
+            rt.anchorMax = new Vector2(1f, anchorY);
+            rt.offsetMin = new Vector2(padH, -thickness * 0.5f);
+            rt.offsetMax = new Vector2(-padH, thickness * 0.5f);
+            var img = go.AddComponent<Image>();
+            img.color = color;
             return go;
         }
 
