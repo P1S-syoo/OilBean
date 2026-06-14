@@ -11,9 +11,18 @@ namespace Game.World {
         [SerializeField] ItemDataTable table;       // 수집물 마스터 데이터
         [SerializeField] float cellWidth = 6f;      // 셀 폭(u)
         [SerializeField] int radiusCells = 6;       // 좌우 로드 반경(셀) — 화면+α
-        [SerializeField] int slotsPerCell = 2;      // 셀당 최대 수집물
-        [SerializeField] int density = 70;          // 슬롯 채움 확률(%)
+        [SerializeField] int slotsPerCell = 2;      // (호환) 기본 슬롯 — 하이브리드에서는 군집/개방 슬롯이 우선
+        [SerializeField] int density = 70;          // (호환) 기본 채움 확률
         [SerializeField] float colliderRadius = 1f; // 수집 트리거 월드 반경(m)
+
+        [Header("하이브리드 배치 — 난파 군집 + 개방 수역")]
+        [SerializeField] float clusterInterval = 60f;  // 난파 군집 간격(u) — 다리 앵커 기준 주기
+        [SerializeField] float clusterRadius = 13f;    // 군집 반경(u) — 이 안은 밀집, 밖은 희소
+        [SerializeField] float bridgeAnchorX = 38f;    // 양화대교 잔해 X — 군집 격자의 기준점(BridgePlacer와 일치)
+        [SerializeField] int clusterSlots = 5;         // 군집 셀 슬롯 수(수직 잔해 더미)
+        [SerializeField] int clusterDensity = 90;      // 군집 채움 확률(%)
+        [SerializeField] int openSlots = 1;            // 개방 수역 셀 슬롯 수
+        [SerializeField] int openDensity = 26;         // 개방 수역 채움 확률(%)
 
         public const float SpawnTopMargin = 0.5f;   // 수면 아래 여유(u) — 얕은 수집물도 수면 근처까지
         public const float SpawnBottomMargin = 1f;  // 바닥 위 여유(u)
@@ -63,36 +72,87 @@ namespace Game.World {
             }
         }
 
-        // 셀 1칸 채움 — 슬롯마다 수심 랜덤 → 그 수심 출현 가능 아이템 결정적 선택
+        // 셀 1칸 채움 — 난파 군집(밀집·수직 더미·희귀 센터피스) vs 개방 수역(희소). 깊이대 = 수심 biome
         void FillCell(int cell, List<GameObject> outList) {
             float unitPerM = (DepthMap.SurfaceY - DepthMap.SeabedY) / DepthMap.MaxDepthM;
-            for (int s = 0; s < slotsPerCell; s++) {
+            float cellMidX = (cell + 0.5f) * cellWidth;
+            float anchor = NearestAnchor(cellMidX);
+            float dist = Mathf.Abs(cellMidX - anchor);
+            bool inCluster = dist < clusterRadius;
+            int slots = inCluster ? clusterSlots : openSlots;
+            int dens = inCluster ? clusterDensity : openDensity;
+
+            for (int s = 0; s < slots; s++) {
                 int h = Hash(cell, s);
-                if (h % 100 >= density) {
+                if (h % 100 >= dens) {
                     continue;
                 }
-                // 31비트 해시에서 비트대역을 분리 추출(독립 난수) — x분산 / 깊이 / 아이템선택
+                // 31비트 해시 비트대역 분리(독립 난수) — x분산 / 깊이 / 아이템선택
                 float x = cell * cellWidth + ((h & 0x3FF) / 1024f) * cellWidth;
-                float depthT = ((h >> 10) & 0x3FF) / 1024f;
-                // 수중 깊이 — 수면 가까이 ~ 바닥 위(얕은 수집물 도달 보장)
+                // 군집은 슬롯별로 다른 깊이대에 쌓아 '수직 잔해 더미' 형성, 개방은 균등 랜덤
+                float depthT = inCluster
+                    ? (s + ((h >> 10) & 0xFF) / 255f) / Mathf.Max(1, slots)
+                    : ((h >> 10) & 0x3FF) / 1024f;
                 float yWorld = Mathf.Lerp(DepthMap.SurfaceY - SpawnTopMargin, DepthMap.SeabedY + SpawnBottomMargin, depthT);
                 float excelY = (yWorld - DepthMap.SurfaceY) / unitPerM;   // 게임y → 엑셀 수심
                 var def = PickByDepth(excelY, h);
                 if (def == null || def.prefab == null) {
                     continue;
                 }
-                // 바닥에 안 묻히게 — IsSolid면 위로 올림
-                int xi = Mathf.RoundToInt(x);
-                int yi = Mathf.RoundToInt(yWorld);
-                int guard = 0;
-                while (WorldGen.IsSolid(1, xi, yi) && yi < WorldGen.WaterY && guard++ < 40) {
-                    yi++;
-                }
-                var go = Spawn(def, new Vector3(x, yi + 0.5f, 0f));
+                var go = Spawn(def, new Vector3(x, FloorClamp(x, yWorld) + 0.5f, 0f));
                 if (go != null) {
                     outList.Add(go);
                 }
             }
+
+            // 군집 중심 셀 — 깊은 곳에 희귀 센터피스 1개(심해 보상)
+            if (inCluster && dist < cellWidth * 0.5f) {
+                float deepY = Mathf.Lerp(DepthMap.SeabedY + SpawnBottomMargin, DepthMap.SurfaceY - SpawnTopMargin, 0.18f);
+                float deepExcel = (deepY - DepthMap.SurfaceY) / unitPerM;
+                var rare = PickRarest(deepExcel);
+                if (rare != null && rare.prefab != null) {
+                    var go = Spawn(rare, new Vector3(anchor, FloorClamp(anchor, deepY) + 0.5f, 0f));
+                    if (go != null) {
+                        outList.Add(go);
+                    }
+                }
+            }
+        }
+
+        // 가장 가까운 군집 앵커 X(다리 기준 주기 격자)
+        float NearestAnchor(float x) {
+            return Mathf.Round((x - bridgeAnchorX) / clusterInterval) * clusterInterval + bridgeAnchorX;
+        }
+
+        // 바닥에 안 묻히게 — IsSolid면 위로 올림
+        float FloorClamp(float x, float yWorld) {
+            int xi = Mathf.RoundToInt(x);
+            int yi = Mathf.RoundToInt(yWorld);
+            int guard = 0;
+            while (WorldGen.IsSolid(1, xi, yi) && yi < WorldGen.WaterY && guard++ < 40) {
+                yi++;
+            }
+            return yi;
+        }
+
+        // 해당 수심에서 가장 희귀한 아이템(오염수준>등급 우선) — 센터피스용
+        ItemDef PickRarest(float excelY) {
+            ItemDef best = null;
+            int bestRank = -1;
+            foreach (var it in table.items) {
+                if (it == null || it.prefab == null) {
+                    continue;
+                }
+                if (excelY < it.minSpawnY || excelY > it.maxSpawnY) {
+                    continue;
+                }
+                int rank = it.pollutionLevel * 10 + it.grade;
+                if (rank > bestRank) {
+                    bestRank = rank;
+                    best = it;
+                }
+            }
+            return best;
         }
 
         // 해당 수심(excelY)에 출현 가능한 아이템 중 결정적 1개

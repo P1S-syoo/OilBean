@@ -70,7 +70,7 @@ namespace Game.Editor.Data {
                         id = r.id, kind = r.kind, displayName = r.name, grade = r.grade,
                         weight = r.weight, minSpawnY = r.minY, maxSpawnY = r.maxY,
                         pollutionLevel = r.pol, prefab = prefab,
-                        spawnScale = MeasureScale(prefab),   // 에디터에서 정확히 측정(런타임 stale 회피)
+                        spawnScale = MeasureScale(prefab, TargetMeters(r.id)),   // 오브젝트별 현실 크기(런타임 stale 회피)
                     });
                 }
                 table.items = defs.ToArray();
@@ -91,8 +91,8 @@ namespace Game.Editor.Data {
             }
         }
 
-        // prefab 최장축을 TargetSize로 맞추는 스케일 — 에디터 임시 인스턴스로 정확 측정
-        static float MeasureScale(GameObject prefab) {
+        // prefab 최장축을 목표 크기(m)로 맞추는 스케일 — 에디터 임시 인스턴스로 정확 측정
+        static float MeasureScale(GameObject prefab, float targetM) {
             if (prefab == null) {
                 return 1f;
             }
@@ -107,9 +107,39 @@ namespace Game.Editor.Data {
                     b.Encapsulate(rs[i].bounds);
                 }
                 float longest = Mathf.Max(b.size.x, Mathf.Max(b.size.y, b.size.z));
-                return longest > 0.0001f ? TargetSize / longest : 1f;
+                return longest > 0.0001f ? targetM / longest : 1f;
             } finally {
                 UnityEngine.Object.DestroyImmediate(tmp);
+            }
+        }
+
+        // 오브젝트별 현실 최장축 크기(m) — 캔·볼트는 작게, H빔·비계는 크게(품목 위계)
+        static float TargetMeters(string id) {
+            switch (id) {
+                // 고철
+                case "scrap_Can":         return 0.35f;
+                case "scrap_Bolt":        return 0.4f;
+                case "scrap_Cone":        return 0.7f;
+                case "scrap_Manhole":     return 0.9f;
+                case "scrap_Wire":        return 1.0f;
+                case "scrap_Cart":        return 1.4f;
+                case "scrap_Bicycle":     return 1.7f;
+                case "scrap_Anchor":      return 1.9f;
+                case "scrap_Rebar":       return 2.4f;
+                case "scrap_Scaffolding": return 3.0f;
+                case "scrap_Hbeam":       return 3.6f;
+                // 샘플(용기·덩어리)
+                case "sample_detergent":   return 0.45f;
+                case "sample_paint":       return 0.5f;
+                case "sample_pcb":         return 0.55f;
+                case "sample_microplastic":return 0.6f;
+                case "sample_heavymetal":  return 0.6f;
+                case "sample_algae":       return 0.8f;
+                case "sample_sewage":      return 0.85f;
+                case "sample_sludge":      return 0.9f;
+                case "sample_oil_clump":   return 0.95f;
+                case "sample_chemicalbarrel": return 1.15f;
+                default:                   return 1.2f;
             }
         }
 
