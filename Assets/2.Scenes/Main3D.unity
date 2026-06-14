@@ -5235,6 +5235,7 @@ MonoBehaviour:
   radius: 130
   landmarkZones:
   - {x: 67.25178, y: 43.808002, z: 1}
+  - {x: 37.894913, y: 10.170349, z: 0}
 --- !u!1 &211098000
 GameObject:
   m_ObjectHideFlags: 0
@@ -12451,6 +12452,80 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 519008512}
   m_CullTransparentMesh: 1
+--- !u!1001 &520874666
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 912018711}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: dfcee2511a1f0e14c931b9da3d7a7c11, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 34.01279
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: dfcee2511a1f0e14c931b9da3d7a7c11, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 34.01279
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: dfcee2511a1f0e14c931b9da3d7a7c11, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 34.01279
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: dfcee2511a1f0e14c931b9da3d7a7c11, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 37.894905
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: dfcee2511a1f0e14c931b9da3d7a7c11, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 25.015776
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: dfcee2511a1f0e14c931b9da3d7a7c11, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0.032800138
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: dfcee2511a1f0e14c931b9da3d7a7c11, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0.8221715
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: dfcee2511a1f0e14c931b9da3d7a7c11, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0.07916611
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: dfcee2511a1f0e14c931b9da3d7a7c11, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0.5611129
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: dfcee2511a1f0e14c931b9da3d7a7c11, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0.054029025
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: dfcee2511a1f0e14c931b9da3d7a7c11, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: dfcee2511a1f0e14c931b9da3d7a7c11, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: dfcee2511a1f0e14c931b9da3d7a7c11, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: dfcee2511a1f0e14c931b9da3d7a7c11, type: 3}
+      propertyPath: m_Name
+      value: Bridge_Yanghwa
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: dfcee2511a1f0e14c931b9da3d7a7c11, type: 3}
+--- !u!4 &520874667 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: dfcee2511a1f0e14c931b9da3d7a7c11, type: 3}
+  m_PrefabInstance: {fileID: 520874666}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &522337805
 GameObject:
   m_ObjectHideFlags: 0
@@ -24437,6 +24512,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1551336233}
+  - {fileID: 520874667}
   m_Father: {fileID: 180379554}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &917871396
