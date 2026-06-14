@@ -37,6 +37,10 @@ namespace Game.Surface {
         bool prevParticlesActive = true;   // 숨기기 전 활성 상태 — 원복은 항상 이전 상태로
         bool prevBlocksActive = true;
         bool prevSkyActive = true;
+        bool prevCaptured;                 // 수상 시각 오버라이드 prev값 1회 캡처(원래 수중 상태 보존)
+        Vector3 deckHomeLocalPos;          // 덱 캐릭터 원위치 — 수면 복귀 시 복원
+        Quaternion deckHomeLocalRot = Quaternion.identity;
+        bool deckHomeSet;
 
         public bool DiveReady => diveReady;
 
@@ -50,35 +54,62 @@ namespace Game.Surface {
         }
 
         void Start() {
-            // 수상 시작이면 사이드뷰 카메라를 끄고 궤도 카메라(Cinemachine)가 주도
-            if (game != null && game.State == GameState.Surface) {
-                if (sideCamera != null) {
-                    sideCamera.enabled = false;
-                }
-                // 수평선이 잿빛 안개에 녹도록 배경색을 안개색과 일치(잠수 인계 때 원복)
-                mainCam = Camera.main;
-                if (mainCam != null) {
-                    prevBg = mainCam.backgroundColor;
-                    prevClear = mainCam.clearFlags;
-                    mainCam.clearFlags = CameraClearFlags.SolidColor;
-                    mainCam.backgroundColor = RenderSettings.fogColor;
-                    bgOverridden = true;
-                }
-                if (camParticles != null) {
-                    prevParticlesActive = camParticles.gameObject.activeSelf;
-                    camParticles.gameObject.SetActive(false);   // 수중 입자는 잠수 후에만
-                }
-                if (worldBlocks != null) {
-                    prevBlocksActive = worldBlocks.activeSelf;
-                    worldBlocks.SetActive(false);   // 2.5D 백드롭은 잠수 후에만
-                }
-                if (skyQuad != null) {
-                    prevSkyActive = skyQuad.activeSelf;
-                    skyQuad.SetActive(false);
+            // 덱 캐릭터 원위치 기억(수면 복귀 시 복원)
+            if (deck != null) {
+                deckHomeLocalPos = deck.transform.localPosition;
+                deckHomeLocalRot = deck.transform.localRotation;
+                deckHomeSet = true;
+            }
+            // 상태 전환 구독 — 클리어 후 Surface 복귀 시 수상 리그 재활성(W6)
+            if (game != null) {
+                game.OnStateChanged += OnGameStateChanged;
+                if (game.State == GameState.Surface) {
+                    ApplySurfaceVisuals();   // 수상 시작이면 사이드뷰 끔 + 안개 배경 + 2.5D 백드롭 숨김
                 }
             }
             if (nav != null) {
                 nav.OnArrived += OnArrived;
+            }
+        }
+
+        // 수상 시각 상태 적용 — 시작·수면복귀 공용(사이드뷰 끔 + 배경 안개색 + 2.5D 백드롭 숨김)
+        void ApplySurfaceVisuals() {
+            if (mainCam == null) {
+                mainCam = Camera.main;
+            }
+            // 원래(수중) 상태는 1회만 캡처 — 잠수 인계 때 RestoreUnderwaterVisuals가 이 값으로 원복
+            if (!prevCaptured) {
+                if (mainCam != null) {
+                    prevBg = mainCam.backgroundColor;
+                    prevClear = mainCam.clearFlags;
+                }
+                if (camParticles != null) {
+                    prevParticlesActive = camParticles.gameObject.activeSelf;
+                }
+                if (worldBlocks != null) {
+                    prevBlocksActive = worldBlocks.activeSelf;
+                }
+                if (skyQuad != null) {
+                    prevSkyActive = skyQuad.activeSelf;
+                }
+                prevCaptured = true;
+            }
+            if (sideCamera != null) {
+                sideCamera.enabled = false;
+            }
+            if (mainCam != null) {
+                mainCam.clearFlags = CameraClearFlags.SolidColor;
+                mainCam.backgroundColor = RenderSettings.fogColor;   // 수평선이 잿빛 안개에 녹도록
+                bgOverridden = true;
+            }
+            if (camParticles != null) {
+                camParticles.gameObject.SetActive(false);   // 수중 입자는 잠수 후에만
+            }
+            if (worldBlocks != null) {
+                worldBlocks.SetActive(false);   // 2.5D 백드롭은 잠수 후에만
+            }
+            if (skyQuad != null) {
+                skyQuad.SetActive(false);
             }
         }
 
@@ -94,9 +125,51 @@ namespace Game.Surface {
             if (nav != null) {
                 nav.OnArrived -= OnArrived;
             }
+            if (game != null) {
+                game.OnStateChanged -= OnGameStateChanged;
+            }
             if (diveInput != null) {
                 diveInput.performed -= OnDiveInput;
                 diveInput.Dispose();
+            }
+        }
+
+        // 클리어 후 Surface 복귀 감지 — 비활성 상태에서도 델리게이트는 수신되므로 여기서 재활성
+        void OnGameStateChanged(GameState from, GameState to) {
+            if (to == GameState.Surface && from != GameState.Surface) {
+                ReturnToSurface();
+            }
+        }
+
+        // 수면 복귀(W6) — 잠수 시퀀스의 역경로: 수상 요소 재활성 + 다음 목표로 항해 재개
+        void ReturnToSurface() {
+            try {
+                enabled = true;      // E 입력 재개
+                diving = false;
+                diveReady = false;
+                // 덱 캐릭터 원위치 복원(입수 단계에서 숨겼던 것)
+                if (deck != null && deckHomeSet) {
+                    deck.gameObject.SetActive(true);
+                    deck.transform.localPosition = deckHomeLocalPos;
+                    deck.transform.localRotation = deckHomeLocalRot;
+                }
+                // 카메라 — 궤도 on, 사이드뷰/다이브 off
+                if (diveCam != null) {
+                    diveCam.gameObject.SetActive(false);
+                }
+                if (orbitCam != null) {
+                    orbitCam.gameObject.SetActive(true);
+                }
+                ApplySurfaceVisuals();   // 사이드뷰 끔 + 안개 배경 + 2.5D 백드롭 숨김
+                // 항해 재개 — nav가 정지 상태로 남아 있으니 다음 목표로 재출발
+                if (nav != null) {
+                    nav.enabled = true;
+                    nav.Resume();
+                }
+                SetSurfaceControl(true);   // 덱 조작·궤도 드라이버 재활성(커서 잠금은 드라이버 OnEnable이 처리)
+                Debug.Log("[SurfaceBootstrap] 수면 복귀 — 다음 목표로 항해 재개");
+            } catch (Exception e) {
+                Debug.LogError($"[SurfaceBootstrap] 수면 복귀 실패: {e.Message}\n{e.StackTrace}");
             }
         }
 

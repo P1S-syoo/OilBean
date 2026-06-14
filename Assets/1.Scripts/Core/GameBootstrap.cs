@@ -143,10 +143,12 @@ namespace Game.Core {
             }
             ForceReturn("오염원 충돌");
         }
-        // 플레이어 수동 복귀(R) — 탐사 중에만 동작
+        // 플레이어 수동 복귀(R) — 탐사 중엔 거점 복귀, 클리어 후엔 수면 복귀(W6)
         void OnReturnInput(InputAction.CallbackContext ctx) {
             if (Fsm.Current == GameState.Dive) {
                 ReturnDock();
+            } else if (Fsm.Current == GameState.Clear) {
+                Fsm.Change(GameState.Surface);
             }
         }
         // 행동 피드백 토스트(그동안 미구독이던 이벤트 소비)
@@ -200,6 +202,13 @@ namespace Game.Core {
                     mover.Halt();   // 클리어 시 정지
                 }
                 clearView.Play();   // 정화 연출 + STAGE CLEAR
+                if (toast != null) {
+                    toast.Show("스테이지 클리어 — R키로 수면 복귀");
+                }
+            }
+            // 수면 복귀(W6) — 클리어 오버레이 숨기고 다음 구역 항해 재개(SurfaceBootstrap이 리그 재활성)
+            if (to == GameState.Surface && clearView != null) {
+                clearView.ResetState();
             }
         }
 
