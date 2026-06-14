@@ -67,12 +67,13 @@ namespace Game.UI {
             }
             bool done = research != null && research.Done;
             if (statusText != null) {
-                int s = run != null ? run.SampleCount : 0;
-                statusText.text = done ? "분석 완료 — 정화 약품 해금"
-                                       : $"샘플 분석  보유 샘플 {s}";
+                int s = run != null ? run.TotalBankSamples : 0;
+                int pts = research != null ? research.Points : 0;
+                statusText.text = done ? "모든 정화제 해금"
+                                       : $"샘플 분석  보유 샘플 {s}  분석포인트 {pts}";
             }
             if (analyzeBtn != null) {
-                bool canAnalyze = !done && run != null && run.SampleCount > 0;
+                bool canAnalyze = !done && run != null && run.TotalBankSamples > 0;
                 analyzeBtn.interactable = canAnalyze;
             }
         }

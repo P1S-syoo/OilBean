@@ -132,6 +132,9 @@ namespace Game.Core {
             }
         }
 
+        // 거점 보유 샘플 총합(연구 UI 표시용)
+        public int TotalBankSamples => GetSampleCount(1) + GetSampleCount(2) + GetSampleCount(3);
+
         // 샘플 1개 소비(연구 분석) — 해당 오염수준 보유분에서. 없으면 false
         public bool TryConsumeSampleAt(int level) {
             EnsureBanks();
