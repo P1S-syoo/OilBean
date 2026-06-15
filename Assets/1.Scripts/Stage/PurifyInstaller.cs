@@ -45,8 +45,8 @@ namespace Game.Stage {
                 return;
             }
             bool ready = inside && run.BuoyReady;
-            // E 홀드 중에만 진행(능동감) — 중단해도 t 보존(부분진행 유지)
-            bool keyHeld = Keyboard.current != null && Keyboard.current.eKey.isPressed;
+            // F 홀드 중에만 진행(능동감) — 수집(E)과 키 충돌 회피. 중단해도 t 보존(부분진행 유지)
+            bool keyHeld = Keyboard.current != null && Keyboard.current.fKey.isPressed;
             bool holding = ready && (keyHeld || holdOverride);
             ShowPrompt(ready && !holding);   // 준비됐는데 아직 안 누르면 'E 홀드' 안내
             if (!holding) {

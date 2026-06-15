@@ -123,6 +123,8 @@ namespace Game.Core {
                 return false;
             }
             bankSteel[grade] -= kg;
+            // 소비한 만큼 미정착분도 감소 — 강제복귀 페널티 과다 방지(이미 제작에 쓴 분은 손실 대상 아님)
+            pendingSteel[grade] = Mathf.Max(0f, pendingSteel[grade] - kg);
             return true;
         }
 
@@ -152,6 +154,8 @@ namespace Game.Core {
                 return false;
             }
             bankSample[i]--;
+            // 소비한 만큼 미정착분도 감소 — 강제복귀 페널티 과다 방지
+            pendingSample[i] = Mathf.Max(0, pendingSample[i] - 1);
             return true;
         }
 
@@ -208,7 +212,7 @@ namespace Game.Core {
             EnsureBanks();
             lossRatio = Mathf.Clamp01(lossRatio);
             for (int g = 0; g < 3; g++) {
-                float lost = pendingSteel[g] * lossRatio;
+                float lost = Mathf.Min(pendingSteel[g] * lossRatio, bankSteel[g]);   // bank 잔량 초과 손실 방지
                 bankSteel[g] = Mathf.Max(0f, bankSteel[g] - lost);
             }
             int lostSamples = 0;

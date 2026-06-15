@@ -199,7 +199,7 @@ namespace Game.Core {
         void OnCollected(ResourceKind k) { if (toast != null) toast.Show(k == ResourceKind.Scrap ? "고철 수집" : "샘플 수집"); }
         void OnUnlocked() { if (toast != null) toast.Show("분석 완료 — 정화 약품 해금"); }
         // C3 온보딩 — 제작 후 '무엇을 할지'를 명확히(잠수→정화 지점 설치)
-        void OnBuoyCrafted() { if (toast != null) toast.Show("정화 부유체 완성 — 잠수해 정화 지점(양화대교 잔해)에서 설치하세요"); }
+        void OnBuoyCrafted() { if (toast != null) toast.Show("정화 부유체 완성 — 잠수해 정화 지점(양화대교 잔해)에서 F 홀드로 설치하세요"); }
         void OnUpgraded() { if (toast != null) toast.Show("탐사 기계 업그레이드"); }
         // 정화 완료 — 부유체 Ⅲ(3단계) 설치만 스테이지 클리어, 그 전 단계는 구역 정화(다음 단계 유도)
         void OnPurified() {
