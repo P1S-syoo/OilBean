@@ -36,6 +36,7 @@ namespace Game.Tests {
             var p = spot.AddComponent<PurifyInstaller>();
             SetField(p, "run", run);
             SetField(p, "installTime", 0.2f);
+            SetField(p, "holdOverride", true);   // E6 hold-to-install — 키보드 없는 테스트에서 홀드 대체
         }
 
         [UnityTest]

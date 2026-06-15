@@ -18,6 +18,10 @@ namespace Game.Core {
         [SerializeField] float[] bankSteel = new float[3];   // 강재 등급별 누적 kg (0=일반 1=합금 2=특수)
         [SerializeField] int[] bankSample = new int[3];      // 오염수준별 보유 샘플 개수 (idx = pollutionLevel-1, lvl 1~3)
 
+        [Header("이번 탐사 미정착분 (E6 강제복귀 손실 대상)")]
+        [SerializeField] float[] pendingSteel = new float[3];  // 이번 탐사에 모은 강재 kg (정상복귀=보존, 강제복귀=일부 손실)
+        [SerializeField] int[] pendingSample = new int[3];     // 이번 탐사에 모은 샘플 개수
+
         [Header("연구")]
         [SerializeField] int researchPoints;   // 누적 분석포인트(= 분석한 샘플의 pollutionLevel 합)
         [SerializeField] int maxAnalyzedLevel; // 분석한 최고 오염수준 — 고농도 약품 게이트
@@ -106,7 +110,9 @@ namespace Game.Core {
         public void AddSteel(int grade, float kg) {
             if (grade >= 0 && grade < 3) {
                 EnsureBanks();
-                bankSteel[grade] += Mathf.Max(0f, kg);
+                float v = Mathf.Max(0f, kg);
+                bankSteel[grade] += v;
+                pendingSteel[grade] += v;   // 이번 탐사 미정착분으로도 추적(강제복귀 손실 대상)
             }
         }
 
@@ -131,6 +137,7 @@ namespace Game.Core {
             if (i >= 0 && i < 3) {
                 EnsureBanks();
                 bankSample[i]++;
+                pendingSample[i]++;   // 이번 탐사 미정착분으로도 추적(강제복귀 손실 대상)
             }
         }
 
@@ -181,6 +188,39 @@ namespace Game.Core {
             if (bankSample == null || bankSample.Length != 3) {
                 bankSample = new int[3];
             }
+            if (pendingSteel == null || pendingSteel.Length != 3) {
+                pendingSteel = new float[3];
+            }
+            if (pendingSample == null || pendingSample.Length != 3) {
+                pendingSample = new int[3];
+            }
+        }
+
+        // 정상 복귀 — 이번 탐사 미정착분을 거점에 확정(추적만 비움, bank는 이미 반영됨)
+        public void CommitDive() {
+            EnsureBanks();
+            System.Array.Clear(pendingSteel, 0, pendingSteel.Length);
+            System.Array.Clear(pendingSample, 0, pendingSample.Length);
+        }
+
+        // 강제 복귀 페널티 — 이번 탐사 미정착분의 lossRatio 비율을 거점 보유분에서 차감. 잃은 샘플 총개수 반환(토스트용)
+        public int ForfeitDive(float lossRatio) {
+            EnsureBanks();
+            lossRatio = Mathf.Clamp01(lossRatio);
+            for (int g = 0; g < 3; g++) {
+                float lost = pendingSteel[g] * lossRatio;
+                bankSteel[g] = Mathf.Max(0f, bankSteel[g] - lost);
+            }
+            int lostSamples = 0;
+            for (int i = 0; i < 3; i++) {
+                int lost = Mathf.RoundToInt(pendingSample[i] * lossRatio);
+                lost = Mathf.Min(lost, bankSample[i]);
+                bankSample[i] -= lost;
+                lostSamples += lost;
+            }
+            System.Array.Clear(pendingSteel, 0, pendingSteel.Length);
+            System.Array.Clear(pendingSample, 0, pendingSample.Length);
+            return lostSamples;
         }
 
         // 탐사 적재 비우기(복귀 시) — 거점 보유분(bank)은 수집 즉시 입고되므로 유지, 세션 적재만 초기화
@@ -235,6 +275,8 @@ namespace Game.Core {
             surfaceTargetIdx = 0;
             bankSteel = new float[3];
             bankSample = new int[3];
+            pendingSteel = new float[3];
+            pendingSample = new int[3];
         }
     }
 }

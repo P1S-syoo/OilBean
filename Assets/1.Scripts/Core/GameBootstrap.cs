@@ -94,10 +94,22 @@ namespace Game.Core {
             }
         }
 
+        // 온보딩 안내 1회용 플래그 — 같은 안내가 반복되지 않도록
+        bool diveHintShown;
+        bool returnHintShown;
+
+        // E6 push-your-luck — 강제 복귀 시 이번 탐사 미정착분 손실 비율(좌절 없는 선, 플레이로 조정)
+        [SerializeField] float forfeitRatio = 0.35f;
+        bool forcedReturn;   // 직전 복귀가 강제(방전·충돌)였는지
+
         void Start() {
             // 3D 씬: 거점 UI 없이 시작 즉시 탐사 진입 (수상 시작이면 잠수 전까지 보류)
             if (autoStartDive && !startOnSurface) {
                 StartDive();
+            }
+            // 인트로 안내 — 수상 거점에서 무엇을 할지(이동→정화 지점에서 잠수, 거점 메뉴)
+            if (startOnSurface && toast != null) {
+                toast.Show("정화선 거점 — 강을 따라 정화 지점으로 이동, E로 잠수 (1 연구 · 2 제작)");
             }
         }
 
@@ -186,7 +198,8 @@ namespace Game.Core {
         // 행동 피드백 토스트(그동안 미구독이던 이벤트 소비)
         void OnCollected(ResourceKind k) { if (toast != null) toast.Show(k == ResourceKind.Scrap ? "고철 수집" : "샘플 수집"); }
         void OnUnlocked() { if (toast != null) toast.Show("분석 완료 — 정화 약품 해금"); }
-        void OnBuoyCrafted() { if (toast != null) toast.Show("정화 부유체 제작 완료"); }
+        // C3 온보딩 — 제작 후 '무엇을 할지'를 명확히(잠수→정화 지점 설치)
+        void OnBuoyCrafted() { if (toast != null) toast.Show("정화 부유체 완성 — 잠수해 정화 지점(양화대교 잔해)에서 설치하세요"); }
         void OnUpgraded() { if (toast != null) toast.Show("탐사 기계 업그레이드"); }
         // 정화 완료 — 부유체 Ⅲ(3단계) 설치만 스테이지 클리어, 그 전 단계는 구역 정화(다음 단계 유도)
         void OnPurified() {
@@ -212,6 +225,7 @@ namespace Game.Core {
                 return;
             }
             Debug.Log($"[GameBootstrap] 강제 복귀: {reason}");
+            forcedReturn = true;   // 복귀 정산에서 미정착분 페널티 적용(E6)
             Fsm.Change(GameState.Dock);
         }
 
@@ -230,8 +244,22 @@ namespace Game.Core {
             if (purify != null) {
                 purify.SetArmed(to == GameState.Dive);   // 탐사 중에만 설치 가능(복귀 시 진행 취소)
             }
+            // 첫 잠수 조작 안내 — 이동·수집·복귀 키
+            if (to == GameState.Dive && !diveHintShown) {
+                diveHintShown = true;
+                if (toast != null) {
+                    toast.Show("탐사 시작 — WASD 이동 · 자원 수집 · 배터리·오염원 주의 · R 거점 복귀");
+                }
+            }
             if (to == GameState.Dock) {
                 OnReturnedToDock();
+                // 첫 복귀 안내 — 거점에서 강화 루프(연구·제작) 진입
+                if (from == GameState.Dive && !returnHintShown) {
+                    returnHintShown = true;
+                    if (toast != null) {
+                        toast.Show("거점 복귀 — 1 연구로 정화 약품 해금 · 2 제작으로 부유체 강화");
+                    }
+                }
             }
             if (to == GameState.Clear && clearView != null) {
                 if (mover != null) {
@@ -260,8 +288,18 @@ namespace Game.Core {
                 battery.Refill();
             }
             if (run != null) {
+                // E6 정산 — 강제복귀면 미정착분 일부 손실, 정상복귀면 전량 확정
+                if (forcedReturn) {
+                    int lost = run.ForfeitDive(forfeitRatio);
+                    if (toast != null) {
+                        toast.Show(lost > 0 ? $"강제 복귀 — 미정착 자원 {lost}개 유실 (입고분은 보존)" : "강제 복귀 — 거점 입고분은 보존");
+                    }
+                } else {
+                    run.CommitDive();   // 정상 복귀 — 이번 탐사분 확정
+                }
                 run.ClearCarry();   // 다음 탐사를 위해 세션 적재 초기화(입고분은 거점에 남음)
             }
+            forcedReturn = false;   // 정산 후 플래그 해제
         }
 
         // 인스펙터 우클릭으로 흐름 검증(입력 백엔드 불필요)

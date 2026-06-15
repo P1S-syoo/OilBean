@@ -44,6 +44,7 @@ namespace Game.Tests {
             var inst = spot.AddComponent<PurifyInstaller>();
             SetField(inst, "run", run);
             SetField(inst, "installTime", 0.2f);
+            SetField(inst, "holdOverride", true);   // E6 hold-to-install — 키보드 없는 테스트에서 홀드 대체
             // 탐사 기계 + 코디네이터
             sub = new GameObject("Sub");
             sub.SetActive(false);
@@ -85,6 +86,7 @@ namespace Game.Tests {
             var inst = spot.AddComponent<PurifyInstaller>();
             SetField(inst, "run", run);
             SetField(inst, "installTime", 0.2f);
+            SetField(inst, "holdOverride", true);   // E6 hold-to-install — 홀드 대체
             sub = new GameObject("Sub");
             sub.SetActive(false);
             var mover = sub.AddComponent<PlayerMove>();
@@ -124,6 +126,7 @@ namespace Game.Tests {
             var inst = spot.AddComponent<PurifyInstaller>();
             SetField(inst, "run", run);
             SetField(inst, "installTime", 0.5f);   // 설치 도중 개입할 시간 확보
+            SetField(inst, "holdOverride", true);   // E6 hold-to-install — 홀드 대체
             sub = new GameObject("Sub");
             sub.SetActive(false);
             var mover = sub.AddComponent<PlayerMove>();

@@ -1,6 +1,9 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace Game.UI {
     // 디자인 시스템 상수 — 오염된 한강 디스토피아 수중 탐사 무드
@@ -309,5 +312,122 @@ namespace Game.UI {
             }
             return Color.magenta;   // 파싱 실패 시 눈에 띄는 오류 색
         }
+
+        // ── 스프라이트 헬퍼 (에디터 전용) ──────────────────────────────
+#if UNITY_EDITOR
+        // UI 아이콘/크롬 스프라이트 로드 — Assets/4.Art/UI/icons/{name}.png
+        // 없으면 null 반환(Image.sprite = null → 흰 사각형 폴백)
+        public static Sprite LoadUISprite(string name) {
+            try {
+                string path = $"Assets/4.Art/UI/icons/{name}.png";
+                var sp = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+                if (sp == null) {
+                    Debug.LogWarning($"[UITheme] 스프라이트 없음: {path}");
+                }
+                return sp;
+            } catch (System.Exception e) {
+                Debug.LogError($"[UITheme] 스프라이트 로드 오류({name}): {e.Message}");
+                return null;
+            }
+        }
+
+        // 아이콘 Image 오브젝트 생성 — 부모 좌상단 기준 고정 크기
+        // tint: 흰색이면 스프라이트 원본 색 유지
+        public static Image MakeIconImage(string name, Transform parent,
+                string spriteName, float size,
+                Vector2 anchoredPos, Vector2 anchor,
+                Color? tint = null) {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            var rt = go.AddComponent<RectTransform>();
+            rt.anchorMin = anchor;
+            rt.anchorMax = anchor;
+            rt.sizeDelta = new Vector2(size, size);
+            rt.anchoredPosition = anchoredPos;
+            var img = go.AddComponent<Image>();
+            img.sprite = LoadUISprite(spriteName);
+            img.color = tint ?? Color.white;
+            img.preserveAspect = true;
+            return img;
+        }
+
+        // 아이콘 + 스트레치 게이지 복합 블록 생성
+        // 아이콘을 게이지 블록 좌상단(SpaceSM, -SpaceSM)에 붙이고, 게이지를 아이콘 오른쪽으로 밀어 정렬
+        // iconSprite: 아이콘 스프라이트 이름, iconSize: 아이콘 px
+        // 반환값: 채움 Image(fillAmount 조작용) — 기존 MakeStretchGauge와 동일 시그니처 호환
+        public static Image MakeIconGauge(string blockName, Transform blockParent,
+                string iconSprite, float iconSize,
+                Vector2 anchorMin, Vector2 anchorMax,
+                Vector2 offsetMin, Vector2 offsetMax,
+                Color fillColor) {
+            // 스트레치 게이지 생성 (아이콘 너비만큼 좌측 밀기)
+            float shift = iconSize + SpaceSM;
+            var adjustedOffMin = new Vector2(offsetMin.x + shift, offsetMin.y);
+            var fillImg = MakeStretchGauge(blockName, blockParent,
+                anchorMin, anchorMax, adjustedOffMin, offsetMax, fillColor);
+
+            // 아이콘 — 게이지 BG의 부모(blockParent)에 직접 붙임, 게이지와 같은 앵커 기준 좌측
+            var iconGo = new GameObject(blockName + "_Icon");
+            iconGo.transform.SetParent(blockParent, false);
+            var iconRt = iconGo.AddComponent<RectTransform>();
+            iconRt.anchorMin = anchorMin;
+            iconRt.anchorMax = new Vector2(anchorMin.x, anchorMax.y);
+            iconRt.offsetMin = new Vector2(offsetMin.x, offsetMin.y);
+            iconRt.offsetMax = new Vector2(offsetMin.x + iconSize, offsetMin.y + iconSize);
+            var iconImg = iconGo.AddComponent<Image>();
+            iconImg.sprite = LoadUISprite(iconSprite);
+            iconImg.color = Color.white;
+            iconImg.preserveAspect = true;
+            return fillImg;
+        }
+
+        // 버튼 배경에 스프라이트 적용 — Image.type Sliced 시도, 보더 없으면 Simple 폴백
+        // bgSpriteName이 null이면 기존 단색 유지
+        public static void ApplySpriteButton(Button btn, string bgSpriteName) {
+            if (btn == null || string.IsNullOrEmpty(bgSpriteName)) {
+                return;
+            }
+            try {
+                var sp = LoadUISprite(bgSpriteName);
+                if (sp == null) {
+                    return;
+                }
+                var img = btn.GetComponent<Image>();
+                if (img == null) {
+                    return;
+                }
+                img.sprite = sp;
+                // 9슬라이스 보더가 실제로 설정돼 있으면 Sliced, 없으면 Simple 폴백
+                bool hasBorder = sp.border.sqrMagnitude > 0.01f;
+                img.type = hasBorder ? Image.Type.Sliced : Image.Type.Simple;
+                img.color = Color.white;   // 틴트 제거 — 스프라이트 원본 색 사용
+            } catch (System.Exception e) {
+                Debug.LogError($"[UITheme] 버튼 스프라이트 적용 오류({bgSpriteName}): {e.Message}");
+            }
+        }
+
+        // 패널 배경에 스프라이트 적용 — Image.type Sliced/Simple 자동 선택
+        public static void ApplyPanelSprite(GameObject panel, string spriteName, Color? tint = null) {
+            if (panel == null || string.IsNullOrEmpty(spriteName)) {
+                return;
+            }
+            try {
+                var sp = LoadUISprite(spriteName);
+                if (sp == null) {
+                    return;
+                }
+                var img = panel.GetComponent<Image>();
+                if (img == null) {
+                    img = panel.AddComponent<Image>();
+                }
+                img.sprite = sp;
+                bool hasBorder = sp.border.sqrMagnitude > 0.01f;
+                img.type = hasBorder ? Image.Type.Sliced : Image.Type.Simple;
+                img.color = tint ?? Color.white;
+            } catch (System.Exception e) {
+                Debug.LogError($"[UITheme] 패널 스프라이트 적용 오류({spriteName}): {e.Message}");
+            }
+        }
+#endif
     }
 }

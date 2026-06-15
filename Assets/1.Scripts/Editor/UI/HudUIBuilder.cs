@@ -134,22 +134,34 @@ namespace Game.Editor.UI {
                 UITheme.BgPanel);
             UITheme.AddShadow(center, 0.4f, 0f, -3f);
 
-            // 주행동: 탐사 시작 (대형 버튼)
+            // 주행동: 탐사 시작 (대형 버튼) — button_accent 스프라이트 배경 + 잠수 아이콘
             var diveBtn = UITheme.MakeButton("DiveBtn", center.transform,
-                "▼  탐사 시작 — 수중 잠수", UITheme.FontHeading,
+                "탐사 시작 — 수중 잠수", UITheme.FontHeading,
                 new Vector2(480f, 72f), new Vector2(0f, 60f),
                 UITheme.Accent, UITheme.BgDeep);
+            UITheme.ApplySpriteButton(diveBtn, "button_accent");
             SetAnchor(diveBtn.GetComponent<RectTransform>(),
                 new Vector2(0f, 1f), new Vector2(1f, 1f),
                 new Vector2(UITheme.SpaceMD, -UITheme.SpaceMD - 72f),
                 new Vector2(-UITheme.SpaceMD, -UITheme.SpaceMD));
+            // 잠수 아이콘 — 버튼 레이블 왼쪽에 붙임
+            UITheme.MakeIconImage("DiveBtnIcon", diveBtn.transform, "icon_dive", 32f,
+                new Vector2(UITheme.SpaceLG + 16f, 0f),
+                new Vector2(0f, 0.5f), Color.white);
             UITheme.AddShadow(diveBtn.gameObject, 0.5f, 0f, -3f);   // 주행동 버튼 강조 깊이
 
-            // 보조 버튼 행 (연구 / 제작 / 정화 설치)
+            // 보조 버튼 행 (연구 / 제작 / 정화 설치) — 각 버튼에 아이콘+스프라이트 적용
             float subBtnY = -UITheme.SpaceMD * 2f - 72f - UITheme.SpaceSM;
-            Button researchBtn = MakeSubButton("ResearchBtn",  center.transform, "연구",    subBtnY, 0f);
-            Button craftBtn    = MakeSubButton("CraftBtn",     center.transform, "제작",    subBtnY, 1f);
+            Button researchBtn = MakeSubButton("ResearchBtn",  center.transform, "연구",     subBtnY, 0f);
+            Button craftBtn    = MakeSubButton("CraftBtn",     center.transform, "제작",     subBtnY, 1f);
             Button purifyBtn   = MakeSubButton("PurifyBtn",    center.transform, "정화 설치", subBtnY, 2f);
+            // 보조 버튼 스프라이트 + 아이콘 부착 (button_dark 배경)
+            UITheme.ApplySpriteButton(researchBtn, "button_dark");
+            UITheme.ApplySpriteButton(craftBtn,    "button_dark");
+            UITheme.ApplySpriteButton(purifyBtn,   "button_accent");
+            AddSubBtnIcon(researchBtn, "icon_research");
+            AddSubBtnIcon(craftBtn,    "icon_craft");
+            AddSubBtnIcon(purifyBtn,   "icon_purify");
 
             // ── 중앙 하단: 탐사 브리핑 — 버튼 아래 빈 공간을 안내 정보로 채움 ──
             var brief = UITheme.MakePanel("Brief", center.transform,
@@ -245,6 +257,16 @@ namespace Game.Editor.UI {
             return btn;
         }
 
+        // 보조 버튼에 아이콘 이미지 추가 — 버튼 레이블 좌측 중앙 고정(20px)
+        static void AddSubBtnIcon(Button btn, string spriteName) {
+            if (btn == null) {
+                return;
+            }
+            UITheme.MakeIconImage(spriteName + "_Icon", btn.transform, spriteName, 20f,
+                new Vector2(UITheme.SpaceMD + 10f, 0f),
+                new Vector2(0f, 0.5f), Color.white);
+        }
+
         // ═══════════════════════════════════════════════════════════════════════
         // 2. 인게임 HUD — GameState.Dive 시 표시
         // 레이아웃: 좌상 배터리 / 우상 적재+수심 / 좌측 수심 밴드 / 중앙하단 토스트 / 상단 경고
@@ -265,13 +287,18 @@ namespace Game.Editor.UI {
                 UITheme.BgPanel);
             UITheme.AddShadow(batBlock, 0.5f, 0f, -3f);
 
+            // 배터리 아이콘(좌상) + 라벨(아이콘 우측) — 아이콘 틴트 흰색(스프라이트 원본 유지)
+            UITheme.MakeIconImage("BatIcon", batBlock.transform, "icon_battery", 28f,
+                new Vector2(UITheme.SpaceSM + 14f, -UITheme.SpaceSM - 14f),
+                new Vector2(0f, 1f), Color.white);
             var batLabel = UITheme.MakeText("BatLabel", batBlock.transform,
                 "배터리", UITheme.FontCaption, UITheme.TextSecondary);
-            PinTopLeft(batLabel.GetComponent<RectTransform>(), UITheme.SpaceSM, UITheme.SpaceSM, 80f, 18f);
+            PinTopLeft(batLabel.GetComponent<RectTransform>(), UITheme.SpaceSM + 34f, UITheme.SpaceSM, 80f, 18f);
 
+            // 게이지 — 아이콘(28px) + 간격(6px) 만큼 좌측 오프셋 추가
             Image batFill = UITheme.MakeStretchGauge("BatGauge", batBlock.transform,
                 new Vector2(0f, 0f), new Vector2(1f, 0f),
-                new Vector2(UITheme.SpaceSM, UITheme.SpaceSM),
+                new Vector2(UITheme.SpaceSM + 34f, UITheme.SpaceSM),
                 new Vector2(-UITheme.SpaceSM, UITheme.SpaceSM + UITheme.GaugeHeight),
                 UITheme.ColSuccess);
 
@@ -287,17 +314,26 @@ namespace Game.Editor.UI {
                 UITheme.BgPanel);
             UITheme.AddShadow(cargoBlock, 0.5f, 0f, -3f);
 
+            // 적재 아이콘(좌상) + 라벨(아이콘 우측)
+            UITheme.MakeIconImage("CargoIcon", cargoBlock.transform, "icon_cargo", 28f,
+                new Vector2(UITheme.SpaceSM + 14f, -UITheme.SpaceSM - 14f),
+                new Vector2(0f, 1f), Color.white);
             var cargoLabel = UITheme.MakeText("CargoLabel", cargoBlock.transform,
                 "적재", UITheme.FontCaption, UITheme.TextSecondary);
-            PinTopLeft(cargoLabel.GetComponent<RectTransform>(), UITheme.SpaceSM, UITheme.SpaceSM, 60f, 18f);
+            PinTopLeft(cargoLabel.GetComponent<RectTransform>(), UITheme.SpaceSM + 34f, UITheme.SpaceSM, 60f, 18f);
 
+            // 수심 아이콘(우상) + 수심 텍스트(아이콘 좌측)
+            UITheme.MakeIconImage("DepthIcon", cargoBlock.transform, "icon_depth", 20f,
+                new Vector2(-UITheme.SpaceSM - 10f, -UITheme.SpaceSM - 10f),
+                new Vector2(1f, 1f), UITheme.ColInfo);
             var depthTxt = UITheme.MakeText("DepthTxt", cargoBlock.transform,
                 "수심 0m", UITheme.FontCaption, UITheme.ColInfo, TextAlignmentOptions.Right);
-            PinTopRight(depthTxt.GetComponent<RectTransform>(), UITheme.SpaceSM, UITheme.SpaceSM, 80f, 18f);
+            PinTopRight(depthTxt.GetComponent<RectTransform>(), UITheme.SpaceSM + 26f, UITheme.SpaceSM, 80f, 18f);
 
+            // 적재 게이지 — 아이콘 너비(34px) 만큼 좌측 오프셋
             Image cargoFill = UITheme.MakeStretchGauge("CargoGauge", cargoBlock.transform,
                 new Vector2(0f, 0f), new Vector2(1f, 0f),
-                new Vector2(UITheme.SpaceSM, UITheme.SpaceSM),
+                new Vector2(UITheme.SpaceSM + 34f, UITheme.SpaceSM),
                 new Vector2(-UITheme.SpaceSM, UITheme.SpaceSM + UITheme.GaugeHeight),
                 UITheme.ColWarn);
 
@@ -329,10 +365,30 @@ namespace Game.Editor.UI {
                 UITheme.ColDanger);
             warnBanner.SetActive(false);   // 평상시 숨김
 
+            // 배너 내 경고 아이콘(좌측 중앙 정렬)
+            UITheme.MakeIconImage("WarnBannerIcon", warnBanner.transform, "icon_warning", 26f,
+                new Vector2(UITheme.SpaceMD + 13f, 0f),
+                new Vector2(0f, 0.5f), Color.white);
+
             var warnTxt = UITheme.MakeText("WarnText", warnBanner.transform,
                 "배터리 방전 — 정화선 복귀", UITheme.FontBody,
                 UITheme.TextPrimary, TextAlignmentOptions.Center);
             warnTxt.fontStyle = FontStyles.Bold;
+
+            // ── 독립 경고 아이콘 인디케이터 — 배터리 부족/오염원 시 활성화 ──
+            // 좌하단 HUD 코너에 배치, 기본 비활성(런타임에서 SetActive로 토글)
+            var warnIconGo = new GameObject("WarnIcon");
+            warnIconGo.transform.SetParent(root.transform, false);
+            var warnIconRt = warnIconGo.AddComponent<RectTransform>();
+            warnIconRt.anchorMin = new Vector2(0f, 0f);
+            warnIconRt.anchorMax = new Vector2(0f, 0f);
+            warnIconRt.sizeDelta = new Vector2(40f, 40f);
+            warnIconRt.anchoredPosition = new Vector2(UITheme.SpaceMD + 20f, UITheme.SpaceMD + 20f);
+            var warnIconImg = warnIconGo.AddComponent<Image>();
+            warnIconImg.sprite = UITheme.LoadUISprite("icon_warning");
+            warnIconImg.color = UITheme.ColDanger;
+            warnIconImg.preserveAspect = true;
+            warnIconGo.SetActive(false);   // 기본 비활성 — 런타임에서 연결
 
             // ── 중앙 하단: 수집 토스트 ───────────────────────────────────────
             // Toast 컴포넌트는 기존 Toast.cs 사용 — 별도 게임오브젝트에 부착
@@ -385,11 +441,13 @@ namespace Game.Editor.UI {
                 new Vector2(0.17f, 0.13f), new Vector2(0.83f, 0.87f),
                 Vector2.zero, Vector2.zero,
                 UITheme.BgDeep);
+            // 패널 배경 크롬 스프라이트 적용 — 원본 색이 없으면 단색 폴백
+            UITheme.ApplyPanelSprite(root, "panel_bg", new Color(1f, 1f, 1f, 0.04f));
             UITheme.AddShadow(root, 0.6f, 0f, -6f);
             root.AddComponent<Game.UI.PopupPanel>();   // 팝업 스케일+페이드 연출(CanvasGroup 자동)
             root.SetActive(false);
 
-            // 헤더
+            // 헤더 — header_bar 스프라이트는 BuildPanelHeader 내부에서 적용
             BuildPanelHeader(root.transform, "■ 연구실 — 샘플 분석");
 
             // 컨텐츠 영역
@@ -429,11 +487,15 @@ namespace Game.Editor.UI {
                 TextAlignmentOptions.Center);
             PinAbsCenter(nextTxt.GetComponent<RectTransform>(), 0.12f, 28f, 16f);
 
-            // 분석 버튼
+            // 분석 버튼 — button_accent 스프라이트 + 연구 아이콘
             Button analyzeBtn = UITheme.MakeButton("AnalyzeBtn", leftCol.transform,
                 "샘플 분석", UITheme.FontBody,
                 new Vector2(0f, 40f), new Vector2(0f, 0.05f + 40f / 2f),
                 UITheme.Accent, UITheme.BgDeep);
+            UITheme.ApplySpriteButton(analyzeBtn, "button_accent");
+            UITheme.MakeIconImage("AnalyzeBtnIcon", analyzeBtn.transform, "icon_research", 20f,
+                new Vector2(UITheme.SpaceMD + 10f, 0f),
+                new Vector2(0f, 0.5f), Color.white);
             SetAnchorStretch(analyzeBtn.GetComponent<RectTransform>(),
                 0f, 0.05f, UITheme.SpaceMD, UITheme.SpaceLG + 40f,
                 UITheme.SpaceMD, UITheme.SpaceLG);
@@ -496,11 +558,13 @@ namespace Game.Editor.UI {
                 new Vector2(0.15f, 0.12f), new Vector2(0.85f, 0.88f),
                 Vector2.zero, Vector2.zero,
                 UITheme.BgDeep);
+            // 패널 배경 크롬 스프라이트 적용
+            UITheme.ApplyPanelSprite(root, "panel_bg", new Color(1f, 1f, 1f, 0.04f));
             UITheme.AddShadow(root, 0.6f, 0f, -6f);
             root.AddComponent<Game.UI.PopupPanel>();   // 팝업 스케일+페이드 연출(CanvasGroup 자동)
             root.SetActive(false);
 
-            // 헤더
+            // 헤더 — header_bar 스프라이트는 BuildPanelHeader 내부에서 적용
             BuildPanelHeader(root.transform, "■ 제작소 — 장비 제작");
 
             var content = UITheme.MakePanel("Content", root.transform,
@@ -587,11 +651,15 @@ namespace Game.Editor.UI {
             detailStatusRt.offsetMin = new Vector2(UITheme.SpaceMD, 0f);
             detailStatusRt.offsetMax = new Vector2(-UITheme.SpaceMD, 0f);
 
-            // 제작 버튼
+            // 제작 버튼 — button_accent 스프라이트 + 제작 아이콘
             Button craftExecBtn = UITheme.MakeButton("CraftExecBtn", rightCol.transform,
                 "제작", UITheme.FontHeading,
                 Vector2.zero, Vector2.zero,
                 UITheme.Accent, UITheme.BgDeep);
+            UITheme.ApplySpriteButton(craftExecBtn, "button_accent");
+            UITheme.MakeIconImage("CraftExecBtnIcon", craftExecBtn.transform, "icon_craft", 24f,
+                new Vector2(UITheme.SpaceLG + 12f, 0f),
+                new Vector2(0f, 0.5f), Color.white);
             SetAnchorStretch(craftExecBtn.GetComponent<RectTransform>(),
                 0.08f, 0.08f, UITheme.SpaceMD, UITheme.SpaceLG + 52f,
                 UITheme.SpaceMD, UITheme.SpaceLG);
@@ -672,12 +740,14 @@ namespace Game.Editor.UI {
 
         // ── UI 부품 헬퍼 ───────────────────────────────────────────────────────
 
-        // 패널 상단 타이틀 헤더 바
+        // 패널 상단 타이틀 헤더 바 — header_bar 스프라이트로 크롬 통일
         static void BuildPanelHeader(Transform parent, string title) {
             var header = UITheme.MakePanel("Header", parent,
                 new Vector2(0f, 1f), new Vector2(1f, 1f),
                 new Vector2(0f, -56f), new Vector2(0f, 0f),
                 UITheme.BgHeader);
+            // header_bar 스프라이트 — 보더 없으면 단색 BgHeader 유지(폴백 자동)
+            UITheme.ApplyPanelSprite(header, "header_bar", new Color(1f, 1f, 1f, 0.08f));
             UITheme.AddShadow(header, 0.5f, 0f, -2f);
             // 헤더 하단 액센트 언더라인(이전엔 패널 정중앙에 잘못 배치되던 버그 수정)
             UITheme.MakeAccentBar("HeaderUnderline", header.transform, 0f, 2f, 0f, UITheme.Accent);

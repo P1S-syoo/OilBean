@@ -1,20 +1,23 @@
 using System;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using Game.Core;
 using Game.Player;
 
 namespace Game.Stage {
-    // 정화 부유체 설치 스팟 — 스팟 안에 탐사 기계가 있고 부유체가 준비되면 설치(정화) 진행
+    // 정화 부유체 설치 스팟 — 스팟 안 + 부유체 준비 + E 홀드로 설치(정화) 진행 (E6 hold-to-install)
     [RequireComponent(typeof(Collider2D))]
     public class PurifyInstaller : MonoBehaviour {
         [SerializeField] RunData run;
-        [SerializeField] float installTime = 2f;   // 설치 소요(초)
+        [SerializeField] float installTime = 2.5f;   // 설치 소요(초, 홀드 누적)
+        [SerializeField] Transform progressFill;      // 월드 진행 게이지(스케일 X = 진행), 선택
+        [SerializeField] GameObject holdPrompt;        // 'E 홀드' 안내 오브젝트, 선택
 
         bool inside;       // 스팟 안에 탐사 기계가 있나
         bool armed = true; // 탐사 중에만 설치 허용(코디네이터가 토글). 단독 사용 시 기본 on
-        bool installing;
         bool done;
-        float t;
+        float t;           // 설치 누적 시간(홀드 중단 시 보존 — 부분진행 유지)
+        bool holdOverride; // 키보드 없는 환경(PlayMode 테스트)에서 홀드를 대체
 
         // 정화 완료 — 코디네이터가 클리어 전환에 사용
         public event Action OnPurified;
@@ -38,40 +41,61 @@ namespace Game.Stage {
 
         void Update() {
             if (done || run == null || !armed) {
+                ShowPrompt(false);
                 return;
             }
-            // 스팟 안 + 부유체 준비 시 설치 시작(enter-only가 아니라 상태 기반 게이트)
-            if (!installing && inside && run.BuoyReady) {
-                installing = true;
-            }
-            if (!installing) {
+            bool ready = inside && run.BuoyReady;
+            // E 홀드 중에만 진행(능동감) — 중단해도 t 보존(부분진행 유지)
+            bool keyHeld = Keyboard.current != null && Keyboard.current.eKey.isPressed;
+            bool holding = ready && (keyHeld || holdOverride);
+            ShowPrompt(ready && !holding);   // 준비됐는데 아직 안 누르면 'E 홀드' 안내
+            if (!holding) {
                 return;
             }
             t += Time.deltaTime;
-            run.SetPurify(Mathf.Clamp01(t / installTime));   // 설치 진행 게이지
+            float p = Mathf.Clamp01(t / installTime);
+            run.SetPurify(p);   // HUD 게이지
+            UpdateFill(p);      // 월드 게이지
             if (t >= installTime) {
                 done = true;
-                installing = false;
                 run.SetBuoyReady(false);   // 부유체 소비
+                ShowPrompt(false);
                 OnPurified?.Invoke();
                 Debug.Log("[PurifyInstaller] 정화 완료");
             }
         }
 
-        // 구역 정화 후 재무장 — done 래치만 해제(다음 단계 부유체 재설치 허용). 게이지는 보존(다음 설치 시 갱신)
+        // 월드 진행 게이지 스케일 갱신(있을 때만)
+        void UpdateFill(float p) {
+            if (progressFill != null) {
+                var s = progressFill.localScale;
+                progressFill.localScale = new Vector3(Mathf.Clamp01(p), s.y, s.z);
+            }
+        }
+
+        // 'E 홀드' 안내 표시 토글(있을 때만)
+        void ShowPrompt(bool show) {
+            if (holdPrompt != null && holdPrompt.activeSelf != show) {
+                holdPrompt.SetActive(show);
+            }
+        }
+
+        // 구역 정화 후 재무장 — done 래치만 해제(다음 단계 부유체 재설치 허용). 진행 게이지 리셋
         public void ReArm() {
             done = false;
-            installing = false;
             inside = false;
             t = 0f;
+            UpdateFill(0f);
+            ShowPrompt(false);
         }
 
         // 세션 재시작용 상태 리셋(done 래치 해제 — ResetRun과 함께 호출)
         public void ResetState() {
             done = false;
-            installing = false;
             inside = false;
             t = 0f;
+            UpdateFill(0f);
+            ShowPrompt(false);
             if (run != null) {
                 run.SetPurify(0f);
             }
@@ -88,11 +112,12 @@ namespace Game.Stage {
 
         // 강제 복귀 등으로 설치 중단 — 게이지/타이머 리셋(부유체는 유지해 재시도 가능)
         public void CancelInstall() {
-            if (done || !installing) {
+            if (done || t <= 0f) {
                 return;
             }
-            installing = false;
             t = 0f;
+            UpdateFill(0f);
+            ShowPrompt(false);
             if (run != null) {
                 run.SetPurify(0f);   // HUD 게이지 잔류 제거
             }
