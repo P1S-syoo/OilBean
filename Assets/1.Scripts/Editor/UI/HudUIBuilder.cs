@@ -21,13 +21,24 @@ namespace Game.Editor.UI {
 
         const string CANVAS_NAME = "GameCanvas";
         const string ROUND_SPRITE_PATH = "Assets/4.Art/UI/RoundedRect.png";
+        const string KOREAN_FONT_PATH = "Assets/4.Art/Fonts/NotoSansKR SDF.asset";
+
+        // 한글 지원 TMP 폰트 로드 — 미발견 시 null(기본 폰트, 한글 깨짐 경고)
+        static TMP_FontAsset LoadKoreanFont() {
+            var f = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(KOREAN_FONT_PATH);
+            if (f == null) {
+                Debug.LogWarning($"[HudUIBuilder] 한글 폰트 없음: {KOREAN_FONT_PATH} — 한글이 깨질 수 있음");
+            }
+            return f;
+        }
 
         // ── 진입점 ────────────────────────────────────────────────────────────
         [MenuItem("Tools/한강/UI/HUD·패널 생성")]
         static void Build() {
             try {
-                // 라운드 코너 스프라이트 준비 + 주입 — 전 패널 공통 룩(둥근 모서리)
+                // 라운드 코너 스프라이트 + 한글 폰트 주입 — 전 패널 공통(한글 □ 깨짐 방지)
                 UITheme.RoundSprite = EnsureRoundedSprite();
+                UITheme.UIFont = LoadKoreanFont();
                 // 기존 Canvas 재활용 또는 신규 생성
                 var canvasGo = GetOrCreateCanvas();
                 var canvasTr = canvasGo.transform;
@@ -371,9 +382,11 @@ namespace Game.Editor.UI {
             DestroyExisting(canvas, "ResearchPanel");
 
             var root = UITheme.MakePanel("ResearchPanel", canvas,
-                new Vector2(0.1f, 0.05f), new Vector2(0.9f, 0.95f),
+                new Vector2(0.17f, 0.13f), new Vector2(0.83f, 0.87f),
                 Vector2.zero, Vector2.zero,
                 UITheme.BgDeep);
+            UITheme.AddShadow(root, 0.6f, 0f, -6f);
+            root.AddComponent<Game.UI.PopupPanel>();   // 팝업 스케일+페이드 연출(CanvasGroup 자동)
             root.SetActive(false);
 
             // 헤더
@@ -480,9 +493,11 @@ namespace Game.Editor.UI {
             DestroyExisting(canvas, "CraftPanel");
 
             var root = UITheme.MakePanel("CraftPanel", canvas,
-                new Vector2(0.1f, 0.05f), new Vector2(0.9f, 0.95f),
+                new Vector2(0.15f, 0.12f), new Vector2(0.85f, 0.88f),
                 Vector2.zero, Vector2.zero,
                 UITheme.BgDeep);
+            UITheme.AddShadow(root, 0.6f, 0f, -6f);
+            root.AddComponent<Game.UI.PopupPanel>();   // 팝업 스케일+페이드 연출(CanvasGroup 자동)
             root.SetActive(false);
 
             // 헤더
@@ -919,6 +934,7 @@ namespace Game.Editor.UI {
             t.alignment = align;
             t.enableWordWrapping = false;
             t.overflowMode = TextOverflowModes.Ellipsis;
+            UITheme.ApplyFont(t);
             return t;
         }
 

@@ -30,6 +30,10 @@ namespace Game.Editor.Stage {
                     Debug.LogError($"[StageWiringBuilder] RunData 없음: {RunDataPath}");
                     return;
                 }
+                // 한글 폰트 주입(ClearView/Toast 텍스트 깨짐 방지) — 도메인 리로드 후 단독 실행 대비
+                if (UITheme.UIFont == null) {
+                    UITheme.UIFont = AssetDatabase.LoadAssetAtPath<TMPro.TMP_FontAsset>("Assets/4.Art/Fonts/NotoSansKR SDF.asset");
+                }
 
                 var clearView = BuildClearView();
                 var purify = BuildPurifySpot(run);

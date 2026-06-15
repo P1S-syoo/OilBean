@@ -39,10 +39,13 @@ namespace Game.UI {
         public static readonly Color DepthRare     = HexColor("#D9534F");
 
         // ── 타이포그래피 스케일 ──────────────────────────────────────
-        public const float FontTitle   = 28f;   // 패널 타이틀
-        public const float FontHeading = 20f;   // 섹션 헤딩
-        public const float FontBody    = 14f;   // 본문·일반 값
-        public const float FontCaption = 11f;   // 캡션·레이블
+        public const float FontTitle   = 36f;   // 패널 타이틀
+        public const float FontHeading = 26f;   // 섹션 헤딩
+        public const float FontBody    = 19f;   // 본문·일반 값
+        public const float FontCaption = 15f;   // 캡션·레이블
+
+        // 한글 지원 폰트 — 에디터 빌더가 주입(NotoSansKR). null이면 TMP 기본(한글 □ 깨짐)
+        public static TMP_FontAsset UIFont;
 
         // ── 스페이싱 리듬 (8px 그리드) ──────────────────────────────
         public const float SpaceXS  = 4f;
@@ -62,6 +65,13 @@ namespace Game.UI {
         public static float RoundPixelsPerUnit = 1.2f;   // 작을수록 코너 반경 큼
 
         // ── 공통 헬퍼 ───────────────────────────────────────────────
+
+        // 한글 폰트 주입 — 모든 UI 텍스트에 적용(미주입 시 TMP 기본=한글 깨짐)
+        public static void ApplyFont(TMP_Text t) {
+            if (UIFont != null && t != null) {
+                t.font = UIFont;
+            }
+        }
 
         // 라운드 스프라이트가 주입돼 있으면 9슬라이스로 적용(직각→둥근 모서리)
         public static void ApplyRound(Image img, float pxPerUnit = 0f) {
@@ -128,6 +138,7 @@ namespace Game.UI {
             t.alignment = align;
             t.enableWordWrapping = false;
             t.overflowMode = TextOverflowModes.Ellipsis;
+            ApplyFont(t);
             return t;
         }
 
@@ -151,6 +162,7 @@ namespace Game.UI {
             t.alignment = align;
             t.enableWordWrapping = false;
             t.overflowMode = TextOverflowModes.Ellipsis;
+            ApplyFont(t);
             return t;
         }
 
@@ -196,6 +208,7 @@ namespace Game.UI {
             txt.alignment = TextAlignmentOptions.Center;
             txt.fontStyle = FontStyles.Bold;
             txt.enableWordWrapping = false;
+            ApplyFont(txt);
             return btn;
         }
 
