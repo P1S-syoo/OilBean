@@ -194,6 +194,10 @@ namespace Game.Core {
                 if (toast != null) {
                     toast.Show($"구역 정화 — 부유체 {run.BuoyStage}단계. 더 깊은 곳으로");
                 }
+                // 다음 단계 부유체를 같은 스팟에 재설치할 수 있도록 재무장(done 래치 해제) — 미수정 시 클리어 도달 불가
+                if (purify != null) {
+                    purify.ResetState();
+                }
                 return;
             }
             if (!Fsm.Change(GameState.Clear)) {

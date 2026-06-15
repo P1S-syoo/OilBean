@@ -73,6 +73,7 @@ namespace Game.Stage {
         public void SetArmed(bool v) {
             armed = v;
             if (!v) {
+                inside = false;   // 텔레포트(복귀)로 OnTriggerExit이 누락돼도 잔류 제거 — 재잠수 시 자동정화 방지
                 CancelInstall();
             }
         }
