@@ -34,17 +34,8 @@ namespace Game.UI {
             if (fx != null) {
                 fx.Play();
             }
-            // 카메라 미연결 시 배경 보간만 생략(UI 연출은 이미 완료됨)
-            if (cam == null) {
-                Debug.LogWarning("[ClearView] cam 미연결 — 배경 보간 생략");
-                return;
-            }
-            try {
-                StartCoroutine(LerpBg());
-            } catch (Exception e) {
-                Debug.LogError($"[ClearView] 배경 보간 코루틴 시작 실패: {e.Message}");
-                // 코루틴 실패 시 played는 유지해 중복 재생 방지
-            }
+            // C1 근본 해결: 정화 전/후 '맑아짐'은 AtmosphereController의 URP Volume(탁함 weight→0)이
+            // 화면 전체로 처리. 과거의 카메라 backgroundColor 트릭(LerpBg)은 제거.
         }
 
         // 배경색을 탁한 색 → 맑은 색으로 보간
