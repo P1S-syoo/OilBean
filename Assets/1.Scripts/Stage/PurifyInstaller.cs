@@ -58,6 +58,14 @@ namespace Game.Stage {
             }
         }
 
+        // 구역 정화 후 재무장 — done 래치만 해제(다음 단계 부유체 재설치 허용). 게이지는 보존(다음 설치 시 갱신)
+        public void ReArm() {
+            done = false;
+            installing = false;
+            inside = false;
+            t = 0f;
+        }
+
         // 세션 재시작용 상태 리셋(done 래치 해제 — ResetRun과 함께 호출)
         public void ResetState() {
             done = false;
