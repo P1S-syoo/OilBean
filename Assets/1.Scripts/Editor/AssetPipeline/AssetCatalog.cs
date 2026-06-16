@@ -58,32 +58,12 @@ namespace Game.Editor {
                     "Assets/4.Art/Fonts/NotoSansKR-OFL.txt",
                     LicenseKind.OFL, "Google / Noto Project",
                     "https://fonts.google.com/noto/specimen/Noto+Sans+KR"),
-                // Kenney CC0 팩(ZIP 해제) — 추후 VARCO로 단계 전환 예정
-                new AssetEntry(
-                    "Kenney Particle Pack",
-                    "https://kenney.nl/media/pages/assets/particle-pack/f8fe0f8cb8-1677578741/kenney_particle-pack.zip",
-                    "Assets/4.Art/Kenney/ParticlePack",
-                    LicenseKind.CC0, "Kenney", "https://kenney.nl/assets/particle-pack", true),
+                // Kenney UI Pack(CC0, ZIP 해제) — UI 토대로 유지
                 new AssetEntry(
                     "Kenney UI Pack",
                     "https://kenney.nl/media/pages/assets/ui-pack/f651646eab-1718203990/kenney_ui-pack.zip",
                     "Assets/7.UI/Kenney/UIPack",
                     LicenseKind.CC0, "Kenney", "https://kenney.nl/assets/ui-pack", true),
-                new AssetEntry(
-                    "Kenney Interface Sounds",
-                    "https://kenney.nl/media/pages/assets/interface-sounds/fa43c1dd4d-1677589452/kenney_interface-sounds.zip",
-                    "Assets/5.Audio/Kenney/InterfaceSounds",
-                    LicenseKind.CC0, "Kenney", "https://kenney.nl/assets/interface-sounds", true),
-                new AssetEntry(
-                    "Kenney Impact Sounds",
-                    "https://kenney.nl/media/pages/assets/impact-sounds/87b4ddecda-1677589768/kenney_impact-sounds.zip",
-                    "Assets/5.Audio/Kenney/ImpactSounds",
-                    LicenseKind.CC0, "Kenney", "https://kenney.nl/assets/impact-sounds", true),
-                new AssetEntry(
-                    "Kenney Sci-fi Sounds",
-                    "https://kenney.nl/media/pages/assets/sci-fi-sounds/6b296f9ecf-1677589334/kenney_sci-fi-sounds.zip",
-                    "Assets/5.Audio/Kenney/SciFiSounds",
-                    LicenseKind.CC0, "Kenney", "https://kenney.nl/assets/sci-fi-sounds", true),
             };
         }
     }

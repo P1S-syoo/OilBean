@@ -422,7 +422,7 @@ namespace Game.Editor.Surface {
             }
         }
 
-        // ───── W4: 수면·폐허 도시 그레이박스 환경 ─────
+        // W4: 수면·폐허 도시 그레이박스 환경
 
         // 좌표 결정적 해시 — 빌딩 높이/기울기 변주(재생성해도 같은 모양)
         static int Hash(int a, int b) {

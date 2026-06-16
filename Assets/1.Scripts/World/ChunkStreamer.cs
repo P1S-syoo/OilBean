@@ -28,6 +28,7 @@ namespace Game.World {
         Material[][] shorePairs;
         readonly Dictionary<Vector2Int, List<GameObject>> loaded = new();
         readonly List<WorldGen.Spec> specBuf = new(3);
+        readonly List<Vector2Int> removeBuf = new();   // Reconcile 무할당 재사용
         Vector2Int lastChunk = new(int.MinValue, int.MinValue);
 
         void Awake() {
@@ -90,17 +91,17 @@ namespace Game.World {
         // 원하는 청크 집합과 현재 로드 집합을 비교해 로드/언로드
         void Reconcile(Vector2Int center) {
             // 1) 범위 밖 청크 언로드
-            var remove = new List<Vector2Int>();
+            removeBuf.Clear();
             foreach (var kv in loaded) {
                 var c = kv.Key;
                 if (Mathf.Abs(c.x - center.x) > radiusX || Mathf.Abs(c.y - center.y) > radiusY) {
                     foreach (var go in kv.Value) {
                         pool.Return(go);
                     }
-                    remove.Add(c);
+                    removeBuf.Add(c);
                 }
             }
-            foreach (var c in remove) {
+            foreach (var c in removeBuf) {
                 loaded.Remove(c);
             }
             // 2) 범위 안 새 청크 로드 — X는 무한 순환 맵이라 clamp 없음(생성은 WorldGen이 좌표로 결정)

@@ -27,6 +27,15 @@ namespace Game.Tests {
             o.GetType().GetField(name, BindingFlags.NonPublic | BindingFlags.Instance).SetValue(o, v);
         }
 
+        // 도착 조건 충족 또는 실시간 deadline까지 프레임 폴링 — 조건 도달 즉시 탈출.
+        // 고정 프레임 상한(600) 대신 WaitForSecondsRealtime 기반 deadline으로 도메인 리로드 부하에 견고.
+        static IEnumerator WaitUntil(System.Func<bool> cond, float timeout = 10f) {
+            float deadline = Time.realtimeSinceStartup + timeout;
+            while (!cond() && Time.realtimeSinceStartup < deadline) {
+                yield return null;
+            }
+        }
+
         // x=0→100 직선 강 + 목표 {0.5, 1.0} 잠수정 생성
         SubNavigator Make(float speed) {
             riverGo = new GameObject("River");
@@ -50,9 +59,7 @@ namespace Game.Tests {
             var nav = Make(120f);
             bool arrived = false;
             nav.OnArrived += () => arrived = true;
-            for (int i = 0; i < 600 && !arrived; i++) {
-                yield return null;
-            }
+            yield return WaitUntil(() => arrived);
             Assert.IsTrue(arrived, "첫 목표 도달 시 OnArrived 발생");
             Assert.IsFalse(nav.Sailing, "도달 후 정지");
             Assert.AreEqual(50f, subGo.transform.position.x, 1.5f, "첫 목표(스플라인 50%) 부근 정지");
@@ -63,14 +70,10 @@ namespace Game.Tests {
             var nav = Make(120f);
             int arrivals = 0;
             nav.OnArrived += () => arrivals++;
-            for (int i = 0; i < 600 && arrivals < 1; i++) {
-                yield return null;
-            }
+            yield return WaitUntil(() => arrivals >= 1);
             nav.Resume();
             Assert.IsTrue(nav.Sailing, "재출발 후 항해 재개");
-            for (int i = 0; i < 600 && arrivals < 2; i++) {
-                yield return null;
-            }
+            yield return WaitUntil(() => arrivals >= 2);
             Assert.AreEqual(2, arrivals, "두 번째 목표 도달");
             Assert.AreEqual(100f, subGo.transform.position.x, 1.5f, "종점 부근 정지");
         }

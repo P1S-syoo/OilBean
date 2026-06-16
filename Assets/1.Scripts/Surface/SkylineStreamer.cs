@@ -28,6 +28,7 @@ namespace Game.Surface {
         public const float FarBankMinZ = 6f;           // 원경(+z) 강변 z 한계 — 2.5D Background 블록(z4) 뒤 2u 여유(LandmarkPlacer 공용)
 
         readonly Dictionary<int, List<GameObject>> cells = new();
+        readonly List<int> removeBuf = new();   // Reconcile 무할당 재사용
         readonly Queue<int> pending = new();   // 스폰 대기 셀 — 프레임당 1셀만 채워 히치 분산(잠수 텔레포트 폭주 흡수)
         float riverLen;
         Vector3 riverOrigin;
@@ -77,16 +78,16 @@ namespace Game.Surface {
         // 범위 밖 셀 해제 + 범위 안 빈 셀 생성
         void Reconcile(int center) {
             int span = Mathf.CeilToInt(radius / Spacing);
-            var remove = new List<int>();
+            removeBuf.Clear();
             foreach (var kv in cells) {
                 if (Mathf.Abs(kv.Key - center) > span) {
                     foreach (var go in kv.Value) {
                         SafeDestroy(go);
                     }
-                    remove.Add(kv.Key);
+                    removeBuf.Add(kv.Key);
                 }
             }
-            foreach (var key in remove) {
+            foreach (var key in removeBuf) {
                 cells.Remove(key);
             }
             for (int i = center - span; i <= center + span; i++) {

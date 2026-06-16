@@ -30,6 +30,15 @@ namespace Game.Tests {
             o.GetType().GetField(name, BindingFlags.NonPublic | BindingFlags.Instance).SetValue(o, v);
         }
 
+        // 조건 충족 또는 실시간 deadline까지 프레임 폴링 — 조건 도달 즉시 탈출.
+        // 고정 프레임 상한 대신 실시간 deadline(기본 10s)으로 도메인 리로드 부하에 견고.
+        static IEnumerator WaitUntil(System.Func<bool> cond, float timeout = 10f) {
+            float deadline = Time.realtimeSinceStartup + timeout;
+            while (!cond() && Time.realtimeSinceStartup < deadline) {
+                yield return null;
+            }
+        }
+
         [UnityTest]
         public IEnumerator BuoyReady_install_purifies_and_clears() {
             run = ScriptableObject.CreateInstance<RunData>();
@@ -63,11 +72,8 @@ namespace Game.Tests {
             sub.transform.position = new Vector3(0f, 10f, 0f);  // 수심 게이트 한계(50m=y7) 위
             spot.transform.position = sub.transform.position;   // 트리거 겹침
             yield return new WaitForFixedUpdate();
-            // 설치(0.2s) → 정화 → OnPurified → Clear 전환 대기
-            for (int i = 0; i < 120; i++) {
-                if (gb.State == GameState.Clear) break;
-                yield return null;
-            }
+            // 설치(0.2s) → 정화 → OnPurified → Clear 전환 대기(조건 도달 즉시 탈출)
+            yield return WaitUntil(() => gb.State == GameState.Clear);
             Assert.AreEqual(GameState.Clear, gb.State, "정화 완료 → STAGE CLEAR");
             Assert.AreEqual(1f, run.Purify, 0.001f, "정화 게이지 가득");
             Assert.IsFalse(run.BuoyReady, "부유체 소비됨");
@@ -104,10 +110,7 @@ namespace Game.Tests {
             sub.transform.position = new Vector3(0f, 14f, 0f);   // 1단계 한계(35m=y12.1) 위
             spot.transform.position = sub.transform.position;
             yield return new WaitForFixedUpdate();
-            for (int i = 0; i < 120; i++) {
-                if (run.Purify >= 1f) break;
-                yield return null;
-            }
+            yield return WaitUntil(() => run.Purify >= 1f);   // 정화 완료 조건 폴링(즉시 탈출)
             Assert.AreEqual(1f, run.Purify, 0.001f, "설치는 완료(구역 정화)");
             Assert.AreNotEqual(GameState.Clear, gb.State, "부유체 Ⅲ 전에는 클리어 아님");
         }
@@ -149,8 +152,13 @@ namespace Game.Tests {
             yield return new WaitForFixedUpdate();  // 트리거 Exit 반영
             Assert.AreEqual(GameState.Dock, gb.State, "복귀 후 Dock 유지");
             Assert.AreEqual(0f, run.Purify, 0.001f, "설치 게이지 리셋");
-            yield return new WaitForSeconds(0.7f);  // 원래 installTime 넘겨도
-            Assert.AreNotEqual(GameState.Clear, gb.State, "백그라운드 클리어 없음");
+            // 원래 installTime(0.5s)을 넉넉히 넘기는 실시간 경과 동안 백그라운드 클리어가 없음을 매 프레임 확인.
+            // 고정 WaitForSeconds 대신 실시간 deadline까지 폴링하며 Clear 전환을 즉시 잡아냄(더 강한 부정 검증).
+            float deadline = Time.realtimeSinceStartup + 1f;   // installTime(0.5s)의 2배 — 백그라운드 진행 시 발현될 시간
+            while (Time.realtimeSinceStartup < deadline) {
+                Assert.AreNotEqual(GameState.Clear, gb.State, "백그라운드 클리어 없음");
+                yield return null;
+            }
         }
     }
 }

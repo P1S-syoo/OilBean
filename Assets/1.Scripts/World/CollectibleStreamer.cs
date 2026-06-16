@@ -29,6 +29,7 @@ namespace Game.World {
 
         readonly Dictionary<int, List<GameObject>> cells = new();
         readonly List<ItemDef> candidates = new();   // PickByDepth 무할당 재사용
+        readonly List<int> removeBuf = new();         // Reconcile 무할당 재사용
         int lastCenter = int.MinValue;
 
         void LateUpdate() {
@@ -46,7 +47,7 @@ namespace Game.World {
         // 범위 밖 셀 해제 + 범위 안 빈 셀 채움
         void Reconcile(int center) {
             try {
-                var remove = new List<int>();
+                removeBuf.Clear();
                 foreach (var kv in cells) {
                     if (Mathf.Abs(kv.Key - center) > radiusCells) {
                         foreach (var go in kv.Value) {
@@ -54,10 +55,10 @@ namespace Game.World {
                                 Destroy(go);
                             }
                         }
-                        remove.Add(kv.Key);
+                        removeBuf.Add(kv.Key);
                     }
                 }
-                foreach (var k in remove) {
+                foreach (var k in removeBuf) {
                     cells.Remove(k);
                 }
                 for (int i = center - radiusCells; i <= center + radiusCells; i++) {
