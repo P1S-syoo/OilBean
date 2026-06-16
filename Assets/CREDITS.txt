@@ -21,6 +21,10 @@
 - Underwater Ambience 외 — Freesound — CC0 필터
   https://freesound.org
 - Kenney Audio (Interface / Impact / Sci-fi Sounds) — CC0
+- VARCO Sound (NC AI) — 프로젝트 귀속 라이선스 (생성형) — BGM·SFX
+  bgm_dive / bgm_surface / bgm_dock, sfx_engine / sfx_craft / sfx_analyze / sfx_research_up / sfx_agent_craft 등
+- VARCO Voice (NC AI) — 프로젝트 귀속 라이선스 — 캐릭터 보이스(화자: 다미엔)
+  voice_intro / voice_dive / … / voice_research / voice_agent / voice_upgrade
 
 ## 2D 스프라이트 / 텍스처
 - Kenney (Particle Pack / UI Pack) — CC0

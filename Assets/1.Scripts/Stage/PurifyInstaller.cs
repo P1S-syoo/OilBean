@@ -5,13 +5,13 @@ using Game.Core;
 using Game.Player;
 
 namespace Game.Stage {
-    // 정화 부유체 설치 스팟 — 스팟 안 + 부유체 준비 + E 홀드로 설치(정화) 진행 (E6 hold-to-install)
+    // 정화 부유체 설치 스팟 — 스팟 안 + 부유체 준비 + F 홀드로 설치(정화) 진행 (E6 hold-to-install)
     [RequireComponent(typeof(Collider2D))]
     public class PurifyInstaller : MonoBehaviour {
         [SerializeField] RunData run;
         [SerializeField] float installTime = 2.5f;   // 설치 소요(초, 홀드 누적)
         [SerializeField] Transform progressFill;      // 월드 진행 게이지(스케일 X = 진행), 선택
-        [SerializeField] GameObject holdPrompt;        // 'E 홀드' 안내 오브젝트, 선택
+        [SerializeField] GameObject holdPrompt;        // 'F 홀드' 안내 오브젝트, 선택
 
         bool inside;       // 스팟 안에 탐사 기계가 있나
         bool armed = true; // 탐사 중에만 설치 허용(코디네이터가 토글). 단독 사용 시 기본 on
@@ -48,7 +48,7 @@ namespace Game.Stage {
             // F 홀드 중에만 진행(능동감) — 수집(E)과 키 충돌 회피. 중단해도 t 보존(부분진행 유지)
             bool keyHeld = Keyboard.current != null && Keyboard.current.fKey.isPressed;
             bool holding = ready && (keyHeld || holdOverride);
-            ShowPrompt(ready && !holding);   // 준비됐는데 아직 안 누르면 'E 홀드' 안내
+            ShowPrompt(ready && !holding);   // 준비됐는데 아직 안 누르면 'F 홀드' 안내
             if (!holding) {
                 return;
             }
@@ -73,7 +73,7 @@ namespace Game.Stage {
             }
         }
 
-        // 'E 홀드' 안내 표시 토글(있을 때만)
+        // 'F 홀드' 안내 표시 토글(있을 때만)
         void ShowPrompt(bool show) {
             if (holdPrompt != null && holdPrompt.activeSelf != show) {
                 holdPrompt.SetActive(show);

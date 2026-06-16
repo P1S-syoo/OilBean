@@ -4,6 +4,7 @@ using TMPro;
 using Game.Core;
 using Game.Craft;
 using Game.Items;
+using Game.Minigame;
 
 namespace Game.UI {
     // 제작 패널 확장 표시 — 자원 수치 / 레시피 선택 / 상세 패널 / 제작 실행
@@ -31,11 +32,21 @@ namespace Game.UI {
         [SerializeField] string[] recipeIds;
         [SerializeField] string[] recipeLabels;
         [SerializeField] string[] recipeReqs;
+        [SerializeField] CraftMinigame minigame;   // 슬롯 배치 퍼즐(미연결 시 즉시 제작 폴백)
 
         int selectedIdx = -1;   // 현재 선택된 레시피 인덱스(-1=없음)
 
         // 직전 캐시
         float lastS0 = -1f, lastS1 = -1f, lastS2 = -1f;
+
+        bool fallbackWarned;   // 폴백 경고 1회만 출력
+
+        void Start() {
+            // minigame 미배선 시 자가탐색(NarrationController/ScoreHud 패턴)
+            if (minigame == null) {
+                minigame = FindFirstObjectByType<CraftMinigame>();
+            }
+        }
 
         void OnEnable() {
             // 레시피 버튼 클릭 등록
@@ -58,6 +69,10 @@ namespace Game.UI {
         }
 
         void OnDisable() {
+            // 패널이 닫히면(상태 전환) 열린 퍼즐도 취소 — 팝업·콜백 잔류 방지
+            if (minigame != null && minigame.IsOpen) {
+                minigame.Cancel();
+            }
             Unsubscribe();
         }
 
@@ -274,18 +289,45 @@ namespace Game.UI {
                     return;
                 }
                 string id = recipeIds[selectedIdx];
-                bool ok = crafting.Craft(id);
-                if (ok) {
-                    // 제작 성공 — 상세 패널 갱신 + 선택 해제
-                    selectedIdx = -1;
-                    Refresh();
-                    Debug.Log($"[CraftPanelExtUI] 제작 완료: {id}");
+                if (!crafting.CanCraft(id)) {
+                    Debug.LogWarning($"[CraftPanelExtUI] 제작 불가(재료/조건 미충족): {id}");
+                    return;
+                }
+                // 퍼즐 게이트 — 성공 시에만 제작. 미연결이면 즉시 제작(폴백)
+                if (minigame != null) {
+                    if (minigame.IsOpen) {
+                        return;   // 이미 퍼즐 진행 중 — 연타로 우회 방지
+                    }
+                    string label = selectedIdx < recipeLabels?.Length ? recipeLabels[selectedIdx] : id;
+                    minigame.Open(label, SlotCountFor(id), () => DoCraft(id));
                 } else {
-                    Debug.LogWarning($"[CraftPanelExtUI] 제작 실패: {id}");
+                    // 자가탐색도 실패한 실제 폴백 — 경고 1회 출력
+                    if (!fallbackWarned) {
+                        Debug.LogWarning("[CraftPanelExtUI] minigame 미배선 — 즉시 제작 폴백");
+                        fallbackWarned = true;
+                    }
+                    DoCraft(id);
                 }
             } catch (System.Exception e) {
                 Debug.LogError($"[CraftPanelExtUI] 제작 오류: {e.Message}\n{e.StackTrace}");
             }
+        }
+
+        // 실제 제작 실행(퍼즐 성공 또는 폴백에서 호출) — 성공 시 선택 해제 + 갱신
+        void DoCraft(string id) {
+            bool ok = crafting != null && crafting.Craft(id);
+            if (ok) {
+                selectedIdx = -1;
+                Refresh();
+                Debug.Log($"[CraftPanelExtUI] 제작 완료: {id}");
+            } else {
+                Debug.LogWarning($"[CraftPanelExtUI] 제작 실패: {id}");
+            }
+        }
+
+        // 레시피별 퍼즐 슬롯 수 — 부유체는 3, 업그레이드/장비는 2
+        int SlotCountFor(string id) {
+            return (!string.IsNullOrEmpty(id) && id.StartsWith("buoy")) ? 3 : 2;
         }
     }
 }

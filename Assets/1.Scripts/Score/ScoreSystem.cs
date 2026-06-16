@@ -16,7 +16,6 @@ namespace Game.Score {
         public int Combo { get; private set; } = 1;
 
         float lastCollectTime = float.NegativeInfinity;
-        bool comboActive;   // 콤보가 이미 끊긴 상태 추적(Update 중복 발화 방지)
 
         Collector collector;
         GameBootstrap bootstrap;
@@ -52,7 +51,6 @@ namespace Game.Score {
             // comboWindow 초과 시 콤보 리셋(콤보 > 1일 때만 끊김 이벤트 발생)
             if (Combo > 1 && Time.time - lastCollectTime > comboWindow) {
                 Combo = 1;
-                comboActive = false;
                 OnComboReset?.Invoke();
             }
         }
