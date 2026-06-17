@@ -8,7 +8,7 @@ namespace Game.Core {
         // 허용 전환 표 — 잘못된 전환을 막아 흐름을 명확히 유지
         static readonly Dictionary<GameState, HashSet<GameState>> Allowed = new() {
             { GameState.Surface,  new() { GameState.Dock, GameState.Research, GameState.Craft } },
-            { GameState.Dock,     new() { GameState.Dive, GameState.Research, GameState.Craft, GameState.Purify } },
+            { GameState.Dock,     new() { GameState.Dive, GameState.Research, GameState.Craft, GameState.Purify, GameState.Surface } },
             { GameState.Dive,     new() { GameState.Dock, GameState.Clear } },
             { GameState.Research, new() { GameState.Dock, GameState.Surface } },
             { GameState.Craft,    new() { GameState.Dock, GameState.Surface } },

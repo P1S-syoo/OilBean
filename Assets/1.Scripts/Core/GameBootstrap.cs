@@ -226,7 +226,11 @@ namespace Game.Core {
             }
             Debug.Log($"[GameBootstrap] 강제 복귀: {reason}");
             forcedReturn = true;   // 복귀 정산에서 미정착분 페널티 적용(E6)
-            Fsm.Change(GameState.Dock);
+            // Dock에서 정산(배터리 충전·미정착 정산) 후 수면(Surface)으로 부상 — 재잠수는 E
+            // (SurfaceBootstrap이 Surface 진입을 감지해 수상 리그 재활성 + 항해 재개)
+            if (Fsm.Change(GameState.Dock)) {
+                Fsm.Change(GameState.Surface);
+            }
         }
 
         void HandleStateChanged(GameState from, GameState to) {

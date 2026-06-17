@@ -148,9 +148,9 @@ namespace Game.Tests {
             yield return null;
             yield return null;
             Assert.Greater(run.Purify, 0f, "설치 진행 중");
-            gb.ForceReturn("테스트 강제복귀");      // 설치 도중 복귀 → CancelInstall + 거점 복귀
+            gb.ForceReturn("테스트 강제복귀");      // 설치 도중 복귀 → CancelInstall + Dock 정산 → 수면 부상
             yield return new WaitForFixedUpdate();  // 트리거 Exit 반영
-            Assert.AreEqual(GameState.Dock, gb.State, "복귀 후 Dock 유지");
+            Assert.AreEqual(GameState.Surface, gb.State, "복귀 후 수면 부상");
             Assert.AreEqual(0f, run.Purify, 0.001f, "설치 게이지 리셋");
             // 원래 installTime(0.5s)을 넉넉히 넘기는 실시간 경과 동안 백그라운드 클리어가 없음을 매 프레임 확인.
             // 고정 WaitForSeconds 대신 실시간 deadline까지 폴링하며 Clear 전환을 즉시 잡아냄(더 강한 부정 검증).

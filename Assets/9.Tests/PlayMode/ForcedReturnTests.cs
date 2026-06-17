@@ -8,7 +8,7 @@ using Game.Player;
 using Game.Items;
 
 namespace Game.Tests {
-    // 강제 복귀 통합 PlayMode 테스트(배터리 방전·오염원 충돌 → Dock)
+    // 강제 복귀 통합 PlayMode 테스트(배터리 방전·오염원 충돌 → Dock 정산 → 수면 부상)
     public class ForcedReturnTests {
         GameObject sub;
         GameObject haz;
@@ -24,7 +24,7 @@ namespace Game.Tests {
         }
 
         [UnityTest]
-        public IEnumerator Battery_empty_returns_to_dock_and_refills() {
+        public IEnumerator Battery_empty_resurfaces_and_refills() {
             sub = new GameObject("Sub");
             sub.SetActive(false);
             var bat = sub.AddComponent<Battery>();
@@ -35,15 +35,16 @@ namespace Game.Tests {
             sub.SetActive(true);
             gb.StartDive();                          // 소모 시작
             for (int i = 0; i < 60; i++) {
-                if (gb.State == GameState.Dock) break;
+                if (gb.State == GameState.Surface) break;
                 yield return null;
             }
-            Assert.AreEqual(GameState.Dock, gb.State, "방전 시 Dock 복귀");
+            // 방전 → Dock에서 배터리 충전·정산 후 수면(Surface)으로 부상(재잠수는 E)
+            Assert.AreEqual(GameState.Surface, gb.State, "방전 시 정산 후 수면 부상");
             Assert.Greater(bat.Current, 0f, "복귀 시 재충전(이후 소모 off)");
         }
 
         [UnityTest]
-        public IEnumerator Hazard_hit_returns_to_dock() {
+        public IEnumerator Hazard_hit_resurfaces() {
             sub = new GameObject("Sub");
             sub.SetActive(false);
             var rb = sub.AddComponent<Rigidbody2D>(); rb.gravityScale = 0f;
@@ -60,10 +61,11 @@ namespace Game.Tests {
             haz.transform.position = Vector3.zero;   // Sub와 겹침
 
             for (int i = 0; i < 30; i++) {
-                if (gb.State == GameState.Dock) break;
+                if (gb.State == GameState.Surface) break;
                 yield return new WaitForFixedUpdate();
             }
-            Assert.AreEqual(GameState.Dock, gb.State, "오염원 충돌 시 Dock 복귀");
+            // 충돌 → Dock 정산 후 수면 부상
+            Assert.AreEqual(GameState.Surface, gb.State, "오염원 충돌 시 정산 후 수면 부상");
         }
     }
 }

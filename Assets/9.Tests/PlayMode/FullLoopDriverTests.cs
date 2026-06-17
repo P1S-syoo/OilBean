@@ -183,13 +183,15 @@ namespace Game.Tests {
             run.AddSteel(0, 10f);   // bank=10, pending=10
             run.AddSampleAt(1);
             run.AddSampleAt(1);     // 수준1 샘플 2개(bank=2, pending=2)
-            gb.ForceReturn("테스트 강제복귀");   // Dive→Dock → OnReturnedToDock → ForfeitDive(0.5)
+            gb.ForceReturn("테스트 강제복귀");   // Dive→Dock(OnReturnedToDock→ForfeitDive 0.5)→Surface 부상
             yield return null;
-            Assert.AreEqual(GameState.Dock, gb.State, "강제복귀 후 Dock");
+            Assert.AreEqual(GameState.Surface, gb.State, "강제복귀 후 수면 부상(Dock 정산 경유)");
             Assert.AreEqual(5f, run.GetSteel(0), 0.001f, "강재 미정착분 절반 유실(10→5)");
             Assert.AreEqual(1, run.GetSampleCount(1), "샘플 미정착분 절반 유실(2→1)");
 
             // ── 정상복귀 정산: 미정착분 전량 확정(손실 없음) ──
+            // 수면에서 재잠수 — 실게임은 E(SurfaceBootstrap), 테스트는 Surface→Dock→Dive 직접 구동
+            gb.EnterDockFromSurface();
             gb.StartDive();
             Assert.AreEqual(GameState.Dive, gb.State, "재탐사 진입");
             run.AddSteel(0, 8f);   // bank=5+8=13, pending=8(직전 Forfeit가 pending 비움)

@@ -15,13 +15,14 @@ namespace Game.Tests {
         // 주의: EditMode는 Awake/OnChanged 구독이 실행되지 않으므로 fsm 직접 로직만 검증.
         // 이벤트→복귀→Refill 통합은 PlayMode(ForcedReturnTests)에서 검증.
         [Test]
-        public void ForceReturn_changes_to_dock() {
+        public void ForceReturn_resurfaces_via_dock() {
             go = new GameObject("Game");
             var gb = go.AddComponent<GameBootstrap>();
             gb.StartDive();
             Assert.AreEqual(GameState.Dive, gb.State);
             gb.ForceReturn("테스트");
-            Assert.AreEqual(GameState.Dock, gb.State);
+            // 강제복귀: Dive→Dock(정산)→Surface 부상. 최종 상태는 Surface
+            Assert.AreEqual(GameState.Surface, gb.State);
         }
     }
 }
