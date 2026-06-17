@@ -56,6 +56,7 @@ namespace Game.Minigame {
         // 미니게임 열기 — 호출마다 UI를 새로 생성(멱등)
         public void Open(string recipeLabel, int slotCount, Action onSolved) {
             try {
+                transform.SetAsLastSibling();   // 같은 sort 내에서도 최상단(제작 패널 위) 보장
                 slotCount = Mathf.Clamp(slotCount, 2, 4);
                 _onSolved = onSolved;
 
@@ -196,9 +197,33 @@ namespace Game.Minigame {
 
         // ── UI 빌드 ──────────────────────────────────────────────────
 
+        // 풀스크린 딤 백드롭 — 골든 루트(780×482)보다 크게 깔아 화면 전체를 덮고 뒤 패널 클릭을 차단
+        // 루트 자식이라 루트 CanvasGroup 알파를 따라 함께 페이드(포커스 모달)
+        private void BuildFocusBackdrop(Transform root) {
+            try {
+                var go = new GameObject("FocusBackdrop", typeof(RectTransform));
+                go.transform.SetParent(root, false);
+                var brt = go.GetComponent<RectTransform>();
+                brt.anchorMin = new Vector2(0.5f, 0.5f);
+                brt.anchorMax = new Vector2(0.5f, 0.5f);
+                brt.pivot = new Vector2(0.5f, 0.5f);
+                brt.anchoredPosition = Vector2.zero;
+                brt.sizeDelta = new Vector2(4000f, 4000f);   // 골든 루트보다 크게 — 화면 전체 덮음
+                var img = go.AddComponent<Image>();
+                img.color = new Color(UITheme.BgDeep.r, UITheme.BgDeep.g, UITheme.BgDeep.b, 0.72f);
+                img.raycastTarget = true;   // 뒤 패널 클릭 차단(포커스 트랩)
+                go.transform.SetAsFirstSibling();   // 콘텐츠 뒤에 배치
+            } catch (Exception e) {
+                Debug.LogError($"[CraftMinigame] 포커스 백드롭 생성 오류: {e.Message}");
+            }
+        }
+
         // 팝업 전체 레이아웃을 런타임 생성
         private void BuildUI(string recipeLabel, int slotCount) {
             var root = transform;
+
+            // ── 포커스 트랩: 풀스크린 딤 백드롭 — 골든 루트보다 크게 깔아 뒤 패널 클릭 차단 ──
+            BuildFocusBackdrop(root);
 
             // ── 배경 패널 (전체 채우기) — 글래스 표면 + 가독성용 불투명 베이스 ──
             var bg = UITheme.MakeGlassPanel("BgPanel", root,

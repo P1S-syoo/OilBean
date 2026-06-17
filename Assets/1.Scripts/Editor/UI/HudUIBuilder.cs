@@ -108,8 +108,11 @@ namespace Game.Editor.UI {
             // 기존 패널 제거 후 재생성
             DestroyExisting(canvas, "DockConsole");
 
-            // 루트 패널 — 전체 화면 반투명 오버레이
-            var root = UITheme.MakeStretchPanel("DockConsole", canvas, color: new Color(0.05f, 0.12f, 0.14f, 0.96f));
+            // 루트 패널 — 화면을 꽉 채우지 않는 황금비 중앙 허브(1400×865). 3D 수면 위에 떠 보이게 어두운 톤 유지
+            var root = MakeGoldenPanel("DockConsole", canvas, 1400f);
+            root.GetComponent<Image>().color = new Color(0.05f, 0.12f, 0.14f, 0.96f);
+            UITheme.AddShadow(root, 0.6f, 0f, -6f);
+            root.AddComponent<Game.UI.PopupPanel>();   // 연구/제작 패널과 동일한 스케일+페이드 등장감
             root.SetActive(false);   // 기본 비활성
 
             // ── 상단 자원 바 (높이 72) ──────────────────────────────────────
@@ -145,16 +148,22 @@ namespace Game.Editor.UI {
                 UITheme.BgPanel);
             UITheme.AddShadow(center, 0.4f, 0f, -3f);
 
-            // 주행동: 탐사 시작 (대형 버튼) — button_accent 스프라이트 배경 + 잠수 아이콘
+            // 주행동: 탐사 시작 (대형 CTA) — 황금비 기반 비율(폭 = 높이 × φ³ ≈ 4.236)로 중앙 상단 고정
+            // 가로 스트레치 바 대신 비례 잡힌 CTA로(요구: 내부 버튼도 황금비)
+            float diveH = 96f;
+            float diveW = Mathf.Round(diveH * UITheme.Golden * UITheme.Golden * UITheme.Golden);   // φ³ ≈ 407
             var diveBtn = UITheme.MakeButton("DiveBtn", center.transform,
                 "탐사 시작 — 수중 잠수", UITheme.FontHeading,
-                new Vector2(480f, 72f), new Vector2(0f, 60f),
+                new Vector2(diveW, diveH), Vector2.zero,
                 UITheme.Accent, UITheme.BgDeep);
             UITheme.ApplySpriteButton(diveBtn, "button_accent");
-            SetAnchor(diveBtn.GetComponent<RectTransform>(),
-                new Vector2(0f, 1f), new Vector2(1f, 1f),
-                new Vector2(UITheme.SpaceMD, -UITheme.SpaceMD - 72f),
-                new Vector2(-UITheme.SpaceMD, -UITheme.SpaceMD));
+            // 중앙 상단 고정(앵커 0.5,1 / 피벗 0.5,1) — 패널 폭이 줄어도 중앙 정렬 유지
+            var diveRt = diveBtn.GetComponent<RectTransform>();
+            diveRt.anchorMin = new Vector2(0.5f, 1f);
+            diveRt.anchorMax = new Vector2(0.5f, 1f);
+            diveRt.pivot = new Vector2(0.5f, 1f);
+            diveRt.sizeDelta = new Vector2(diveW, diveH);
+            diveRt.anchoredPosition = new Vector2(0f, -UITheme.SpaceMD);
             // 잠수 아이콘 — 버튼 레이블 왼쪽에 붙임
             UITheme.MakeIconImage("DiveBtnIcon", diveBtn.transform, "icon_dive", 32f,
                 new Vector2(UITheme.SpaceLG + 16f, 0f),
@@ -162,8 +171,8 @@ namespace Game.Editor.UI {
             UITheme.AddShadow(diveBtn.gameObject, 0.5f, 0f, -3f);   // 주행동 버튼 강조 깊이
             UITheme.AddScaleFeedback(diveBtn, 1.06f, 0.95f);        // 주행동 — 더 큰 스케일 강조
 
-            // 보조 버튼 행 (연구 / 제작 / 정화 설치) — 각 버튼에 아이콘+스프라이트 적용
-            float subBtnY = -UITheme.SpaceMD * 2f - 72f - UITheme.SpaceSM;
+            // 보조 버튼 행 (연구 / 제작 / 정화 설치) — CTA 바로 아래(diveH+상하 여백)에 배치
+            float subBtnY = -UITheme.SpaceMD - diveH - UITheme.SpaceMD;
             Button researchBtn = MakeSubButton("ResearchBtn",  center.transform, "연구",     subBtnY, 0f);
             Button craftBtn    = MakeSubButton("CraftBtn",     center.transform, "제작",     subBtnY, 1f);
             Button purifyBtn   = MakeSubButton("PurifyBtn",    center.transform, "정화 설치", subBtnY, 2f);
@@ -180,10 +189,11 @@ namespace Game.Editor.UI {
             UITheme.AddScaleFeedback(purifyBtn);
 
             // ── 중앙 하단: 탐사 브리핑 — 버튼 아래 빈 공간을 안내 정보로 채움 ──
+            // 브리핑 상단 = CTA(-16-96) + 보조버튼행(16+64) + 여백 → 약 -208(타 버튼과 비겹침)
             var brief = UITheme.MakePanel("Brief", center.transform,
                 new Vector2(0f, 0f), new Vector2(1f, 1f),
                 new Vector2(UITheme.SpaceMD, UITheme.SpaceMD),
-                new Vector2(-UITheme.SpaceMD, -190f),
+                new Vector2(-UITheme.SpaceMD, -208f),
                 UITheme.BgHeader);
             UITheme.MakeAccentBar("BriefBar", brief.transform, 1f, 2f, 0f, UITheme.AccentDim);
 
@@ -266,9 +276,10 @@ namespace Game.Editor.UI {
             UITheme.AddShadow(btn.gameObject, 0.35f, 0f, -2f);
             var rt = btn.GetComponent<RectTransform>();
             float w = 1f / 3f;
+            const float subBtnH = 64f;   // 높이 상향(40→64) — 1/3폭 대비 비율을 황금비에 가깝게
             rt.anchorMin = new Vector2(w * idx, 1f);
             rt.anchorMax = new Vector2(w * (idx + 1f), 1f);
-            rt.offsetMin = new Vector2(idx == 0 ? UITheme.SpaceMD : UITheme.SpaceXS, topOffset - 40f);
+            rt.offsetMin = new Vector2(idx == 0 ? UITheme.SpaceMD : UITheme.SpaceXS, topOffset - subBtnH);
             rt.offsetMax = new Vector2(idx == 2 ? -UITheme.SpaceMD : -UITheme.SpaceXS, topOffset);
             return btn;
         }
@@ -525,19 +536,26 @@ namespace Game.Editor.UI {
                 TextAlignmentOptions.Center);
             PinAbsCenter(nextTxt.GetComponent<RectTransform>(), 0.12f, 28f, 16f);
 
-            // 분석 버튼 — button_accent 스프라이트 + 연구 아이콘
+            // 분석 버튼 — 황금비 기반 비율(폭 = 높이 × φ³ ≈ 4.236)로 컬럼 하단 중앙 고정
+            // 가로 스트레치 바 대신 비례 잡힌 CTA로(요구: 분석 버튼도 황금비)
+            float anaH = 56f;
+            float anaW = Mathf.Round(anaH * UITheme.Golden * UITheme.Golden * UITheme.Golden);   // ≈ 237
             Button analyzeBtn = UITheme.MakeButton("AnalyzeBtn", leftCol.transform,
                 "샘플 분석", UITheme.FontBody,
-                new Vector2(0f, 40f), new Vector2(0f, 0.05f + 40f / 2f),
+                new Vector2(anaW, anaH), Vector2.zero,
                 UITheme.Accent, UITheme.BgDeep);
             UITheme.ApplySpriteButton(analyzeBtn, "button_accent");
             UITheme.MakeIconImage("AnalyzeBtnIcon", analyzeBtn.transform, "icon_research", 20f,
                 new Vector2(UITheme.SpaceMD + 10f, 0f),
                 new Vector2(0f, 0.5f), Color.white);
             UITheme.AddScaleFeedback(analyzeBtn);
-            SetAnchorStretch(analyzeBtn.GetComponent<RectTransform>(),
-                0f, 0.05f, UITheme.SpaceMD, UITheme.SpaceLG + 40f,
-                UITheme.SpaceMD, UITheme.SpaceLG);
+            // 하단 중앙 고정(앵커 0.5,0 / 피벗 0.5,0)
+            var anaRt = analyzeBtn.GetComponent<RectTransform>();
+            anaRt.anchorMin = new Vector2(0.5f, 0f);
+            anaRt.anchorMax = new Vector2(0.5f, 0f);
+            anaRt.pivot = new Vector2(0.5f, 0f);
+            anaRt.sizeDelta = new Vector2(anaW, anaH);
+            anaRt.anchoredPosition = new Vector2(0f, UITheme.SpaceLG);
 
             // ── 우측: 약품 해금 카드 3종 (60%) ─────────────────────────────
             var rightCol = UITheme.MakePanel("RightCol", content.transform,
@@ -704,9 +722,15 @@ namespace Game.Editor.UI {
                 new Vector2(UITheme.SpaceLG + 12f, 0f),
                 new Vector2(0f, 0.5f), Color.white);
             UITheme.AddScaleFeedback(craftExecBtn);
-            SetAnchorStretch(craftExecBtn.GetComponent<RectTransform>(),
-                0.08f, 0.08f, UITheme.SpaceMD, UITheme.SpaceLG + 52f,
-                UITheme.SpaceMD, UITheme.SpaceLG);
+            // 제작 버튼 — 황금비 기반 비율(폭 = 높이 × φ³)로 하단 중앙 고정(요구: 제작 버튼도 황금비)
+            float crH = 60f;
+            float crW = Mathf.Round(crH * UITheme.Golden * UITheme.Golden * UITheme.Golden);   // ≈ 254
+            var crRt = craftExecBtn.GetComponent<RectTransform>();
+            crRt.anchorMin = new Vector2(0.5f, 0.08f);
+            crRt.anchorMax = new Vector2(0.5f, 0.08f);
+            crRt.pivot = new Vector2(0.5f, 0f);
+            crRt.sizeDelta = new Vector2(crW, crH);
+            crRt.anchoredPosition = new Vector2(0f, UITheme.SpaceLG);
             craftExecBtn.interactable = false;
 
             // 상태 텍스트 (기존 CraftPanel.cs가 사용)

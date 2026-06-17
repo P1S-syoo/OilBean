@@ -33,9 +33,9 @@ namespace Game.UI {
             Apply(to);
         }
 
-        // 상태별 패널 표시 — 거점=콘솔, 탐사=HUD, 연구/제작=각 패널, 그 외(수상·클리어 등)=전부 숨김
+        // 상태별 패널 표시 — 거점/수상=콘솔(복귀가 Surface 허브로 오므로 콘솔 표시), 탐사=HUD, 연구/제작=각 패널
         void Apply(GameState s) {
-            Set(dockConsole, s == GameState.Dock);
+            Set(dockConsole, s == GameState.Dock || s == GameState.Surface);
             Set(hudPanel, s == GameState.Dive);
             Set(researchPanel, s == GameState.Research);
             Set(craftPanel, s == GameState.Craft);

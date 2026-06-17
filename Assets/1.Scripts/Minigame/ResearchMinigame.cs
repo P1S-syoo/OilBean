@@ -97,6 +97,7 @@ namespace Game.Minigame {
                 return;
             }
             try {
+                transform.SetAsLastSibling();   // 같은 sort 내에서도 최상단(연구 패널 위) 보장
                 _onSolved = onSolved;
                 int nodeCount = 3 + Mathf.Clamp(difficulty, 1, 3);
                 BuildUI(nodeCount);
@@ -211,6 +212,8 @@ namespace Game.Minigame {
         // 팝업 배경 패널 — 글래스 표면(반투명 + 아쿠아 테두리 + 상단 하이라이트)
         void BuildBackground() {
             var rt = GetComponent<RectTransform>();
+            // 포커스 트랩 — 풀스크린 딤 백드롭(뒤 패널 클릭 차단). 골든 루트보다 크게 깔아 화면 전체를 덮음
+            EnsureFocusBackdrop();
             // 배경 Image가 없으면 추가 — 글래스 표면색
             var bgImg = GetComponent<Image>();
             if (bgImg == null) {
@@ -234,6 +237,30 @@ namespace Game.Minigame {
             }
             if (transform.Find("TopAccent") == null) {
                 UITheme.MakeAccentBar("TopAccent", transform, 1f, 3f, UITheme.SpaceMD, UITheme.Accent);
+            }
+        }
+
+        // 풀스크린 딤 백드롭 — 골든 루트(780×482)보다 크게 깔아 화면 전체를 덮고 뒤 패널 클릭을 차단
+        // 멱등: 이미 있으면 재사용. 루트 자식이라 루트 CanvasGroup 알파를 따라 함께 페이드(포커스 모달)
+        void EnsureFocusBackdrop() {
+            try {
+                if (transform.Find("FocusBackdrop") != null) {
+                    return;
+                }
+                var go = new GameObject("FocusBackdrop", typeof(RectTransform));
+                go.transform.SetParent(transform, false);
+                var brt = go.GetComponent<RectTransform>();
+                brt.anchorMin = new Vector2(0.5f, 0.5f);
+                brt.anchorMax = new Vector2(0.5f, 0.5f);
+                brt.pivot = new Vector2(0.5f, 0.5f);
+                brt.anchoredPosition = Vector2.zero;
+                brt.sizeDelta = new Vector2(4000f, 4000f);   // 골든 루트보다 크게 — 화면 전체 덮음
+                var img = go.AddComponent<Image>();
+                img.color = new Color(UITheme.BgDeep.r, UITheme.BgDeep.g, UITheme.BgDeep.b, 0.72f);
+                img.raycastTarget = true;   // 뒤 패널 클릭 차단(포커스 트랩)
+                go.transform.SetAsFirstSibling();   // 퍼즐 콘텐츠 뒤에 배치
+            } catch (Exception e) {
+                Debug.LogError($"[ResearchMinigame] 포커스 백드롭 생성 오류: {e.Message}");
             }
         }
 

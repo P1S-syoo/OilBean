@@ -72,6 +72,19 @@ namespace Game.EditorTools {
             rt.anchoredPosition = Vector2.zero;
             // 팝업 루트를 황금비(가로 긴 변)로 — 780 길이 기준 짧은 변 자동 산출
             rt.sizeDelta = UITheme.GoldenSize(780f, true);
+
+            // 포커스 모달 — 자체 Canvas(overrideSorting, sort 300)로 GameCanvas(sort 10)보다 항상 위에 렌더·레이캐스트
+            // (빌더 순서로 연구/제작 패널 뒤에 깔려 클릭이 막히던 버그 차단). 멱등 — 이미 있으면 값만 재설정
+            var popupCanvas = go.GetComponent<Canvas>();
+            if (popupCanvas == null) {
+                popupCanvas = go.AddComponent<Canvas>();
+            }
+            popupCanvas.overrideSorting = true;
+            popupCanvas.sortingOrder = 300;
+            if (go.GetComponent<GraphicRaycaster>() == null) {
+                go.AddComponent<GraphicRaycaster>();
+            }
+
             go.transform.SetAsLastSibling();   // 다른 패널 위에 표시
             return go;
         }
