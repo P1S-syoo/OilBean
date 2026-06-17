@@ -49,14 +49,15 @@ namespace Game.UI {
                 if (scoreText != null) {
                     scoreText.text = $"{score:N0}";
                     scoreText.transform.DOKill();
-                    scoreText.transform.DOPunchScale(Vector3.one * 0.25f, 0.25f).SetUpdate(true);
+                    // punch 완화 — 스케일 0.18, vibrato 4, elasticity 0.5(과한 흔들림 방지)
+                    scoreText.transform.DOPunchScale(Vector3.one * 0.18f, 0.25f, 4, 0.5f).SetUpdate(true);
                 }
                 if (comboText != null) {
                     if (combo > 1) {
                         comboText.gameObject.SetActive(true);
                         comboText.text = $"x{combo}";
                         comboText.transform.DOKill();
-                        comboText.transform.DOPunchScale(Vector3.one * 0.25f, 0.25f).SetUpdate(true);
+                        comboText.transform.DOPunchScale(Vector3.one * 0.18f, 0.25f, 4, 0.5f).SetUpdate(true);
                     } else {
                         comboText.gameObject.SetActive(false);
                         comboText.text = string.Empty;

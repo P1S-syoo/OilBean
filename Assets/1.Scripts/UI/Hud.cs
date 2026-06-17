@@ -34,7 +34,7 @@ namespace Game.UI {
             }
             if (!Mathf.Approximately(run.Purify, lastPurify)) {
                 lastPurify = run.Purify;
-                purifyFill.fillAmount = run.Purify;
+                UITheme.TweenFill(purifyFill, run.Purify);
             }
         }
 
@@ -56,7 +56,7 @@ namespace Game.UI {
             }
             if (!Mathf.Approximately(battery.Ratio, lastRatio)) {
                 lastRatio = battery.Ratio;
-                batteryFill.fillAmount = battery.Ratio;
+                UITheme.TweenFill(batteryFill, battery.Ratio);
             }
         }
 

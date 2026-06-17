@@ -70,7 +70,8 @@ namespace Game.EditorTools {
             rt.anchorMax = new Vector2(0.5f, 0.5f);
             rt.pivot = new Vector2(0.5f, 0.5f);
             rt.anchoredPosition = Vector2.zero;
-            rt.sizeDelta = new Vector2(780f, 560f);
+            // 팝업 루트를 황금비(가로 긴 변)로 — 780 길이 기준 짧은 변 자동 산출
+            rt.sizeDelta = UITheme.GoldenSize(780f, true);
             go.transform.SetAsLastSibling();   // 다른 패널 위에 표시
             return go;
         }
@@ -96,11 +97,12 @@ namespace Game.EditorTools {
                 return;
             }
             var scoreText = MakeText(hud.transform, "ScoreText", new Vector2(0.5f, 1f),
-                new Vector2(0f, -54f), new Vector2(260f, 56f), 40, TextAlignmentOptions.Center);
+                new Vector2(0f, -54f), new Vector2(260f, 56f), UITheme.FontMetric, TextAlignmentOptions.Center);
+            scoreText.fontStyle = UITheme.MetricStyle;   // 수치 강조 Bold
             var comboText = MakeText(hud.transform, "ComboText", new Vector2(0.5f, 1f),
-                new Vector2(0f, -100f), new Vector2(200f, 40f), 28, TextAlignmentOptions.Center);
+                new Vector2(0f, -100f), new Vector2(200f, 40f), UITheme.FontHeading, TextAlignmentOptions.Center);
             comboText.text = string.Empty;
-            comboText.color = new Color(0.18f, 0.77f, 0.71f);   // 청록 강조
+            comboText.color = UITheme.Accent;   // 청록 강조 → 액센트 토큰
             comboText.gameObject.SetActive(false);
 
             var sh = hud.GetComponent<ScoreHud>();
@@ -141,7 +143,7 @@ namespace Game.EditorTools {
             tmp.text = "F 홀드 — 부유체 설치";
             tmp.fontSize = 6;
             tmp.alignment = TextAlignmentOptions.Center;
-            tmp.color = new Color(0.18f, 0.77f, 0.71f);
+            tmp.color = UITheme.Accent;
             ApplyFont(tmp);
             prompt.SetActive(false);   // 준비 시 PurifyInstaller가 활성
 
@@ -176,7 +178,8 @@ namespace Game.EditorTools {
             }
             if (sr != null) {
                 sr.sprite = fillSprite;
-                sr.color = new Color(0.18f, 0.77f, 0.71f, 0.85f);
+                // 진행 게이지 채움색 → 액센트 토큰(대비 위해 알파 0.9)
+                sr.color = new Color(UITheme.Accent.r, UITheme.Accent.g, UITheme.Accent.b, 0.9f);
                 sr.sortingOrder = 5;
             }
             // 스프라이트 실제 크기를 1x1 유닛으로 정규화 후 +0.5 오프셋 → 부모 왼쪽 끝부터 채워짐
@@ -229,11 +232,11 @@ namespace Game.EditorTools {
             return t;
         }
 
-        // NotoSansKR 폰트 적용(UITheme.UIFont 우선, 없으면 에셋 직접 로드)
+        // IyagiGGC 폰트 적용(UITheme.UIFont 우선, 없으면 에셋 직접 로드)
         static void ApplyFont(TMP_Text t) {
             var f = UITheme.UIFont;
             if (f == null) {
-                f = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/4.Art/Fonts/NotoSansKR SDF.asset");
+                f = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/4.Art/Fonts/IyagiGGC SDF.asset");
             }
             if (f != null) {
                 t.font = f;

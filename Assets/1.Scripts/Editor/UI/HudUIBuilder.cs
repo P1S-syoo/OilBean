@@ -21,7 +21,13 @@ namespace Game.Editor.UI {
 
         const string CANVAS_NAME = "GameCanvas";
         const string ROUND_SPRITE_PATH = "Assets/4.Art/UI/RoundedRect.png";
-        const string KOREAN_FONT_PATH = "Assets/4.Art/Fonts/NotoSansKR SDF.asset";
+        const string KOREAN_FONT_PATH = "Assets/4.Art/Fonts/IyagiGGC SDF.asset";
+
+        // ── HUD 비겹침 레이아웃 상수(8pt 그리드) — 그리드밖 절대수치(-136f 등) 제거 ──
+        const float HUD_SAFE   = UITheme.SpaceXL;    // 화면 가장자리 안전여백 32
+        const float HUD_BLOCK_W = 320f;              // 코너 HUD 블록 너비
+        const float HUD_BLOCK_H = 96f;               // 코너 HUD 블록 높이
+        const float DEPTH_BAND_W = 14f;              // 좌측 수심 밴드 너비
 
         // 한글 지원 TMP 폰트 로드 — 미발견 시 null(기본 폰트, 한글 깨짐 경고)
         static TMP_FontAsset LoadKoreanFont() {
@@ -59,6 +65,9 @@ namespace Game.Editor.UI {
 
                 // ── 패널 라우터 배선 (GameState별 토글) ──
                 WireRouter(canvasGo, bootstrap);
+
+                // ── 런타임 한글 폰트 바인더 배선(□ 깨짐 방지 핵심) ──
+                WireFontBinder();
 
                 // 씬 더티 표시
                 EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
@@ -109,15 +118,17 @@ namespace Game.Editor.UI {
                 new Vector2(0f, -72f), new Vector2(0f, 0f),
                 UITheme.BgHeader);
 
-            // 타이틀
+            // 타이틀 — ■ 기호 제거, 좌측 4px 세로 아쿠아 액센트바로 대체
+            MakeVAccentBar("TitleAccent", topBar.transform, UITheme.SpaceLG, 28f);
             var titleTxt = UITheme.MakeText("Title", topBar.transform,
-                "■ 정화선 거점", UITheme.FontHeading, UITheme.Accent,
+                "정화선 거점", UITheme.FontTitle, UITheme.TextPrimary,
                 TextAlignmentOptions.Left);
+            titleTxt.fontStyle = UITheme.HeadingStyle;
             var titleRt = titleTxt.GetComponent<RectTransform>();
             titleRt.anchorMin = new Vector2(0f, 0f);
             titleRt.anchorMax = new Vector2(0.3f, 1f);
-            titleRt.offsetMin = new Vector2(UITheme.SpaceLG, 0f);
-            titleRt.offsetMax = new Vector2(0f, 0f);
+            titleRt.offsetMin = new Vector2(UITheme.SpaceLG + 16f, 0f);
+            titleRt.offsetMax = new Vector2(-UITheme.SpaceSM, 0f);
 
             // 자원 텍스트 (강재 / 샘플 / 적재 / 정화제)
             var resTxt = MakeStretchText("ResourceBar", topBar.transform,
@@ -149,6 +160,7 @@ namespace Game.Editor.UI {
                 new Vector2(UITheme.SpaceLG + 16f, 0f),
                 new Vector2(0f, 0.5f), Color.white);
             UITheme.AddShadow(diveBtn.gameObject, 0.5f, 0f, -3f);   // 주행동 버튼 강조 깊이
+            UITheme.AddScaleFeedback(diveBtn, 1.06f, 0.95f);        // 주행동 — 더 큰 스케일 강조
 
             // 보조 버튼 행 (연구 / 제작 / 정화 설치) — 각 버튼에 아이콘+스프라이트 적용
             float subBtnY = -UITheme.SpaceMD * 2f - 72f - UITheme.SpaceSM;
@@ -162,6 +174,10 @@ namespace Game.Editor.UI {
             AddSubBtnIcon(researchBtn, "icon_research");
             AddSubBtnIcon(craftBtn,    "icon_craft");
             AddSubBtnIcon(purifyBtn,   "icon_purify");
+            // 보조 버튼 스케일 피드백
+            UITheme.AddScaleFeedback(researchBtn);
+            UITheme.AddScaleFeedback(craftBtn);
+            UITheme.AddScaleFeedback(purifyBtn);
 
             // ── 중앙 하단: 탐사 브리핑 — 버튼 아래 빈 공간을 안내 정보로 채움 ──
             var brief = UITheme.MakePanel("Brief", center.transform,
@@ -269,7 +285,8 @@ namespace Game.Editor.UI {
 
         // ═══════════════════════════════════════════════════════════════════════
         // 2. 인게임 HUD — GameState.Dive 시 표시
-        // 레이아웃: 좌상 배터리 / 우상 적재+수심 / 좌측 수심 밴드 / 중앙하단 토스트 / 상단 경고
+        // 비겹침 4모서리 배치: 좌상 배터리 / 우상 수심 / 좌하 임무 / 우하 적재
+        // 좌측 수심 밴드(세로 중앙) / 상단 배너·경고아이콘·하단 토스트는 코너 블록과 수직 분리
         // ═══════════════════════════════════════════════════════════════════════
         static void BuildHudPanel(Transform canvas,
                 RunData run, Battery battery, Collector collector) {
@@ -279,126 +296,146 @@ namespace Game.Editor.UI {
             var root = UITheme.MakeStretchPanel("HudPanel", canvas, color: Color.clear);
             root.SetActive(false);
 
-            // ── 좌상: 배터리 게이지 블록 ────────────────────────────────────
-            var batBlock = UITheme.MakePanel("BatteryBlock", root.transform,
-                new Vector2(0f, 1f), new Vector2(0f, 1f),
-                new Vector2(UITheme.SpaceMD, -136f),
-                new Vector2(220f, -UITheme.SpaceMD),
-                UITheme.BgPanel);
-            UITheme.AddShadow(batBlock, 0.5f, 0f, -3f);
-
-            // 배터리 아이콘(좌상) + 라벨(아이콘 우측) — 아이콘 틴트 흰색(스프라이트 원본 유지)
-            UITheme.MakeIconImage("BatIcon", batBlock.transform, "icon_battery", 28f,
-                new Vector2(UITheme.SpaceSM + 14f, -UITheme.SpaceSM - 14f),
+            // ── 좌상: 배터리 블록(글래스) — 안전여백 32, 320×96 ─────────────
+            var batBlock = MakeCornerBlock("BatteryBlock", root.transform, corner: 0);
+            UITheme.MakeIconImage("BatIcon", batBlock.transform, "icon_battery", 30f,
+                new Vector2(UITheme.SpaceMD + 15f, -UITheme.SpaceSM - 15f),
                 new Vector2(0f, 1f), Color.white);
             var batLabel = UITheme.MakeText("BatLabel", batBlock.transform,
                 "배터리", UITheme.FontCaption, UITheme.TextSecondary);
-            PinTopLeft(batLabel.GetComponent<RectTransform>(), UITheme.SpaceSM + 34f, UITheme.SpaceSM, 80f, 18f);
-
-            // 게이지 — 아이콘(28px) + 간격(6px) 만큼 좌측 오프셋 추가
+            PinTopLeft(batLabel.GetComponent<RectTransform>(), UITheme.SpaceMD + 38f, UITheme.SpaceSM, 100f, 20f);
+            // 수치 강조 — FontMetric(40) Bold, 우상단 큰 % 표시
+            var batPct = UITheme.MakeText("BatPct", batBlock.transform,
+                "100%", UITheme.FontMetric, UITheme.ColSuccess, TextAlignmentOptions.Right);
+            batPct.fontStyle = UITheme.MetricStyle;
+            PinTopRight(batPct.GetComponent<RectTransform>(), UITheme.SpaceMD, UITheme.SpaceXS, 130f, 44f);
+            // 게이지 — 블록 하단, 아이콘 너비만큼 좌측 오프셋
             Image batFill = UITheme.MakeStretchGauge("BatGauge", batBlock.transform,
                 new Vector2(0f, 0f), new Vector2(1f, 0f),
-                new Vector2(UITheme.SpaceSM + 34f, UITheme.SpaceSM),
-                new Vector2(-UITheme.SpaceSM, UITheme.SpaceSM + UITheme.GaugeHeight),
+                new Vector2(UITheme.SpaceMD + 38f, UITheme.SpaceMD),
+                new Vector2(-UITheme.SpaceMD, UITheme.SpaceMD + UITheme.GaugeHeight),
                 UITheme.ColSuccess);
 
-            var batPct = UITheme.MakeText("BatPct", batBlock.transform,
-                "100%", UITheme.FontCaption, UITheme.TextPrimary, TextAlignmentOptions.Right);
-            PinTopRight(batPct.GetComponent<RectTransform>(), UITheme.SpaceSM, UITheme.SpaceSM, 60f, 18f);
+            // ── 우상: 수심 블록(글래스) — 큰 수치 강조 ─────────────────────
+            var depthBlock = MakeCornerBlock("DepthBlock", root.transform, corner: 1);
+            UITheme.MakeIconImage("DepthIcon", depthBlock.transform, "icon_depth", 28f,
+                new Vector2(UITheme.SpaceMD + 14f, -UITheme.SpaceSM - 14f),
+                new Vector2(0f, 1f), UITheme.ColInfo);
+            var depthLabel = UITheme.MakeText("DepthLabel", depthBlock.transform,
+                "수심", UITheme.FontCaption, UITheme.TextSecondary);
+            PinTopLeft(depthLabel.GetComponent<RectTransform>(), UITheme.SpaceMD + 38f, UITheme.SpaceSM, 100f, 20f);
+            var depthTxt = UITheme.MakeText("DepthTxt", depthBlock.transform,
+                "0m", UITheme.FontMetric, UITheme.ColInfo, TextAlignmentOptions.Right);
+            depthTxt.fontStyle = UITheme.MetricStyle;
+            // 블록 전체 우측을 채우는 큰 수치(아이콘/레이블 아래)
+            var depthRt = depthTxt.GetComponent<RectTransform>();
+            depthRt.anchorMin = new Vector2(0f, 0f);
+            depthRt.anchorMax = new Vector2(1f, 1f);
+            depthRt.offsetMin = new Vector2(UITheme.SpaceMD, UITheme.SpaceSM);
+            depthRt.offsetMax = new Vector2(-UITheme.SpaceMD, -UITheme.SpaceMD - 22f);
 
-            // ── 우상: 적재 게이지 + 수심 표시 ───────────────────────────────
-            var cargoBlock = UITheme.MakePanel("CargoBlock", root.transform,
-                new Vector2(1f, 1f), new Vector2(1f, 1f),
-                new Vector2(-220f, -136f),
-                new Vector2(-UITheme.SpaceMD, -UITheme.SpaceMD),
-                UITheme.BgPanel);
-            UITheme.AddShadow(cargoBlock, 0.5f, 0f, -3f);
-
-            // 적재 아이콘(좌상) + 라벨(아이콘 우측)
-            UITheme.MakeIconImage("CargoIcon", cargoBlock.transform, "icon_cargo", 28f,
-                new Vector2(UITheme.SpaceSM + 14f, -UITheme.SpaceSM - 14f),
+            // ── 우하: 적재 블록(글래스) — 게이지 + kg 수치 ─────────────────
+            var cargoBlock = MakeCornerBlock("CargoBlock", root.transform, corner: 3);
+            UITheme.MakeIconImage("CargoIcon", cargoBlock.transform, "icon_cargo", 30f,
+                new Vector2(UITheme.SpaceMD + 15f, -UITheme.SpaceSM - 15f),
                 new Vector2(0f, 1f), Color.white);
             var cargoLabel = UITheme.MakeText("CargoLabel", cargoBlock.transform,
                 "적재", UITheme.FontCaption, UITheme.TextSecondary);
-            PinTopLeft(cargoLabel.GetComponent<RectTransform>(), UITheme.SpaceSM + 34f, UITheme.SpaceSM, 60f, 18f);
-
-            // 수심 아이콘(우상) + 수심 텍스트(아이콘 좌측)
-            UITheme.MakeIconImage("DepthIcon", cargoBlock.transform, "icon_depth", 20f,
-                new Vector2(-UITheme.SpaceSM - 10f, -UITheme.SpaceSM - 10f),
-                new Vector2(1f, 1f), UITheme.ColInfo);
-            var depthTxt = UITheme.MakeText("DepthTxt", cargoBlock.transform,
-                "수심 0m", UITheme.FontCaption, UITheme.ColInfo, TextAlignmentOptions.Right);
-            PinTopRight(depthTxt.GetComponent<RectTransform>(), UITheme.SpaceSM + 26f, UITheme.SpaceSM, 80f, 18f);
-
-            // 적재 게이지 — 아이콘 너비(34px) 만큼 좌측 오프셋
+            PinTopLeft(cargoLabel.GetComponent<RectTransform>(), UITheme.SpaceMD + 38f, UITheme.SpaceSM, 100f, 20f);
+            var cargoTxt = UITheme.MakeText("CargoTxt", cargoBlock.transform,
+                "0 / 70 kg", UITheme.FontHeading, UITheme.TextPrimary, TextAlignmentOptions.Right);
+            cargoTxt.fontStyle = UITheme.HeadingStyle;
+            PinTopRight(cargoTxt.GetComponent<RectTransform>(), UITheme.SpaceMD, UITheme.SpaceSM, 160f, 30f);
             Image cargoFill = UITheme.MakeStretchGauge("CargoGauge", cargoBlock.transform,
                 new Vector2(0f, 0f), new Vector2(1f, 0f),
-                new Vector2(UITheme.SpaceSM + 34f, UITheme.SpaceSM),
-                new Vector2(-UITheme.SpaceSM, UITheme.SpaceSM + UITheme.GaugeHeight),
+                new Vector2(UITheme.SpaceMD + 38f, UITheme.SpaceMD),
+                new Vector2(-UITheme.SpaceMD, UITheme.SpaceMD + UITheme.GaugeHeight),
                 UITheme.ColWarn);
 
-            var cargoTxt = UITheme.MakeText("CargoTxt", cargoBlock.transform,
-                "0 / 70 kg", UITheme.FontCaption, UITheme.TextPrimary, TextAlignmentOptions.Right);
-            PinTopRight(cargoTxt.GetComponent<RectTransform>(), UITheme.SpaceSM, UITheme.SpaceSM, 100f, 18f);
+            // ── 좌하: 정화도 / 임무 안내 블록(글래스) ───────────────────────
+            var missionBlock = MakeCornerBlock("MissionBlock", root.transform, corner: 2);
+            UITheme.MakeIconImage("MissionIcon", missionBlock.transform, "icon_purify", 26f,
+                new Vector2(UITheme.SpaceMD + 13f, -UITheme.SpaceSM - 13f),
+                new Vector2(0f, 1f), UITheme.Accent);
+            var missionLabel = UITheme.MakeText("MissionLabel", missionBlock.transform,
+                "임무", UITheme.FontCaption, UITheme.TextSecondary);
+            PinTopLeft(missionLabel.GetComponent<RectTransform>(), UITheme.SpaceMD + 36f, UITheme.SpaceSM, 100f, 20f);
+            var missionTxt = MakeStretchText("MissionTxt", missionBlock.transform,
+                "샘플 수집 후 복귀", UITheme.FontBody, UITheme.TextPrimary,
+                new Vector2(0f, 0f), new Vector2(1f, 0f),
+                new Vector2(UITheme.SpaceMD, UITheme.SpaceMD),
+                new Vector2(-UITheme.SpaceMD, UITheme.SpaceMD + 26f),
+                TextAlignmentOptions.Left);
 
-            // ── 좌측 세로: 수심 밴드 ─────────────────────────────────────────
+            // ── 좌측 세로: 수심 밴드 — 화면 중앙, 코너 블록과 분리(y 20%~80%) ──
             var depthBand = UITheme.MakePanel("DepthBand", root.transform,
-                new Vector2(0f, 0.1f), new Vector2(0f, 0.9f),
+                new Vector2(0f, 0.2f), new Vector2(0f, 0.8f),
                 new Vector2(UITheme.SpaceSM, 0f),
-                new Vector2(UITheme.SpaceSM + 8f, 0f),
-                UITheme.BgBorder);
+                new Vector2(UITheme.SpaceSM + DEPTH_BAND_W, 0f),
+                UITheme.BgHeader);
+            UITheme.AddShadow(depthBand, 0.4f, 0f, -2f);
 
-            // Common(상) / Uncommon(중) / Rare(하) 3구간
-            BuildDepthSegment("DepthCommon",   depthBand.transform, 0.67f, 1f,   UITheme.DepthCommon);
+            // 얕음(상) / 중간(중) / 깊음(하) 3구간 — 불투명도 상향(가독성)
+            BuildDepthSegment("DepthCommon",   depthBand.transform, 0.67f, 1f,    UITheme.DepthCommon);
             BuildDepthSegment("DepthUncommon", depthBand.transform, 0.33f, 0.67f, UITheme.DepthUncommon);
-            BuildDepthSegment("DepthRare",     depthBand.transform, 0f,   0.33f, UITheme.DepthRare);
+            BuildDepthSegment("DepthRare",     depthBand.transform, 0f,    0.33f, UITheme.DepthRare);
 
-            // 수심 밴드 레이블
-            BuildDepthLabel("LblCommon",   depthBand.transform, 0.67f, 1f,   "Common",   UITheme.DepthCommon);
-            BuildDepthLabel("LblUncommon", depthBand.transform, 0.33f, 0.67f, "Uncommon", UITheme.DepthUncommon);
-            BuildDepthLabel("LblRare",     depthBand.transform, 0f,   0.33f, "Rare",     UITheme.DepthRare);
+            // 수심 밴드 한글 레이블(우측)
+            BuildDepthLabel("LblCommon",   depthBand.transform, 0.67f, 1f,    "얕음", UITheme.DepthCommon);
+            BuildDepthLabel("LblUncommon", depthBand.transform, 0.33f, 0.67f, "중간", UITheme.TextPrimary);
+            BuildDepthLabel("LblRare",     depthBand.transform, 0f,    0.33f, "깊음", UITheme.TextPrimary);
 
-            // ── 상단 경고 배너 ───────────────────────────────────────────────
+            // 현재 수심 인디케이터 — 밴드 위를 오르내리는 아쿠아 마커(런타임에서 위치 갱신)
+            var depthMarker = new GameObject("DepthMarker");
+            depthMarker.transform.SetParent(depthBand.transform, false);
+            var markerRt = depthMarker.AddComponent<RectTransform>();
+            markerRt.anchorMin = new Vector2(0f, 1f);
+            markerRt.anchorMax = new Vector2(1f, 1f);
+            markerRt.offsetMin = new Vector2(-3f, -3f);
+            markerRt.offsetMax = new Vector2(3f, 3f);
+            var markerImg = depthMarker.AddComponent<Image>();
+            markerImg.color = UITheme.Accent;
+            UITheme.ApplyRound(markerImg, 4f);
+
+            // ── 상단 경고 배너 — 코너 블록 아래(y -144~-200)로 내려 비겹침 ──
             var warnBanner = UITheme.MakePanel("WarnBanner", root.transform,
-                new Vector2(0.2f, 1f), new Vector2(0.8f, 1f),
-                new Vector2(0f, -48f), new Vector2(0f, 0f),
+                new Vector2(0.3f, 1f), new Vector2(0.7f, 1f),
+                new Vector2(0f, -HUD_SAFE - HUD_BLOCK_H - UITheme.SpaceMD - 56f),
+                new Vector2(0f, -HUD_SAFE - HUD_BLOCK_H - UITheme.SpaceMD),
                 UITheme.ColDanger);
             warnBanner.SetActive(false);   // 평상시 숨김
 
-            // 배너 내 경고 아이콘(좌측 중앙 정렬)
-            UITheme.MakeIconImage("WarnBannerIcon", warnBanner.transform, "icon_warning", 26f,
-                new Vector2(UITheme.SpaceMD + 13f, 0f),
+            UITheme.MakeIconImage("WarnBannerIcon", warnBanner.transform, "icon_warning", 28f,
+                new Vector2(UITheme.SpaceMD + 14f, 0f),
                 new Vector2(0f, 0.5f), Color.white);
-
             var warnTxt = UITheme.MakeText("WarnText", warnBanner.transform,
-                "배터리 방전 — 정화선 복귀", UITheme.FontBody,
+                "배터리 방전 — 정화선 복귀", UITheme.FontHeading,
                 UITheme.TextPrimary, TextAlignmentOptions.Center);
-            warnTxt.fontStyle = FontStyles.Bold;
+            warnTxt.fontStyle = UITheme.HeadingStyle;
 
-            // ── 독립 경고 아이콘 인디케이터 — 배터리 부족/오염원 시 활성화 ──
-            // 좌하단 HUD 코너에 배치, 기본 비활성(런타임에서 SetActive로 토글)
+            // ── 독립 경고 아이콘 — 화면 중앙 상단(코너·배너와 분리), 기본 비활성 ──
             var warnIconGo = new GameObject("WarnIcon");
             warnIconGo.transform.SetParent(root.transform, false);
             var warnIconRt = warnIconGo.AddComponent<RectTransform>();
-            warnIconRt.anchorMin = new Vector2(0f, 0f);
-            warnIconRt.anchorMax = new Vector2(0f, 0f);
-            warnIconRt.sizeDelta = new Vector2(40f, 40f);
-            warnIconRt.anchoredPosition = new Vector2(UITheme.SpaceMD + 20f, UITheme.SpaceMD + 20f);
+            warnIconRt.anchorMin = new Vector2(0.5f, 1f);
+            warnIconRt.anchorMax = new Vector2(0.5f, 1f);
+            warnIconRt.sizeDelta = new Vector2(48f, 48f);
+            warnIconRt.anchoredPosition = new Vector2(0f, -HUD_SAFE - 24f);
             var warnIconImg = warnIconGo.AddComponent<Image>();
             warnIconImg.sprite = UITheme.LoadUISprite("icon_warning");
             warnIconImg.color = UITheme.ColDanger;
             warnIconImg.preserveAspect = true;
-            warnIconGo.SetActive(false);   // 기본 비활성 — 런타임에서 연결
+            warnIconImg.raycastTarget = false;   // 장식 — 레이캐스트 제외
+            warnIconGo.SetActive(false);
 
-            // ── 중앙 하단: 수집 토스트 ───────────────────────────────────────
-            // Toast 컴포넌트는 기존 Toast.cs 사용 — 별도 게임오브젝트에 부착
-            var toastGo = UITheme.MakePanel("CollectToast", root.transform,
-                new Vector2(0.25f, 0f), new Vector2(0.75f, 0f),
-                new Vector2(0f, UITheme.SpaceXXL),
-                new Vector2(0f, UITheme.SpaceXXL + 44f),
-                new Color(0.08f, 0.2f, 0.24f, 0.92f));
+            // ── 하단 중앙: 수집 토스트 — 우하 적재블록 위(y 160~224)로 비겹침 ──
+            var toastGo = UITheme.MakeGlassPanel("CollectToast", root.transform,
+                new Vector2(0.3f, 0f), new Vector2(0.7f, 0f),
+                new Vector2(0f, HUD_SAFE + HUD_BLOCK_H + UITheme.SpaceXL),
+                new Vector2(0f, HUD_SAFE + HUD_BLOCK_H + UITheme.SpaceXL + 52f));
             var toastTxt = UITheme.MakeText("ToastTxt", toastGo.transform,
                 "", UITheme.FontBody, UITheme.Accent, TextAlignmentOptions.Center);
+            toastTxt.fontStyle = FontStyles.Bold;
             toastGo.SetActive(false);
 
             // Hud 컴포넌트 배선 (기존 Hud.cs)
@@ -406,7 +443,7 @@ namespace Game.Editor.UI {
             var hudSo = new SerializedObject(hudComp);
             AssignRef(hudSo, "run",         run);
             AssignRef(hudSo, "battery",     battery);
-            AssignRef(hudSo, "infoText",    cargoTxt);
+            // infoText는 배선하지 않음 — 적재 수치는 HudExtUI.cargoText가 전용으로 갱신(160px 오버플로 분리)
             AssignRef(hudSo, "batteryFill", batFill);
             AssignRef(hudSo, "warnText",    warnTxt);
             hudSo.ApplyModifiedPropertiesWithoutUndo();
@@ -419,7 +456,10 @@ namespace Game.Editor.UI {
             AssignRef(extSo, "collector",    collector);
             AssignRef(extSo, "batteryPct",   batPct);
             AssignRef(extSo, "cargoFill",    cargoFill);
+            AssignRef(extSo, "cargoText",    cargoTxt);
             AssignRef(extSo, "depthText",    depthTxt);
+            AssignRef(extSo, "depthMarker",  markerRt);
+            AssignRef(extSo, "missionText",  missionTxt);
             AssignRef(extSo, "warnBanner",   warnBanner);
             AssignRef(extSo, "toastRoot",    toastGo);
             AssignRef(extSo, "toastText",    toastTxt);
@@ -437,10 +477,8 @@ namespace Game.Editor.UI {
                 RunData run, Research research, Collector collector) {
             DestroyExisting(canvas, "ResearchPanel");
 
-            var root = UITheme.MakePanel("ResearchPanel", canvas,
-                new Vector2(0.17f, 0.13f), new Vector2(0.83f, 0.87f),
-                Vector2.zero, Vector2.zero,
-                UITheme.BgDeep);
+            // 황금비 패널(1.618:1) — 화면 중앙, 안전영역 내 고정크기
+            var root = MakeGoldenPanel("ResearchPanel", canvas, 1200f);
             // 패널 배경 크롬 스프라이트 적용 — 원본 색이 없으면 단색 폴백
             UITheme.ApplyPanelSprite(root, "panel_bg", new Color(1f, 1f, 1f, 0.04f));
             UITheme.AddShadow(root, 0.6f, 0f, -6f);
@@ -448,7 +486,7 @@ namespace Game.Editor.UI {
             root.SetActive(false);
 
             // 헤더 — header_bar 스프라이트는 BuildPanelHeader 내부에서 적용
-            BuildPanelHeader(root.transform, "■ 연구실 — 샘플 분석");
+            BuildPanelHeader(root.transform, "연구실 — 샘플 분석");
 
             // 컨텐츠 영역
             var content = UITheme.MakePanel("Content", root.transform,
@@ -496,6 +534,7 @@ namespace Game.Editor.UI {
             UITheme.MakeIconImage("AnalyzeBtnIcon", analyzeBtn.transform, "icon_research", 20f,
                 new Vector2(UITheme.SpaceMD + 10f, 0f),
                 new Vector2(0f, 0.5f), Color.white);
+            UITheme.AddScaleFeedback(analyzeBtn);
             SetAnchorStretch(analyzeBtn.GetComponent<RectTransform>(),
                 0f, 0.05f, UITheme.SpaceMD, UITheme.SpaceLG + 40f,
                 UITheme.SpaceMD, UITheme.SpaceLG);
@@ -554,10 +593,8 @@ namespace Game.Editor.UI {
                 RunData run, Research research, Crafting crafting, Collector collector) {
             DestroyExisting(canvas, "CraftPanel");
 
-            var root = UITheme.MakePanel("CraftPanel", canvas,
-                new Vector2(0.15f, 0.12f), new Vector2(0.85f, 0.88f),
-                Vector2.zero, Vector2.zero,
-                UITheme.BgDeep);
+            // 황금비 패널(1.618:1) — 화면 중앙, 안전영역 내 고정크기
+            var root = MakeGoldenPanel("CraftPanel", canvas, 1300f);
             // 패널 배경 크롬 스프라이트 적용
             UITheme.ApplyPanelSprite(root, "panel_bg", new Color(1f, 1f, 1f, 0.04f));
             UITheme.AddShadow(root, 0.6f, 0f, -6f);
@@ -565,7 +602,7 @@ namespace Game.Editor.UI {
             root.SetActive(false);
 
             // 헤더 — header_bar 스프라이트는 BuildPanelHeader 내부에서 적용
-            BuildPanelHeader(root.transform, "■ 제작소 — 장비 제작");
+            BuildPanelHeader(root.transform, "제작소 — 장비 제작");
 
             var content = UITheme.MakePanel("Content", root.transform,
                 new Vector2(0f, 0f), new Vector2(1f, 1f),
@@ -604,6 +641,14 @@ namespace Game.Editor.UI {
 
             MakeColTitle(midCol.transform, "레시피");
 
+            // 레시피 목록 컨테이너 — VerticalLayoutGroup으로 행 자동 배치(텍스트 길이 변동 대응)
+            var recipeList = UITheme.MakePanel("RecipeList", midCol.transform,
+                new Vector2(0f, 0f), new Vector2(1f, 1f),
+                new Vector2(UITheme.SpaceSM, UITheme.SpaceSM),
+                new Vector2(-UITheme.SpaceSM, -56f),
+                Color.clear);
+            UITheme.AddVerticalLayout(recipeList, UITheme.SpaceSM, UITheme.SpaceXS, true, false);
+
             // 레시피 행 6종 (부유체 3 + 업그레이드 3)
             string[] recipeIds    = { "buoy_1", "buoy_2", "buoy_3", "up_cargo", "up_battery", "gear_hull" };
             string[] recipeLabels = { "정화 부유체 Ⅰ", "정화 부유체 Ⅱ", "정화 부유체 Ⅲ",
@@ -612,10 +657,8 @@ namespace Game.Editor.UI {
                                       "일반강재 16kg", "합금강재 18kg", "특수강재 30kg" };
             var recipeBtns = new Button[6];
             for (int i = 0; i < 6; i++) {
-                float anchorY1 = 1f - (i + 1) * (0.85f / 6f) - 0.08f;
-                float anchorY2 = 1f - i       * (0.85f / 6f) - 0.08f;
-                recipeBtns[i] = BuildRecipeRow(midCol.transform,
-                    recipeLabels[i], recipeReqs[i], i, anchorY1, anchorY2);
+                recipeBtns[i] = BuildRecipeRow(recipeList.transform,
+                    recipeLabels[i], recipeReqs[i], i);
             }
 
             // ── 우측: 선택 상세 + 제작 버튼 (35%) ───────────────────────────
@@ -660,6 +703,7 @@ namespace Game.Editor.UI {
             UITheme.MakeIconImage("CraftExecBtnIcon", craftExecBtn.transform, "icon_craft", 24f,
                 new Vector2(UITheme.SpaceLG + 12f, 0f),
                 new Vector2(0f, 0.5f), Color.white);
+            UITheme.AddScaleFeedback(craftExecBtn);
             SetAnchorStretch(craftExecBtn.GetComponent<RectTransform>(),
                 0.08f, 0.08f, UITheme.SpaceMD, UITheme.SpaceLG + 52f,
                 UITheme.SpaceMD, UITheme.SpaceLG);
@@ -751,23 +795,26 @@ namespace Game.Editor.UI {
             UITheme.AddShadow(header, 0.5f, 0f, -2f);
             // 헤더 하단 액센트 언더라인(이전엔 패널 정중앙에 잘못 배치되던 버그 수정)
             UITheme.MakeAccentBar("HeaderUnderline", header.transform, 0f, 2f, 0f, UITheme.Accent);
+            // ■ 기호 제거 — 좌측 세로 아쿠아 액센트바로 대체
+            MakeVAccentBar("HeaderAccent", header.transform, UITheme.SpaceLG, 30f);
             var t = UITheme.MakeText("HeaderTitle", header.transform,
-                title, UITheme.FontHeading, UITheme.Accent, TextAlignmentOptions.Left);
+                title, UITheme.FontTitle, UITheme.TextPrimary, TextAlignmentOptions.Left);
             var rt = t.GetComponent<RectTransform>();
             rt.anchorMin = new Vector2(0f, 0f);
             rt.anchorMax = new Vector2(1f, 1f);
-            rt.offsetMin = new Vector2(UITheme.SpaceLG, UITheme.SpaceXS);
-            rt.offsetMax = new Vector2(-UITheme.SpaceLG, -UITheme.SpaceXS);
-            t.fontStyle = FontStyles.Bold;
+            rt.offsetMin = new Vector2(UITheme.SpaceLG + 16f, UITheme.SpaceXS);
+            rt.offsetMax = new Vector2(-UITheme.SpaceLG - 64f, -UITheme.SpaceXS);
+            t.fontStyle = UITheme.HeadingStyle;
 
-            // 우상단 닫기 버튼 — 연구/제작 패널을 출발 상태(거점/수상)로 복귀(HubCloseButton)
-            var closeBtn = UITheme.MakeButton("CloseBtn", header.transform, "닫기 ✕", UITheme.FontBody,
-                new Vector2(104f, 36f), Vector2.zero, UITheme.BgBorder, UITheme.TextPrimary);
+            // 우상단 닫기 버튼 — 폰트 글리프 안전한 "X" 사용(✕ 깨짐 회피), 스케일 피드백
+            var closeBtn = UITheme.MakeButton("CloseBtn", header.transform, "X", UITheme.FontHeading,
+                new Vector2(40f, 40f), Vector2.zero, UITheme.BgBorder, UITheme.TextPrimary);
             var cbRt = closeBtn.GetComponent<RectTransform>();
             cbRt.anchorMin = new Vector2(1f, 0.5f);
             cbRt.anchorMax = new Vector2(1f, 0.5f);
-            cbRt.sizeDelta = new Vector2(104f, 36f);
-            cbRt.anchoredPosition = new Vector2(-UITheme.SpaceLG - 52f, 0f);
+            cbRt.sizeDelta = new Vector2(40f, 40f);
+            cbRt.anchoredPosition = new Vector2(-UITheme.SpaceLG - 20f, 0f);
+            UITheme.AddScaleFeedback(closeBtn);
             closeBtn.gameObject.AddComponent<Game.UI.HubCloseButton>();
         }
 
@@ -912,18 +959,17 @@ namespace Game.Editor.UI {
             return card;
         }
 
-        // 레시피 행 버튼
-        static Button BuildRecipeRow(Transform parent, string name, string req,
-                int idx, float anchorY1, float anchorY2) {
+        // 레시피 행 버튼 — VerticalLayoutGroup 자식. LayoutElement로 높이 고정, 너비는 그룹이 stretch
+        static Button BuildRecipeRow(Transform parent, string name, string req, int idx) {
             var btn = UITheme.MakeButton("Recipe_" + idx, parent,
                 "", UITheme.FontBody, Vector2.zero, Vector2.zero,
                 UITheme.BgBorder, UITheme.TextPrimary);
-            var rt = btn.GetComponent<RectTransform>();
-            rt.anchorMin = new Vector2(0f, anchorY1);
-            rt.anchorMax = new Vector2(1f, anchorY2);
-            rt.offsetMin = new Vector2(UITheme.SpaceSM, UITheme.SpaceXS);
-            rt.offsetMax = new Vector2(-UITheme.SpaceSM, -UITheme.SpaceXS);
+            // 레이아웃 그룹이 크기를 제어하므로 LayoutElement로 선호 높이만 지정
+            var le = btn.gameObject.AddComponent<LayoutElement>();
+            le.minHeight = 52f;
+            le.preferredHeight = 52f;
             UITheme.AddShadow(btn.gameObject, 0.35f, 0f, -2f);
+            UITheme.AddScaleFeedback(btn);
 
             // 좌측 액센트 바 — 부유체(0~2)는 청록, 업그레이드(3~5)는 성공색으로 구분
             var bar = new GameObject("AccentBar");
@@ -968,22 +1014,78 @@ namespace Game.Editor.UI {
             rt.offsetMin = Vector2.zero;
             rt.offsetMax = Vector2.zero;
             var img = go.AddComponent<Image>();
-            img.color = new Color(color.r, color.g, color.b, 0.5f);
+            img.color = new Color(color.r, color.g, color.b, 0.85f);   // 불투명도 상향(가독성)
+            img.raycastTarget = false;   // 장식 — 레이캐스트 제외
         }
 
-        // 수심 밴드 레이블 (우측)
+        // 수심 밴드 레이블 (우측) — 밴드 너비 확장 대응, 한글 라벨 가독성
         static void BuildDepthLabel(string name, Transform parent,
                 float anchorY1, float anchorY2, string label, Color color) {
             var t = UITheme.MakeText(name, parent,
                 label, UITheme.FontCaption, color, TextAlignmentOptions.Left);
+            t.fontStyle = FontStyles.Bold;
             var rt = t.GetComponent<RectTransform>();
-            rt.anchorMin = new Vector2(1f, (anchorY1 + anchorY2) * 0.5f - 0.04f);
-            rt.anchorMax = new Vector2(1f, (anchorY1 + anchorY2) * 0.5f + 0.04f);
-            rt.offsetMin = new Vector2(UITheme.SpaceXS, 0f);
-            rt.offsetMax = new Vector2(UITheme.SpaceXS + 80f, 0f);
+            rt.anchorMin = new Vector2(1f, (anchorY1 + anchorY2) * 0.5f - 0.06f);
+            rt.anchorMax = new Vector2(1f, (anchorY1 + anchorY2) * 0.5f + 0.06f);
+            rt.offsetMin = new Vector2(UITheme.SpaceSM, 0f);
+            rt.offsetMax = new Vector2(UITheme.SpaceSM + 56f, 0f);
         }
 
         // ── 레이아웃 유틸 ─────────────────────────────────────────────────────
+
+        // HUD 코너 글래스 블록 — corner: 0=좌상 1=우상 2=좌하 3=우하. 안전여백·고정크기로 비겹침 보장
+        static GameObject MakeCornerBlock(string name, Transform parent, int corner) {
+            bool right  = corner == 1 || corner == 3;
+            bool bottom = corner == 2 || corner == 3;
+            float ax = right ? 1f : 0f;
+            float ay = bottom ? 0f : 1f;
+            Vector2 offMin, offMax;
+            if (!right && !bottom) {            // 좌상
+                offMin = new Vector2(HUD_SAFE, -HUD_SAFE - HUD_BLOCK_H);
+                offMax = new Vector2(HUD_SAFE + HUD_BLOCK_W, -HUD_SAFE);
+            } else if (right && !bottom) {      // 우상
+                offMin = new Vector2(-HUD_SAFE - HUD_BLOCK_W, -HUD_SAFE - HUD_BLOCK_H);
+                offMax = new Vector2(-HUD_SAFE, -HUD_SAFE);
+            } else if (!right && bottom) {      // 좌하
+                offMin = new Vector2(HUD_SAFE, HUD_SAFE);
+                offMax = new Vector2(HUD_SAFE + HUD_BLOCK_W, HUD_SAFE + HUD_BLOCK_H);
+            } else {                            // 우하
+                offMin = new Vector2(-HUD_SAFE - HUD_BLOCK_W, HUD_SAFE);
+                offMax = new Vector2(-HUD_SAFE, HUD_SAFE + HUD_BLOCK_H);
+            }
+            // RiseIn(수면 부상 모션)은 런타임 전용(편집 모드에서 alpha=0 베이크 방지) — 빌더에선 호출 안 함
+            var block = UITheme.MakeGlassPanel(name, parent,
+                new Vector2(ax, ay), new Vector2(ax, ay), offMin, offMax);
+            return block;
+        }
+
+        // 황금비 팝업 패널 — 화면 중앙 고정크기(가로:세로=1.618), 안전영역 내. longSide=가로
+        static GameObject MakeGoldenPanel(string name, Transform canvas, float longSide) {
+            Vector2 size = UITheme.GoldenSize(longSide, widthIsLong: true);
+            var panel = UITheme.MakePanel(name, canvas,
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                Vector2.zero, Vector2.zero, UITheme.BgDeep);
+            var rt = panel.GetComponent<RectTransform>();
+            rt.sizeDelta = size;
+            rt.anchoredPosition = Vector2.zero;
+            return panel;
+        }
+
+        // 세로 액센트바 — 부모 좌측 세로중앙, 타이틀 ■ 기호 대체용(4px 폭)
+        static GameObject MakeVAccentBar(string name, Transform parent, float fromLeft, float height) {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            var rt = go.AddComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0f, 0.5f);
+            rt.anchorMax = new Vector2(0f, 0.5f);
+            rt.offsetMin = new Vector2(fromLeft, -height * 0.5f);
+            rt.offsetMax = new Vector2(fromLeft + 4f, height * 0.5f);
+            var img = go.AddComponent<Image>();
+            img.color = UITheme.Accent;
+            img.raycastTarget = false;   // 장식 — 레이캐스트 제외
+            UITheme.ApplyRound(img, 4f);
+            return go;
+        }
 
         static TMP_Text MakeStretchText(string name, Transform parent, string content,
                 float fontSize, Color color,
@@ -1134,6 +1236,33 @@ namespace Game.Editor.UI {
             } catch (System.Exception e) {
                 Debug.LogError($"[HudUIBuilder] 컴포넌트 검색 오류: {e.Message}");
                 return null;
+            }
+        }
+
+        // 런타임 폰트 바인더 배선 — UIThemeFontBinder GO를 멱등 생성하고 koreanFont에 IyagiGGC 배선
+        // 런타임(플레이) 생성 텍스트가 □로 깨지지 않도록 UITheme.UIFont를 Awake 시점에 주입한다
+        static void WireFontBinder() {
+            try {
+                var existing = Object.FindFirstObjectByType<Game.UI.UIThemeFontBinder>();
+                GameObject go;
+                if (existing != null) {
+                    go = existing.gameObject;   // 멱등 — 이미 있으면 재사용
+                } else {
+                    go = new GameObject("UIThemeFontBinder");
+                    existing = go.AddComponent<Game.UI.UIThemeFontBinder>();
+                    Undo.RegisterCreatedObjectUndo(go, "Create UIThemeFontBinder");
+                }
+                var font = LoadKoreanFont();
+                if (font == null) {
+                    Debug.LogWarning("[HudUIBuilder] 한글 폰트 미발견 — 바인더 koreanFont 미배선");
+                    return;
+                }
+                var so = new SerializedObject(existing);
+                AssignRef(so, "koreanFont", font);
+                so.ApplyModifiedPropertiesWithoutUndo();
+                Debug.Log("[HudUIBuilder] UIThemeFontBinder 배선 완료 — koreanFont = IyagiGGC SDF");
+            } catch (System.Exception e) {
+                Debug.LogError($"[HudUIBuilder] 폰트 바인더 배선 오류: {e.Message}");
             }
         }
 

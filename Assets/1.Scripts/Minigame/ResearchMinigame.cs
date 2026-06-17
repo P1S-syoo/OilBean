@@ -176,7 +176,7 @@ namespace Game.Minigame {
             }
         }
 
-        // 이전 퍼즐 자식 오브젝트 제거 (노드·선 태그로 구분)
+        // 이전 퍼즐 자식 오브젝트 제거 (노드·선 + 재생성 자식 정리 → 재오픈 중복 스택 방지)
         void ClearPuzzleChildren() {
             foreach (var n in _nodes) {
                 if (n.rt != null) {
@@ -191,33 +191,65 @@ namespace Game.Minigame {
             }
             _lines.Clear();
             _progressText = null;
+
+            // BuildHeader/Progress/Close/Cancel는 매 Open마다 새로 생성하므로 기존 것을 먼저 제거(누적 방지)
+            // PanelSolid/TopAccent는 BuildBackground가 find-or-create로 멱등 처리하므로 유지한다
+            DestroyChildByName("Header");
+            DestroyChildByName("Progress");
+            DestroyChildByName("BtnClose");
+            DestroyChildByName("BtnCancel");
         }
 
-        // 팝업 배경 패널
+        // 이름으로 직속 자식을 찾아 제거(없으면 무시)
+        void DestroyChildByName(string childName) {
+            var child = transform.Find(childName);
+            if (child != null) {
+                Destroy(child.gameObject);
+            }
+        }
+
+        // 팝업 배경 패널 — 글래스 표면(반투명 + 아쿠아 테두리 + 상단 하이라이트)
         void BuildBackground() {
             var rt = GetComponent<RectTransform>();
-            // 배경 Image가 없으면 추가
+            // 배경 Image가 없으면 추가 — 글래스 표면색
             var bgImg = GetComponent<Image>();
             if (bgImg == null) {
                 bgImg = gameObject.AddComponent<Image>();
             }
-            bgImg.color = UITheme.BgPanel;
+            bgImg.color = UITheme.GlassFill;
             UITheme.ApplyRound(bgImg);
+            // 아쿠아 1px 테두리(글래스모피즘 근사) — 중복 부착 방지
+            if (GetComponent<Outline>() == null) {
+                var ol = gameObject.AddComponent<Outline>();
+                ol.effectColor = UITheme.GlassBorder;
+                ol.effectDistance = new Vector2(1f, 1f);
+            }
+            // 가독성용 불투명 표면 한 겹 + 상단 액센트 바 — 재오픈 중복 생성 방지
+            if (transform.Find("PanelSolid") == null) {
+                var solid = UITheme.MakePanel("PanelSolid", transform,
+                    Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero,
+                    new Color(UITheme.BgModal.r, UITheme.BgModal.g, UITheme.BgModal.b, 0.94f));
+                solid.transform.SetAsFirstSibling();
+                solid.GetComponent<Image>().raycastTarget = false;
+            }
+            if (transform.Find("TopAccent") == null) {
+                UITheme.MakeAccentBar("TopAccent", transform, 1f, 3f, UITheme.SpaceMD, UITheme.Accent);
+            }
         }
 
-        // 상단 안내 텍스트
+        // 상단 안내 텍스트 — 위계 상향(FontHeading)
         void BuildHeader() {
             var header = UITheme.MakeText(
                 "Header", transform,
                 "오염 구조를 연결하세요 — 모든 노드를 잇기",
-                UITheme.FontCaption,
+                UITheme.FontHeading,
                 UITheme.TextPrimary,
                 TextAlignmentOptions.Center);
             // 상단 고정
             var rt = header.GetComponent<RectTransform>();
             rt.anchorMin = new Vector2(0f, 1f);
             rt.anchorMax = new Vector2(1f, 1f);
-            rt.offsetMin = new Vector2(UITheme.SpaceMD, -56f);
+            rt.offsetMin = new Vector2(UITheme.SpaceMD, -64f);
             rt.offsetMax = new Vector2(-UITheme.SpaceMD, -UITheme.SpaceSM);
             header.enableWordWrapping = true;
         }
@@ -525,12 +557,13 @@ namespace Game.Minigame {
             _state = State.Animating;
             _cg.blocksRaycasts = true;
             transform.localScale = Vector3.one * 0.86f;
-            _cg.alpha = 0f;
+
+            // 수면 부상(RiseIn) — 위로 살짝 띄웠다 정착 + 페이드(루트 _cg 사용)
+            UITheme.RiseIn(gameObject, 28f, 0.28f);
 
             // SetTarget(transform) — KillAllTweens의 Kill(transform)이 시퀀스째 정리하도록(파괴 중 콜백 방지)
             var seq = DOTween.Sequence().SetUpdate(true).SetTarget(transform);
-            seq.Append(DOTween.To(() => _cg.alpha, a => _cg.alpha = a, 1f, 0.22f).SetUpdate(true).SetTarget(_cg));
-            seq.Join(transform.DOScale(1f, 0.28f).SetEase(Ease.OutBack).SetUpdate(true));
+            seq.Append(transform.DOScale(1f, 0.28f).SetEase(Ease.OutBack).SetUpdate(true));
             seq.OnComplete(() => {
                 _state = State.Open;
                 _cg.interactable = true;

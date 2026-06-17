@@ -14,11 +14,14 @@ namespace Game.Narrative {
         // ── 설정 ────────────────────────────────────────────────────
         [SerializeField] float charDelay = 0.04f;   // 글자 간 딜레이(초)
         [SerializeField] float fadeTime   = 0.35f;   // 패널 페이드 시간
-        [SerializeField] float panelH     = 120f;    // 대사창 높이
+        [SerializeField] float panelH     = 168f;    // 대사창 높이(위계 상향)
+        [SerializeField] float panelBottom = 96f;    // 하단 HUD와 안 겹치게 바닥에서 띄우는 여백
 
         // ── 런타임 UI 레퍼런스 ──────────────────────────────────────
         Canvas        canvas;
         CanvasGroup   canvasGroup;
+        GameObject    panelGo;    // 대사 패널(RiseIn 대상)
+        Image         backdrop;   // 전체 화면 딤 — 뒤 UI와 시각 분리 + 클릭 차단
         TMP_Text      bodyText;
         TMP_Text      hintText;   // "▼ 다음/스킵" 안내
 
@@ -33,9 +36,13 @@ namespace Game.Narrative {
 
         // ── 초기화 ──────────────────────────────────────────────────
 
-        void Awake() {
+        // 폰트 바인더(DefaultExecutionOrder -1000)의 Awake가 먼저 끝난 뒤 UI를 빌드하도록 Start에서 생성
+        void Start() {
             try {
-                BuildUI();
+                // Play가 레이스로 먼저 빌드했을 수 있음 — 중복 캔버스 생성 방지
+                if (canvasGroup == null) {
+                    BuildUI();
+                }
             } catch (Exception e) {
                 Debug.LogError($"[NarrationView] UI 생성 실패: {e.Message}");
             }
@@ -49,7 +56,12 @@ namespace Game.Narrative {
             canvas = canvasGo.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = 200;   // 다른 UI 위에 표시
-            canvasGo.AddComponent<CanvasScaler>();
+            // 메인 캔버스와 동일 스케일 — 비-1080p 해상도에서 대사창 크기 정합
+            var scaler = canvasGo.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920f, 1080f);
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+            scaler.matchWidthOrHeight = 0.5f;
             canvasGo.AddComponent<GraphicRaycaster>();
 
             // CanvasGroup — 페이드 인/아웃용
@@ -57,11 +69,28 @@ namespace Game.Narrative {
             canvasGroup.alpha = 0f;
             canvasGroup.blocksRaycasts = false;
 
-            // 하단 배경 패널
-            var panelGo = UITheme.MakePanel("NarrationPanel", canvasGo.transform,
+            // 전체 화면 딤 백드롭 — 뒤 UI를 어둡게 덮어 "겹침"이 아닌 "포커스된 다이얼로그"로 분리
+            var dimGo = UITheme.MakeStretchPanel("Backdrop", canvasGo.transform, 0, 0, 0, 0,
+                new Color(UITheme.BgDeep.r, UITheme.BgDeep.g, UITheme.BgDeep.b, 0.72f));
+            backdrop = dimGo.GetComponent<Image>();
+            backdrop.raycastTarget = true;   // 뒤 UI 클릭 차단
+            // 백드롭 클릭으로도 진행
+            var dimBtn = dimGo.AddComponent<Button>();
+            dimBtn.transition = Selectable.Transition.None;
+            dimBtn.onClick.AddListener(OnAdvance);
+
+            // 하단 대사 패널 — 글래스 표면, 하단 HUD 위(panelBottom) 안전영역에 배치
+            panelGo = UITheme.MakeGlassPanel("NarrationPanel", canvasGo.transform,
                 new Vector2(0f, 0f), new Vector2(1f, 0f),
-                new Vector2(24f, 0f), new Vector2(-24f, panelH),
-                new Color(UITheme.BgPanel.r, UITheme.BgPanel.g, UITheme.BgPanel.b, 0.88f));
+                new Vector2(24f, panelBottom), new Vector2(-24f, panelBottom + panelH));
+            // 글래스는 반투명 — 가독성 위해 불투명 표면을 한 겹 더 깔아 대비 확보
+            var solidGo = UITheme.MakePanel("PanelSolid", panelGo.transform,
+                Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero,
+                new Color(UITheme.BgModal.r, UITheme.BgModal.g, UITheme.BgModal.b, 0.96f));
+            solidGo.transform.SetAsFirstSibling();   // 테두리·하이라이트 아래로
+            solidGo.GetComponent<Image>().raycastTarget = false;
+            // 상단 아쿠아 액센트 바 — 다이얼로그 강조
+            UITheme.MakeAccentBar("TopAccent", panelGo.transform, 1f, 3f, UITheme.SpaceMD, UITheme.Accent);
 
             // 클릭 투명 버튼 — 전체 패널 영역 클릭으로 진행
             var btnGo = new GameObject("ClickArea");
@@ -76,9 +105,9 @@ namespace Game.Narrative {
             var btn = btnGo.AddComponent<Button>();
             btn.onClick.AddListener(OnAdvance);
 
-            // 본문 텍스트
+            // 본문 텍스트 — 위계 상향(FontHeading)으로 다이얼로그 가독성 강화
             bodyText = UITheme.MakeText("BodyText", panelGo.transform,
-                "", UITheme.FontBody, UITheme.TextPrimary,
+                "", UITheme.FontHeading, UITheme.TextPrimary,
                 TextAlignmentOptions.Left);
             var bodyRt = bodyText.GetComponent<RectTransform>();
             bodyRt.anchorMin = new Vector2(0f, 0f);
@@ -109,6 +138,11 @@ namespace Game.Narrative {
                 return;
             }
             try {
+                // Start 실행 순서 레이스 방어 — 컨트롤러 Start가 뷰 Start보다 먼저면 UI 미생성 상태
+                // 모든 Awake(폰트 바인더 -1000 포함) 이후 호출되므로 여기서 빌드해도 폰트 주입 순서 안전
+                if (canvasGroup == null) {
+                    BuildUI();
+                }
                 this.lines  = newLines;
                 this.onDone = onDone;
                 lineIdx     = 0;
@@ -209,9 +243,12 @@ namespace Game.Narrative {
             });
         }
 
-        // 패널 페이드 인
+        // 패널 페이드 인 — 캔버스 딤은 페이드, 패널은 수면 부상(RiseIn) 모션
         void ShowPanel(Action onComplete = null) {
             canvasGroup.blocksRaycasts = true;
+            if (panelGo != null) {
+                UITheme.RiseIn(panelGo, 24f, fadeTime);
+            }
             DOTween.To(
                 () => canvasGroup.alpha,
                 a  => canvasGroup.alpha = a,
@@ -231,6 +268,17 @@ namespace Game.Narrative {
 
         void OnDestroy() {
             DOTween.Kill(canvasGroup);
+            // RiseIn이 panelGo의 RectTransform·CanvasGroup에 건 트윈 정리(죽은 타깃 경고 방지)
+            if (panelGo != null) {
+                var prt = panelGo.GetComponent<RectTransform>();
+                if (prt != null) {
+                    DOTween.Kill(prt);
+                }
+                var pcg = panelGo.GetComponent<CanvasGroup>();
+                if (pcg != null) {
+                    DOTween.Kill(pcg);
+                }
+            }
         }
     }
 }

@@ -37,6 +37,10 @@ namespace Game.UI {
                 collector.OnCollect += OnCollected;   // 수집 → 갱신
             }
             Refresh();
+            // 런타임 패널 등장 모션(수면 부상) — 에디터 베이크 버그 회피 위해 플레이 중에만
+            if (Application.isPlaying) {
+                UITheme.RiseIn(gameObject);
+            }
         }
 
         void OnDisable() {
@@ -44,7 +48,20 @@ namespace Game.UI {
             if (minigame != null && minigame.IsOpen) {
                 minigame.Cancel();
             }
+            KillRiseInTweens();
             Unsubscribe();
+        }
+
+        // RiseIn이 건 RectTransform·CanvasGroup 트윈 정리(죽은 타깃 경고/위치 드리프트 방지)
+        void KillRiseInTweens() {
+            var rt = GetComponent<RectTransform>();
+            if (rt != null) {
+                DG.Tweening.DOTween.Kill(rt);
+            }
+            var cg = GetComponent<CanvasGroup>();
+            if (cg != null) {
+                DG.Tweening.DOTween.Kill(cg);
+            }
         }
 
         void OnDestroy() {

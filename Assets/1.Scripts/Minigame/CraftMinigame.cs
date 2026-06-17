@@ -68,12 +68,10 @@ namespace Game.Minigame {
                 // UI 구성
                 BuildUI(recipeLabel, slotCount);
 
-                // 팝업 등장 연출
+                // 팝업 등장 연출 — 수면 부상(RiseIn: 위로 띄웠다 정착 + 페이드) + 스케일 OutBack
                 gameObject.SetActive(true);
-                _cg.alpha = 0f;
                 transform.localScale = Vector3.one * 0.75f;
-                // CanvasGroup.DOFade는 UI 모듈 의존이라 제네릭 To로 알파 보간
-                DOTween.To(() => _cg.alpha, a => _cg.alpha = a, 1f, 0.25f).SetUpdate(true).SetTarget(_cg);
+                UITheme.RiseIn(gameObject, 28f, 0.25f);
                 transform.DOScale(Vector3.one, 0.3f).SetEase(Ease.OutBack).SetUpdate(true);
 
                 _isOpen = true;
@@ -202,9 +200,16 @@ namespace Game.Minigame {
         private void BuildUI(string recipeLabel, int slotCount) {
             var root = transform;
 
-            // ── 배경 패널 (전체 채우기) ─────────────────────────────
-            var bg = UITheme.MakeStretchPanel("BgPanel", root, 0, 0, 0, 0, UITheme.BgPanel);
+            // ── 배경 패널 (전체 채우기) — 글래스 표면 + 가독성용 불투명 베이스 ──
+            var bg = UITheme.MakeGlassPanel("BgPanel", root,
+                Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             UITheme.AddShadow(bg, 0.6f, 0f, -4f);
+            // 글래스 반투명 아래 불투명 표면 한 겹(대비 확보)
+            var solid = UITheme.MakePanel("BgSolid", bg.transform,
+                Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero,
+                new Color(UITheme.BgModal.r, UITheme.BgModal.g, UITheme.BgModal.b, 0.94f));
+            solid.transform.SetAsFirstSibling();
+            solid.GetComponent<Image>().raycastTarget = false;
 
             // ── 헤더 영역 ───────────────────────────────────────────
             var header = UITheme.MakePanel("Header", root,
