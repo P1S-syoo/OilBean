@@ -196,9 +196,9 @@ namespace Game.Tests {
             Assert.AreEqual(GameState.Dive, gb.State, "재탐사 진입");
             run.AddSteel(0, 8f);   // bank=5+8=13, pending=8(직전 Forfeit가 pending 비움)
             run.AddSampleAt(2);    // 수준2 샘플 1개
-            gb.ReturnDock();       // Dive→Dock(정상) → CommitDive(전량 확정)
+            gb.ReturnDock();       // Dive→Dock(정상 CommitDive 정산)→Surface 부상
             yield return null;
-            Assert.AreEqual(GameState.Dock, gb.State, "정상복귀 후 Dock");
+            Assert.AreEqual(GameState.Surface, gb.State, "정상복귀도 정산 후 수면 부상");
             Assert.AreEqual(13f, run.GetSteel(0), 0.001f, "정상복귀는 강재 손실 없음");
             Assert.AreEqual(1, run.GetSampleCount(2), "정상복귀는 샘플 손실 없음");
         }

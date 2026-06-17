@@ -308,7 +308,12 @@ namespace Game.Core {
 
         // 인스펙터 우클릭으로 흐름 검증(입력 백엔드 불필요)
         [ContextMenu("탐사 시작")] public void StartDive() => Fsm.Change(GameState.Dive);
-        [ContextMenu("거점 복귀")] public void ReturnDock() => Fsm.Change(GameState.Dock);
+        // 수동 복귀(R)도 Dock 정산(전량 확정) 후 수면(Surface) 부상으로 통일 — 강제복귀와 동선 일치, 재잠수는 E
+        [ContextMenu("거점 복귀")] public void ReturnDock() {
+            if (Fsm.Change(GameState.Dock)) {
+                Fsm.Change(GameState.Surface);
+            }
+        }
         // 연구/제작 — 연 출발 상태(Surface/Dock)를 기억해 닫을 때 복귀
         [ContextMenu("연구")] public void GoResearch() {
             if (Fsm.Current == GameState.Surface || Fsm.Current == GameState.Dock) {
