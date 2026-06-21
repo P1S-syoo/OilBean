@@ -1,12 +1,11 @@
 using System.Collections;
-using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
 using Game.Items;
 
 namespace Game.Tests {
-    // Hazard waypoint 순회 PlayMode 스모크 테스트
+    // Hazard 돌진 공격 PlayMode 스모크 테스트 — 경고 후 횡단 이동
     public class HazardTests {
         GameObject go;
 
@@ -16,18 +15,20 @@ namespace Game.Tests {
         }
 
         [UnityTest]
-        public IEnumerator Patrols_toward_waypoint() {
+        public IEnumerator Dashes_across_after_warning() {
             go = new GameObject("Hazard");
             go.transform.position = Vector3.zero;
             go.AddComponent<BoxCollider2D>();
             var h = go.AddComponent<Hazard>();
-            typeof(Hazard).GetField("points", BindingFlags.NonPublic | BindingFlags.Instance)
-                .SetValue(h, new Vector2[] { new Vector2(3f, 0f) });
-            typeof(Hazard).GetField("speed", BindingFlags.NonPublic | BindingFlags.Instance)
-                .SetValue(h, 5f);
+            // 좌(0)→우(10) 돌진, 경고 0.2s, 속도 10
+            h.Setup(0f, 0f, 10f, 1f, 0.2f, 10f);
             float startX = go.transform.position.x;
-            yield return new WaitForSeconds(0.5f);   // 실시간 경과(Update는 deltaTime 기반)
-            Assert.Greater(go.transform.position.x, startX + 0.5f, "경유점(+x)으로 이동해야");
+            // 경고(0.2) 동안엔 정지 유지
+            yield return new WaitForSeconds(0.1f);
+            Assert.AreEqual(startX, go.transform.position.x, 0.01f, "경고 중엔 정지해야");
+            // 경고 종료 후 돌진 — +x로 이동
+            yield return new WaitForSeconds(0.5f);
+            Assert.Greater(go.transform.position.x, startX + 1f, "경고 후 +x로 돌진해야");
         }
     }
 }

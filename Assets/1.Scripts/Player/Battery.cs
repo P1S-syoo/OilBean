@@ -41,6 +41,15 @@ namespace Game.Player {
             }
         }
 
+        // 즉시 소모 — 오염원 충돌 등 페널티(0이 되면 방전 이벤트 1회)
+        public void Drain(float amount) {
+            current = Mathf.Max(0f, current - Mathf.Max(0f, amount));
+            if (current <= 0f && !emptied) {
+                emptied = true;
+                OnEmpty?.Invoke();
+            }
+        }
+
         // 재충전(거점 복귀 시)
         public void Refill() {
             current = max;

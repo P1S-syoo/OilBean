@@ -29,8 +29,11 @@ namespace Game.Surface {
         [SerializeField] GameConfig config;           // 통합 설정 — 연결 시 잠수 연출 수치 덮어씀(미연결 시 위 기본값 유지)
 
         InputAction diveInput;
+        InputAction consoleInput;       // 수상 거점 콘솔 토글(P)
         bool diveReady;
         bool diving;
+        bool consoleShown;              // 수상 콘솔 표시 여부(도착 자동 표시 + P 수동 토글)
+        bool screenNear;                // 스크린 콘솔 근접 — E를 연구로 분기(잠수 억제)
         Camera mainCam;                 // 수상 동안 배경색을 안개색으로 덮고 잠수 시 원복
         Color prevBg;
         CameraClearFlags prevClear;
@@ -44,6 +47,8 @@ namespace Game.Surface {
         bool deckHomeSet;
 
         public bool DiveReady => diveReady;
+        // 도착(잠수 가능) 상태 변화 알림 — UI 라우터가 거점 콘솔 토글에 사용
+        public event Action<bool> OnDiveReadyChanged;
 
         void Awake() {
             try {
@@ -56,6 +61,8 @@ namespace Game.Surface {
                 }
                 diveInput = new InputAction("Dive", InputActionType.Button, "<Keyboard>/e");
                 diveInput.performed += OnDiveInput;
+                consoleInput = new InputAction("Console", InputActionType.Button, "<Keyboard>/p");
+                consoleInput.performed += OnConsoleInput;
             } catch (Exception e) {
                 Debug.LogError($"[SurfaceBootstrap] 초기화 실패: {e.Message}");
             }
@@ -123,10 +130,12 @@ namespace Game.Surface {
 
         void OnEnable() {
             diveInput?.Enable();
+            consoleInput?.Enable();
         }
 
         void OnDisable() {
             diveInput?.Disable();
+            consoleInput?.Disable();
         }
 
         void OnDestroy() {
@@ -139,6 +148,10 @@ namespace Game.Surface {
             if (diveInput != null) {
                 diveInput.performed -= OnDiveInput;
                 diveInput.Dispose();
+            }
+            if (consoleInput != null) {
+                consoleInput.performed -= OnConsoleInput;
+                consoleInput.Dispose();
             }
         }
 
@@ -155,6 +168,8 @@ namespace Game.Surface {
                 enabled = true;      // E 입력 재개
                 diving = false;
                 diveReady = false;
+                consoleShown = false;                // 콘솔 닫힘 동기화(SetSurfaceControl(true)는 아래 단계에서 처리)
+                OnDiveReadyChanged?.Invoke(false);   // 복귀 — 다음 목표 도착 전까지 콘솔 숨김
                 // 덱 캐릭터 원위치 복원(입수 단계에서 숨겼던 것)
                 if (deck != null && deckHomeSet) {
                     deck.gameObject.SetActive(true);
@@ -187,15 +202,47 @@ namespace Game.Surface {
         // 정화 목표 도달 — 잠수 허용 + 안내
         void OnArrived() {
             diveReady = true;
+            ShowConsole(true);   // 도착 — 거점 콘솔 자동 표시(커서/조작 해제 포함)
             if (toast != null) {
-                toast.Show("정화 지점 도착 — E키로 잠수");
+                toast.Show("정화 지점 도착 — E키로 잠수 · P키로 거점 콘솔 열고닫기");
             }
         }
 
+        // 수상 거점 콘솔 토글(P) — 수상에서만, 잠수 연출 중엔 무시
+        void OnConsoleInput(InputAction.CallbackContext ctx) {
+            if (game == null || diving || game.State != GameState.Surface) {
+                return;
+            }
+            ShowConsole(!consoleShown);
+        }
+
+        // 외부(거점 콘솔 닫기 버튼)에서 수상 콘솔 닫기 — P 토글과 동일 경로
+        public void CloseConsole() {
+            ShowConsole(false);
+        }
+
+        // 수상 콘솔 표시 토글 — UI 라우터 통지 + 조작/커서 전환(표시 중엔 배 조작 정지, 닫으면 재개)
+        void ShowConsole(bool show) {
+            if (consoleShown == show) {
+                return;
+            }
+            consoleShown = show;
+            OnDiveReadyChanged?.Invoke(show);   // UIPanelRouter가 Surface 콘솔 토글
+            SetSurfaceControl(!show);           // 표시=궤도 드라이버 off(커서 해제), 닫힘=on(배 조작·커서 잠금)
+        }
+
         void OnDiveInput(InputAction.CallbackContext ctx) {
+            if (screenNear) {
+                return;   // 스크린 콘솔 근접 — E는 연구(잠수 억제)
+            }
             if (diveReady && !diving) {
                 RequestDive();
             }
+        }
+
+        // 스크린 콘솔 근접 통지 — 근접 중엔 E를 연구로 양보
+        public void SetScreenNear(bool n) {
+            screenNear = n;
         }
 
         // 잠수 — 연속 연출(3인칭→사이드뷰 블렌드 + 하강) 후 기존 탐사 루프로 인계
@@ -207,7 +254,16 @@ namespace Game.Surface {
                 Debug.LogError("[SurfaceBootstrap] GameBootstrap 미연결 — 인스펙터에서 할당하세요.");
                 return;
             }
+            if (!diveReady) {
+                // 정화 지점 미도착 — 콘솔에서 탐사 시작을 눌러도 잠수 금지
+                if (toast != null) {
+                    toast.Show("정화 지점에 먼저 도착하세요");
+                }
+                return;
+            }
             diving = true;
+            consoleShown = false;                // 잠수 시작 — 콘솔 닫힘 동기화(커서/조작은 DiveSequence가 처리)
+            OnDiveReadyChanged?.Invoke(false);   // 잠수 시작 — UI 콘솔 닫고 연출로 전환
             try {
                 StartCoroutine(DiveSequence());
             } catch (Exception e) {

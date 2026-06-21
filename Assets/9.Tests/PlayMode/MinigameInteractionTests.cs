@@ -58,13 +58,13 @@ namespace Game.Tests {
             game.Open(2, () => solved = true);   // 노드 5개(3+2)
             yield return null;                   // Awake/Open 1프레임
 
-            int total = game.NodeCount;
+            int total = game.NodesTotal;
             Assert.Greater(total, 0, "Open 후 노드가 생성되어야 함");
 
-            // 실제 ConnectNode 경로로 전 노드 연결 — _visitedCount가 코드로 증가
-            bool allConnected = game.SimulateConnectAll();
-            Assert.IsTrue(allConnected, "모든 노드가 실제 연결 판정으로 방문됨");
-            Assert.AreEqual(total, game.VisitedCount, "방문 카운트 == 노드 수");
+            // 실제 통과 판정 경로로 1→5 순서대로 통과
+            bool allConnected = game.SimulateSolve();
+            Assert.IsTrue(allConnected, "모든 노드가 순서대로 통과됨");
+            Assert.AreEqual(total, game.VisitedCount, "통과 카운트 == 노드 수");
 
             // OnPuzzleSolved DOTween 시퀀스는 SetUpdate(true) — unscaled 실시간 기준
             // PunchScale(0.4s) + ColorFlash(0.5s) + Interval(0.15s) + CloseAnim(0.18s) ≈ 1.3s 이상 필요

@@ -38,6 +38,7 @@ namespace Game.Editor.Surface {
                 BuildIntro(root.transform, nav, player, orbitCam, orbitDriver);
                 BuildEnvironment(root.transform);
                 WireBootstrap(root, nav, player, orbitCam, orbitDriver, diveCam);
+                BuildScreen(nav.transform, deckTop, deckHalf);   // 정화선 연구 스크린(근접 E → 연구)
                 SkylinePlacer.EnsureStreamer(root);   // 스카이라인 스트리머(수상·수중 무한) 배선
 
                 EditorUtility.SetDirty(root);
@@ -66,6 +67,43 @@ namespace Game.Editor.Surface {
                 container.Spline.Add(new BezierKnot(k), TangentMode.AutoSmooth);
             }
             return container;
+        }
+
+        // 정화선 연구 스크린 — 덱 위 홀로그램 콘솔(근접 E로 연구패널). 비주얼은 지지직 홀로그램
+        static void BuildScreen(Transform sub, float deckTop, Vector2 deckHalf) {
+            var tex = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/4.Art/Textures/screen_holo.png");
+            var screen = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            screen.name = "ResearchScreen";
+            UnityEngine.Object.DestroyImmediate(screen.GetComponent<Collider>());   // 거리 기반 근접이라 콜라이더 불필요
+            screen.transform.SetParent(sub, false);
+            // 덱 위 선미쪽에 수직으로 세움(다가오는 플레이어를 향함)
+            screen.transform.localPosition = new Vector3(0f, deckTop + 0.95f, deckHalf.y * 0.45f);
+            screen.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+            screen.transform.localScale = new Vector3(1.7f, 1.0f, 1f);
+            var mr = screen.GetComponent<MeshRenderer>();
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            mr.sharedMaterial = MakeHoloMaterial(tex);
+            screen.AddComponent<Game.Surface.HologramScreen>();
+            screen.AddComponent<Game.Surface.ScreenConsole>();   // game/surface는 런타임 자동탐색
+            Undo.RegisterCreatedObjectUndo(screen, "Build Research Screen");
+            Debug.Log("[SurfaceRigBuilder] 연구 스크린 생성");
+        }
+
+        // URP Unlit 투명 머티리얼 — 홀로그램 스크린용(알파 블렌드)
+        static Material MakeHoloMaterial(Texture tex) {
+            var mat = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+            if (tex != null) {
+                mat.SetTexture("_BaseMap", tex);
+            }
+            mat.SetColor("_BaseColor", new Color(1f, 1f, 1f, 0.88f));
+            mat.SetFloat("_Surface", 1f);   // Transparent
+            mat.SetFloat("_Blend", 0f);     // Alpha
+            mat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            mat.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            mat.SetFloat("_ZWrite", 0f);
+            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            return mat;
         }
 
         // 잠수정 — 실물 모델 바운즈 기반 축 정렬·스케일, 없으면 큐브 그레이박스 폴백. 선체 콜라이더로 보행 표면 제공
@@ -113,14 +151,13 @@ namespace Game.Editor.Surface {
                 if (needRetint) {
                     RetintSubmarine(model);               // 폴백 모델만 — VARCO 모델은 자체 아포칼립스 텍스처 유지
                 }
-                // 선체 메시 콜라이더 — 캐릭터가 실제 곡면 표면 위로만 걷도록(레이캐스트 표적)
-                foreach (var mf in model.GetComponentsInChildren<MeshFilter>()) {
-                    if (mf.sharedMesh != null) {
-                        var mc = mf.gameObject.AddComponent<MeshCollider>();
-                        mc.sharedMesh = mf.sharedMesh;
-                        deckCols.Add(mc);
-                    }
-                }
+                // 평탄 보행면 — 거친 선체 메시 대신 평탄 BoxCollider로 계단현상 제거(비주얼 메시는 그대로 유지)
+                var walkGo = new GameObject("DeckWalkSurface");
+                walkGo.transform.SetParent(subRoot.transform, false);
+                walkGo.transform.localPosition = new Vector3(0f, deckTop, 0f);
+                var walkBox = walkGo.AddComponent<BoxCollider>();
+                walkBox.size = new Vector3(deckHalf.x * 2f, 0.2f, deckHalf.y * 2f);   // 덱 전체를 덮는 평면 판
+                deckCols.Add(walkBox);
                 model.AddComponent<FloatBob>();           // 부유 모션은 모델에만(루트는 항해 위치 고정)
             } else {
                 Debug.LogWarning($"[SurfaceRigBuilder] 잠수정 모델 없음({SubModelPath}) — 큐브 그레이박스로 대체");

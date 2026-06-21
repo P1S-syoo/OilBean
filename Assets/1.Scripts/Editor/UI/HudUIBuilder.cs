@@ -62,6 +62,7 @@ namespace Game.Editor.UI {
                 BuildHudPanel(canvasTr, run, battery, collector);
                 BuildResearchPanel(canvasTr, run, research, collector);
                 BuildCraftPanel(canvasTr, run, research, crafting, collector);
+                BuildMinigamePanel(canvasTr, collector);
 
                 // ── 패널 라우터 배선 (GameState별 토글) ──
                 WireRouter(canvasGo, bootstrap);
@@ -133,12 +134,22 @@ namespace Game.Editor.UI {
             titleRt.offsetMin = new Vector2(UITheme.SpaceLG + 16f, 0f);
             titleRt.offsetMax = new Vector2(-UITheme.SpaceSM, 0f);
 
-            // 자원 텍스트 (강재 / 샘플 / 적재 / 정화제)
+            // 자원 텍스트 (강재 / 샘플 / 적재 / 정화제) — 우측은 닫기 버튼 공간만큼 좁힘
             var resTxt = MakeStretchText("ResourceBar", topBar.transform,
                 "강재: — / 샘플: — / 적재: — / 정화제: —",
                 UITheme.FontBody, UITheme.TextSecondary,
                 new Vector2(0.3f, 0f), new Vector2(1f, 1f),
-                new Vector2(UITheme.SpaceSM, 0f), new Vector2(-UITheme.SpaceLG, 0f));
+                new Vector2(UITheme.SpaceSM, 0f), new Vector2(-UITheme.SpaceLG - 48f, 0f));
+
+            // 우상단 닫기 버튼 — 수상 콘솔 접기(P키와 동일). HubCloseButton 대신 DockConsoleUI.OnClose가 처리
+            var closeBtn = UITheme.MakeButton("CloseBtn", topBar.transform, "X", UITheme.FontHeading,
+                new Vector2(40f, 40f), Vector2.zero, UITheme.BgBorder, UITheme.TextPrimary);
+            var closeRt = closeBtn.GetComponent<RectTransform>();
+            closeRt.anchorMin = new Vector2(1f, 0.5f);
+            closeRt.anchorMax = new Vector2(1f, 0.5f);
+            closeRt.sizeDelta = new Vector2(40f, 40f);
+            closeRt.anchoredPosition = new Vector2(-UITheme.SpaceMD - 20f, 0f);
+            UITheme.AddScaleFeedback(closeBtn);
 
             // ── 중앙 영역 ────────────────────────────────────────────────────
             var center = UITheme.MakePanel("Center", root.transform,
@@ -262,6 +273,8 @@ namespace Game.Editor.UI {
             AssignRef(so, "researchBtn",     researchBtn);
             AssignRef(so, "craftBtn",        craftBtn);
             AssignRef(so, "purifyBtn",       purifyBtn);
+            AssignRef(so, "closeBtn",        closeBtn);
+            AssignRef(so, "surface",         FindComponent<Game.Surface.SurfaceBootstrap>());
             so.ApplyModifiedPropertiesWithoutUndo();
 
             Undo.RegisterCreatedObjectUndo(root, "Build DockConsole UI");
@@ -307,8 +320,8 @@ namespace Game.Editor.UI {
             var root = UITheme.MakeStretchPanel("HudPanel", canvas, color: Color.clear);
             root.SetActive(false);
 
-            // ── 좌상: 배터리 블록(글래스) — 안전여백 32, 320×96 ─────────────
-            var batBlock = MakeCornerBlock("BatteryBlock", root.transform, corner: 0);
+            // ── 좌하: 배터리 블록(글래스) — 임무와 위치 스왑(corner 2) ─────────────
+            var batBlock = MakeCornerBlock("BatteryBlock", root.transform, corner: 2);
             UITheme.MakeIconImage("BatIcon", batBlock.transform, "icon_battery", 30f,
                 new Vector2(UITheme.SpaceMD + 15f, -UITheme.SpaceSM - 15f),
                 new Vector2(0f, 1f), Color.white);
@@ -327,23 +340,7 @@ namespace Game.Editor.UI {
                 new Vector2(-UITheme.SpaceMD, UITheme.SpaceMD + UITheme.GaugeHeight),
                 UITheme.ColSuccess);
 
-            // ── 우상: 수심 블록(글래스) — 큰 수치 강조 ─────────────────────
-            var depthBlock = MakeCornerBlock("DepthBlock", root.transform, corner: 1);
-            UITheme.MakeIconImage("DepthIcon", depthBlock.transform, "icon_depth", 28f,
-                new Vector2(UITheme.SpaceMD + 14f, -UITheme.SpaceSM - 14f),
-                new Vector2(0f, 1f), UITheme.ColInfo);
-            var depthLabel = UITheme.MakeText("DepthLabel", depthBlock.transform,
-                "수심", UITheme.FontCaption, UITheme.TextSecondary);
-            PinTopLeft(depthLabel.GetComponent<RectTransform>(), UITheme.SpaceMD + 38f, UITheme.SpaceSM, 100f, 20f);
-            var depthTxt = UITheme.MakeText("DepthTxt", depthBlock.transform,
-                "0m", UITheme.FontMetric, UITheme.ColInfo, TextAlignmentOptions.Right);
-            depthTxt.fontStyle = UITheme.MetricStyle;
-            // 블록 전체 우측을 채우는 큰 수치(아이콘/레이블 아래)
-            var depthRt = depthTxt.GetComponent<RectTransform>();
-            depthRt.anchorMin = new Vector2(0f, 0f);
-            depthRt.anchorMax = new Vector2(1f, 1f);
-            depthRt.offsetMin = new Vector2(UITheme.SpaceMD, UITheme.SpaceSM);
-            depthRt.offsetMax = new Vector2(-UITheme.SpaceMD, -UITheme.SpaceMD - 22f);
+            // 수심 수치는 우측 수심 밴드 상단의 미터패널(DepthMeter)로 이동 — 게이지 옆에 일원화
 
             // ── 우하: 적재 블록(글래스) — 게이지 + kg 수치 ─────────────────
             var cargoBlock = MakeCornerBlock("CargoBlock", root.transform, corner: 3);
@@ -363,8 +360,8 @@ namespace Game.Editor.UI {
                 new Vector2(-UITheme.SpaceMD, UITheme.SpaceMD + UITheme.GaugeHeight),
                 UITheme.ColWarn);
 
-            // ── 좌하: 정화도 / 임무 안내 블록(글래스) ───────────────────────
-            var missionBlock = MakeCornerBlock("MissionBlock", root.transform, corner: 2);
+            // ── 좌상: 정화도 / 임무 안내 블록(글래스) — 배터리와 위치 스왑(corner 0) ──
+            var missionBlock = MakeCornerBlock("MissionBlock", root.transform, corner: 0);
             UITheme.MakeIconImage("MissionIcon", missionBlock.transform, "icon_purify", 26f,
                 new Vector2(UITheme.SpaceMD + 13f, -UITheme.SpaceSM - 13f),
                 new Vector2(0f, 1f), UITheme.Accent);
@@ -378,11 +375,11 @@ namespace Game.Editor.UI {
                 new Vector2(-UITheme.SpaceMD, UITheme.SpaceMD + 26f),
                 TextAlignmentOptions.Left);
 
-            // ── 좌측 세로: 수심 밴드 — 화면 중앙, 코너 블록과 분리(y 20%~80%) ──
+            // ── 우측 세로: 수심 밴드 — 우측으로 이동(y 20%~80%), 레이블은 밴드 왼쪽(화면 안쪽) ──
             var depthBand = UITheme.MakePanel("DepthBand", root.transform,
-                new Vector2(0f, 0.2f), new Vector2(0f, 0.8f),
-                new Vector2(UITheme.SpaceSM, 0f),
-                new Vector2(UITheme.SpaceSM + DEPTH_BAND_W, 0f),
+                new Vector2(1f, 0.2f), new Vector2(1f, 0.8f),
+                new Vector2(-UITheme.SpaceSM - DEPTH_BAND_W, 0f),
+                new Vector2(-UITheme.SpaceSM, 0f),
                 UITheme.BgHeader);
             UITheme.AddShadow(depthBand, 0.4f, 0f, -2f);
 
@@ -407,6 +404,25 @@ namespace Game.Editor.UI {
             var markerImg = depthMarker.AddComponent<Image>();
             markerImg.color = UITheme.Accent;
             UITheme.ApplyRound(markerImg, 4f);
+
+            // ── 미터패널 — 밴드 상단 바로 위, 현재 수심 수치(아이콘 + Xm) ──
+            var meterPanel = UITheme.MakePanel("DepthMeter", root.transform,
+                new Vector2(1f, 0.8f), new Vector2(1f, 0.8f),
+                new Vector2(-UITheme.SpaceSM - 148f, UITheme.SpaceSM),
+                new Vector2(-UITheme.SpaceSM, UITheme.SpaceSM + 58f),
+                UITheme.BgHeader);
+            UITheme.AddShadow(meterPanel, 0.4f, 0f, -2f);
+            UITheme.MakeIconImage("DepthMeterIcon", meterPanel.transform, "icon_depth", 26f,
+                new Vector2(UITheme.SpaceMD + 13f, 0f),
+                new Vector2(0f, 0.5f), UITheme.ColInfo);
+            var depthTxt = UITheme.MakeText("DepthTxt", meterPanel.transform,
+                "0m", UITheme.FontHeading, UITheme.ColInfo, TextAlignmentOptions.Right);
+            depthTxt.fontStyle = UITheme.HeadingStyle;
+            var depthRt = depthTxt.GetComponent<RectTransform>();
+            depthRt.anchorMin = new Vector2(0f, 0f);
+            depthRt.anchorMax = new Vector2(1f, 1f);
+            depthRt.offsetMin = new Vector2(UITheme.SpaceMD + 36f, 0f);
+            depthRt.offsetMax = new Vector2(-UITheme.SpaceMD, 0f);
 
             // ── 상단 경고 배너 — 코너 블록 아래(y -144~-200)로 내려 비겹침 ──
             var warnBanner = UITheme.MakePanel("WarnBanner", root.transform,
@@ -449,6 +465,16 @@ namespace Game.Editor.UI {
             toastTxt.fontStyle = FontStyles.Bold;
             toastGo.SetActive(false);
 
+            // ── 상호작용 프롬프트 — 하단 중앙 "[E] 오염체 정제"(범위 진입 시) ──
+            var promptGo = UITheme.MakeGlassPanel("InteractPrompt", root.transform,
+                new Vector2(0.38f, 0f), new Vector2(0.62f, 0f),
+                new Vector2(0f, HUD_SAFE + UITheme.SpaceSM),
+                new Vector2(0f, HUD_SAFE + UITheme.SpaceSM + 48f));
+            var promptTxt = UITheme.MakeText("PromptTxt", promptGo.transform,
+                "[E] 오염체 정제", UITheme.FontBody, UITheme.Accent, TextAlignmentOptions.Center);
+            promptTxt.fontStyle = FontStyles.Bold;
+            promptGo.SetActive(false);
+
             // Hud 컴포넌트 배선 (기존 Hud.cs)
             var hudComp = root.AddComponent<Hud>();
             var hudSo = new SerializedObject(hudComp);
@@ -474,6 +500,7 @@ namespace Game.Editor.UI {
             AssignRef(extSo, "warnBanner",   warnBanner);
             AssignRef(extSo, "toastRoot",    toastGo);
             AssignRef(extSo, "toastText",    toastTxt);
+            AssignRef(extSo, "interactPrompt", promptGo);
             extSo.ApplyModifiedPropertiesWithoutUndo();
 
             Undo.RegisterCreatedObjectUndo(root, "Build HUD Panel UI");
@@ -806,6 +833,133 @@ namespace Game.Editor.UI {
             Debug.Log("[HudUIBuilder] CraftPanel 생성");
         }
 
+        // ═══════════════════════════════════════════════════════════════════════
+        // 5. 오염체 수집 미니게임 (스타포스 타이밍바) — Collector가 표시 토글
+        // varco 생성 에셋 배치 + 텍스트는 UITheme 토큰(기존 UI와 톤 일관)
+        // ═══════════════════════════════════════════════════════════════════════
+        static void BuildMinigamePanel(Transform canvas, Collector collector) {
+            DestroyExisting(canvas, "MinigameRoot");
+
+            // 항상 활성 루트 — CollectMinigame.Update 유지(표시 토글은 자식 panel)
+            var mgRoot = new GameObject("MinigameRoot");
+            mgRoot.transform.SetParent(canvas, false);
+            var mgRootRt = mgRoot.AddComponent<RectTransform>();
+            mgRootRt.anchorMin = Vector2.zero;
+            mgRootRt.anchorMax = Vector2.one;
+            mgRootRt.offsetMin = Vector2.zero;
+            mgRootRt.offsetMax = Vector2.zero;
+
+            // 딤 배경(클릭 차단) + 팝업 연출 — 모달 집중(ugui 권장)
+            var panel = UITheme.MakeStretchPanel("MinigamePanel", mgRoot.transform,
+                color: new Color(0.02f, 0.05f, 0.07f, 0.6f));
+            panel.AddComponent<Game.UI.PopupPanel>();
+
+            // 중앙 박스 — varco 패널 배경(황금비)
+            var box = MakeGoldenPanel("MinigameBox", panel.transform, 820f);
+            var boxImg = box.GetComponent<Image>();
+            var panelSprite = LoadMinigameSprite("minigame_panel");
+            if (panelSprite != null) {
+                boxImg.sprite = panelSprite;
+                boxImg.type = Image.Type.Sliced;
+                boxImg.color = Color.white;
+            }
+            UITheme.AddShadow(box, 0.6f, 0f, -6f);
+
+            // 타이틀/안내 — UITheme 토큰으로 기존 UI와 톤 통일
+            var title = UITheme.MakeText("MgTitle", box.transform, "오염체 정제",
+                UITheme.FontTitle, UITheme.Accent, TextAlignmentOptions.Center);
+            title.fontStyle = UITheme.HeadingStyle;
+            var titleRt = title.GetComponent<RectTransform>();
+            titleRt.anchorMin = new Vector2(0f, 1f);
+            titleRt.anchorMax = new Vector2(1f, 1f);
+            titleRt.offsetMin = new Vector2(0f, -64f);
+            titleRt.offsetMax = new Vector2(0f, -16f);
+
+            var hint = UITheme.MakeText("MgHint", box.transform, "커서가 초록 구간에 올 때 E!",
+                UITheme.FontBody, UITheme.TextSecondary, TextAlignmentOptions.Center);
+            var hintRt = hint.GetComponent<RectTransform>();
+            hintRt.anchorMin = new Vector2(0f, 1f);
+            hintRt.anchorMax = new Vector2(1f, 1f);
+            hintRt.offsetMin = new Vector2(0f, -104f);
+            hintRt.offsetMax = new Vector2(0f, -68f);
+
+            // 트랙(중앙) — varco track 스프라이트(9-slice)
+            var track = new GameObject("MgTrack");
+            track.transform.SetParent(box.transform, false);
+            var trackRt = track.AddComponent<RectTransform>();
+            trackRt.anchorMin = new Vector2(0.5f, 0.5f);
+            trackRt.anchorMax = new Vector2(0.5f, 0.5f);
+            trackRt.sizeDelta = new Vector2(640f, 48f);
+            trackRt.anchoredPosition = new Vector2(0f, -20f);
+            var trackImg = track.AddComponent<Image>();
+            var trackSprite = LoadMinigameSprite("minigame_track");
+            if (trackSprite != null) {
+                trackImg.sprite = trackSprite;
+                trackImg.type = Image.Type.Sliced;
+            } else {
+                trackImg.color = UITheme.BgDeep;
+            }
+
+            // 타겟존(트랙 자식) — CollectMinigame이 위치/폭을 동적 설정
+            var target = new GameObject("MgTarget");
+            target.transform.SetParent(track.transform, false);
+            var targetRt = target.AddComponent<RectTransform>();
+            targetRt.anchorMin = new Vector2(0f, 0.5f);
+            targetRt.anchorMax = new Vector2(0f, 0.5f);
+            targetRt.sizeDelta = new Vector2(120f, 56f);
+            var targetImg = target.AddComponent<Image>();
+            var targetSprite = LoadMinigameSprite("minigame_target");
+            if (targetSprite != null) {
+                targetImg.sprite = targetSprite;
+                targetImg.type = Image.Type.Sliced;
+            } else {
+                targetImg.color = UITheme.ColSuccess;
+            }
+            targetImg.raycastTarget = false;
+
+            // 커서(트랙 자식) — 좌우 왕복
+            var cursor = new GameObject("MgCursor");
+            cursor.transform.SetParent(track.transform, false);
+            var cursorRt = cursor.AddComponent<RectTransform>();
+            cursorRt.anchorMin = new Vector2(0f, 0.5f);
+            cursorRt.anchorMax = new Vector2(0f, 0.5f);
+            cursorRt.sizeDelta = new Vector2(28f, 72f);
+            var cursorImg = cursor.AddComponent<Image>();
+            var cursorSprite = LoadMinigameSprite("minigame_cursor");
+            if (cursorSprite != null) {
+                cursorImg.sprite = cursorSprite;
+                cursorImg.preserveAspect = true;
+            } else {
+                cursorImg.color = UITheme.Accent;
+            }
+            cursorImg.raycastTarget = false;
+
+            // CollectMinigame 부착(활성 루트) + 참조 배선
+            var mg = mgRoot.AddComponent<Game.UI.CollectMinigame>();
+            var so = new SerializedObject(mg);
+            AssignRef(so, "panel",  panel);
+            AssignRef(so, "track",  trackRt);
+            AssignRef(so, "cursor", cursorRt);
+            AssignRef(so, "target", targetRt);
+            so.ApplyModifiedPropertiesWithoutUndo();
+
+            // Collector에 미니게임 배선 — E 수집 시 미니게임 경유
+            if (collector != null) {
+                var cso = new SerializedObject(collector);
+                AssignRef(cso, "minigame", mg);
+                cso.ApplyModifiedPropertiesWithoutUndo();
+            }
+
+            panel.SetActive(false);   // 기본 숨김
+            Undo.RegisterCreatedObjectUndo(mgRoot, "Build Minigame UI");
+            Debug.Log("[HudUIBuilder] 수집 미니게임 패널 생성");
+        }
+
+        // 미니게임 전용 스프라이트 로드(4.Art/UI/minigame)
+        static Sprite LoadMinigameSprite(string name) {
+            return AssetDatabase.LoadAssetAtPath<Sprite>($"Assets/4.Art/UI/minigame/{name}.png");
+        }
+
         // ── UI 부품 헬퍼 ───────────────────────────────────────────────────────
 
         // 패널 상단 타이틀 헤더 바 — header_bar 스프라이트로 크롬 통일
@@ -1046,13 +1200,14 @@ namespace Game.Editor.UI {
         static void BuildDepthLabel(string name, Transform parent,
                 float anchorY1, float anchorY2, string label, Color color) {
             var t = UITheme.MakeText(name, parent,
-                label, UITheme.FontCaption, color, TextAlignmentOptions.Left);
+                label, UITheme.FontCaption, color, TextAlignmentOptions.Right);
             t.fontStyle = FontStyles.Bold;
             var rt = t.GetComponent<RectTransform>();
-            rt.anchorMin = new Vector2(1f, (anchorY1 + anchorY2) * 0.5f - 0.06f);
-            rt.anchorMax = new Vector2(1f, (anchorY1 + anchorY2) * 0.5f + 0.06f);
-            rt.offsetMin = new Vector2(UITheme.SpaceSM, 0f);
-            rt.offsetMax = new Vector2(UITheme.SpaceSM + 56f, 0f);
+            // 밴드가 우측으로 이동 — 레이블은 밴드 왼쪽(화면 안쪽)에 우측정렬로 배치
+            rt.anchorMin = new Vector2(0f, (anchorY1 + anchorY2) * 0.5f - 0.06f);
+            rt.anchorMax = new Vector2(0f, (anchorY1 + anchorY2) * 0.5f + 0.06f);
+            rt.offsetMin = new Vector2(-UITheme.SpaceSM - 56f, 0f);
+            rt.offsetMax = new Vector2(-UITheme.SpaceSM, 0f);
         }
 
         // ── 레이아웃 유틸 ─────────────────────────────────────────────────────

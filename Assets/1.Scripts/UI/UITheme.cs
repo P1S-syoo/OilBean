@@ -281,13 +281,13 @@ namespace Game.UI {
             var fillRt = fill.AddComponent<RectTransform>();
             fillRt.anchorMin = new Vector2(0f, 0f);
             fillRt.anchorMax = new Vector2(1f, 1f);
-            fillRt.offsetMin = new Vector2(1f, 1f);
-            fillRt.offsetMax = new Vector2(-1f, -1f);
+            fillRt.offsetMin = new Vector2(0f, 0f);
+            fillRt.offsetMax = new Vector2(0f, 0f);
             var fillImg = fill.AddComponent<Image>();
+            fillImg.sprite = RoundSprite;
             fillImg.color = fillColor;
-            fillImg.type = Image.Type.Filled;
-            fillImg.fillMethod = Image.FillMethod.Horizontal;
-            fillImg.fillAmount = 1f;
+            fillImg.type = Image.Type.Sliced;   // 9-slice 유지(둥근 모서리 보존) — 채움은 anchorMax.x로(SetGaugeFill/TweenFill)
+            fillImg.pixelsPerUnitMultiplier = 1f;
 
             outFill = fillImg;
             return bg;
@@ -307,13 +307,13 @@ namespace Game.UI {
             var fillRt = fill.AddComponent<RectTransform>();
             fillRt.anchorMin = new Vector2(0f, 0f);
             fillRt.anchorMax = new Vector2(1f, 1f);
-            fillRt.offsetMin = new Vector2(1f, 1f);
-            fillRt.offsetMax = new Vector2(-1f, -1f);
+            fillRt.offsetMin = new Vector2(0f, 0f);
+            fillRt.offsetMax = new Vector2(0f, 0f);
             var fillImg = fill.AddComponent<Image>();
+            fillImg.sprite = RoundSprite;
             fillImg.color = fillColor;
-            fillImg.type = Image.Type.Filled;
-            fillImg.fillMethod = Image.FillMethod.Horizontal;
-            fillImg.fillAmount = 1f;
+            fillImg.type = Image.Type.Sliced;   // 9-slice 유지(둥근 모서리 보존) — 채움은 anchorMax.x로(SetGaugeFill/TweenFill)
+            fillImg.pixelsPerUnitMultiplier = 1f;
             return fillImg;
         }
 
@@ -371,18 +371,34 @@ namespace Game.UI {
                 return null;
             }
             try {
-                // DOTween.dll 코어 To 사용(UI 모듈 DOFillAmount 미포함 — 코드베이스 표준 패턴)
+                // 9-slice 모서리 보존 — fillAmount 대신 anchorMax.x로 채움(코어 To, UI 모듈 미의존)
+                var rt = fill.rectTransform;
                 DOTween.Kill(fill);   // 이전 트윈 중단(중복 방지)
                 float clamped = Mathf.Clamp01(target);
-                return DOTween.To(() => fill.fillAmount, v => fill.fillAmount = v, clamped, dur)
+                return DOTween.To(() => rt.anchorMax.x, x => {
+                        var a = rt.anchorMax;
+                        a.x = x;
+                        rt.anchorMax = a;
+                    }, clamped, dur)
                     .SetEase(Ease.OutCubic)
                     .SetUpdate(true)
                     .SetTarget(fill);
             } catch (System.Exception e) {
                 Debug.LogError($"[UITheme] 게이지 트윈 오류: {e.Message}");
-                fill.fillAmount = Mathf.Clamp01(target);   // 폴백: 즉시 적용
+                SetGaugeFill(fill, target);   // 폴백: 즉시 적용
                 return null;
             }
+        }
+
+        // 게이지 채움 즉시 설정 — 9-slice 모서리 보존 위해 anchorMax.x 사용(연속 변화용, 트윈 스래싱 회피)
+        public static void SetGaugeFill(Image fill, float ratio) {
+            if (fill == null) {
+                return;
+            }
+            var rt = fill.rectTransform;
+            var a = rt.anchorMax;
+            a.x = Mathf.Clamp01(ratio);
+            rt.anchorMax = a;
         }
 
         // ── 수면 부상 등장 모션 ─────────────────────────────────────

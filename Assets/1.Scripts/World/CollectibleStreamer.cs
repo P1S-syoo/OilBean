@@ -14,6 +14,7 @@ namespace Game.World {
         [SerializeField] int slotsPerCell = 2;      // (호환) 기본 슬롯 — 하이브리드에서는 군집/개방 슬롯이 우선
         [SerializeField] int density = 70;          // (호환) 기본 채움 확률
         [SerializeField] float colliderRadius = 1f; // 수집 트리거 월드 반경(m)
+        [SerializeField] float zSpread = 3f;        // 오염체 z축 분산 폭 — 시각적 입체감(2D 수집은 xy만 사용)
 
         [Header("하이브리드 배치 — 난파 군집 + 개방 수역")]
         [SerializeField] float clusterInterval = 60f;  // 난파 군집 간격(u) — 다리 앵커 기준 주기
@@ -188,6 +189,8 @@ namespace Game.World {
 
         GameObject Spawn(ItemDef def, Vector3 pos) {
             try {
+                // z축 분산 — 시각적 입체감(2D 물리/수집은 xy만 사용해 영향 없음)
+                pos.z = ((Hash(Mathf.RoundToInt(pos.x * 11f), def.id.Length + 3) % 200) / 200f - 0.5f) * zSpread;
                 float yaw = Hash(Mathf.RoundToInt(pos.x), def.id.Length) % 360;
                 var go = Instantiate(def.prefab, pos, Quaternion.Euler(0f, yaw, 0f), transform);
                 go.name = "Pickup_" + def.id;

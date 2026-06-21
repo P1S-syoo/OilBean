@@ -35,7 +35,7 @@ namespace Game.UI {
             if (!Mathf.Approximately(run.Purify, lastPurify)) {
                 lastPurify = run.Purify;
                 // 설치 진행은 홀드 중 매 프레임 연속 변화 → 트윈(Kill+재시작) 스래싱으로 막대가 안 차므로 직접 설정
-                purifyFill.fillAmount = Mathf.Clamp01(run.Purify);
+                UITheme.SetGaugeFill(purifyFill, run.Purify);   // 9-slice 채움(anchorMax.x)
             }
         }
 
@@ -59,7 +59,7 @@ namespace Game.UI {
                 lastRatio = battery.Ratio;
                 // 배터리는 탐사 중 매 프레임 연속 감소 → 트윈(Kill+재시작) 스래싱으로 막대가 1.0 근처에 고정됨.
                 // 연속값은 직접 설정해야 매끄럽게 줄어든다(불연속 점프인 적재 게이지만 트윈 사용).
-                batteryFill.fillAmount = Mathf.Clamp01(battery.Ratio);
+                UITheme.SetGaugeFill(batteryFill, battery.Ratio);   // 9-slice 채움(anchorMax.x)
             }
         }
 

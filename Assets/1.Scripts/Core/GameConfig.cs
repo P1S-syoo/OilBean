@@ -48,7 +48,10 @@ namespace Game.Core {
         public float camSmoothTime = 0.18f;      // 카메라 추적 지연
 
         [Header("위험/스폰 — Hazard")]
-        public float hazardSpeed = 2f;           // 오염원 이동 속도
+        public float hazardSpeed = 2f;           // 오염원 이동 속도(레거시 왕복 — 미사용)
+        public float hazardWarnTime = 0.8f;      // 돌진 전 경고(텔레그래프) 시간(s)
+        public float hazardDashSpeed = 14f;      // 돌진 속도(u/s)
+        public float hazardAttackInterval = 2.2f;// 돌진 공격 발생 간격(s)
 
         [Header("위험/스폰 — HazardStreamer")]
         public float hazardSurfaceDensity = 8f;  // 수면 근처 스폰 확률(%)

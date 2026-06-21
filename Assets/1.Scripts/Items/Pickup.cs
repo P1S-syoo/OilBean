@@ -32,5 +32,34 @@ namespace Game.Items {
                 col.isTrigger = true;
             }
         }
+
+        // ── 상호작용 강조(진입 효과) — 최근접 대상일 때 Collector가 켠다 ──
+        Vector3 baseScale = Vector3.one;
+        bool baseCaptured;
+        bool highlighted;
+        float pulse;
+
+        // 강조 토글 — 스케일 펄스로 표현(렌더러 종류 무관, 2.5D 안전)
+        public void SetHighlighted(bool on) {
+            if (!baseCaptured) {
+                baseScale = transform.localScale;
+                baseCaptured = true;
+            }
+            if (highlighted == on) {
+                return;
+            }
+            highlighted = on;
+            if (!on) {
+                transform.localScale = baseScale;
+            }
+        }
+
+        void Update() {
+            if (!highlighted) {
+                return;
+            }
+            pulse += Time.deltaTime * 4f;
+            transform.localScale = baseScale * (1f + 0.12f * Mathf.Abs(Mathf.Sin(pulse)));
+        }
     }
 }

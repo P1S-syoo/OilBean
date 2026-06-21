@@ -13,6 +13,9 @@ namespace Game.Items {
         [SerializeField] RunData run;          // 인벤토리(공유 RunData 자산)
         [SerializeField] float pickupRadius = 1.5f;   // 수집 감지 반경(전용 트리거 센서)
         [SerializeField] GameConfig config;    // 통합 설정 — 연결 시 수집 반경 덮어씀(미연결 시 위 기본값 유지)
+        [SerializeField] Game.UI.CollectMinigame minigame;   // 수집 미니게임(미연결 시 즉시 수집 폴백)
+
+        Pickup pendingTarget;   // 미니게임 진행 중인 수집 대상
 
         readonly HashSet<Pickup> inRange = new();
         InputAction interact;                  // E 키(코드 정의)
@@ -20,6 +23,10 @@ namespace Game.Items {
         // 수집 성공/적재 한계 — 사운드·HUD 등이 구독
         public event Action<ResourceKind> OnCollect;
         public event Action OnFull;
+        public event Action<bool> OnInteractableChanged;   // 범위 내 대상 유무(E 프롬프트용)
+
+        Pickup highlightTarget;   // 현재 강조 중인 최근접 대상
+        Game.Player.PlayerMove mover;   // 미니게임 중 이동 잠금용
 
         void Awake() {
             try {
@@ -35,6 +42,7 @@ namespace Game.Items {
                 sensor.isTrigger = true;
                 sensor.radius = pickupRadius;
                 interact = new InputAction("Interact", InputActionType.Button, "<Keyboard>/e");
+                mover = GetComponent<Game.Player.PlayerMove>();   // 미니게임 중 정지용(같은 잠수정)
             } catch (Exception e) {
                 Debug.LogError($"[Collector] Awake 오류: {e.Message}\n{e.StackTrace}");
             }
@@ -71,20 +79,77 @@ namespace Game.Items {
             var p = other.GetComponent<Pickup>();
             if (p != null) {
                 inRange.Remove(p);
+                // 미니게임 대상이 범위 이탈 — 취소 + 이동 잠금 해제
+                if (minigame != null && minigame.Active && p == pendingTarget) {
+                    minigame.Cancel();
+                    pendingTarget = null;
+                    SetMoveLock(false);
+                }
             }
         }
 
+        // 최근접 대상 강조 갱신 — 진입 효과(하이라이트) + E 프롬프트 이벤트
+        void Update() {
+            var n = Nearest();
+            if (n == highlightTarget) {
+                return;
+            }
+            if (highlightTarget != null) {
+                highlightTarget.SetHighlighted(false);
+            }
+            highlightTarget = n;
+            if (highlightTarget != null) {
+                highlightTarget.SetHighlighted(true);
+            }
+            OnInteractableChanged?.Invoke(highlightTarget != null);
+        }
+
         void OnInteract(InputAction.CallbackContext ctx) {
-            TryCollectNearest();
+            // 미니게임 미배선 — 즉시 수집(폴백, 테스트 호환)
+            if (minigame == null) {
+                TryCollectNearest();
+                return;
+            }
+            // 미니게임 진행 중 — E는 멈춤 판정
+            if (minigame.Active) {
+                minigame.Judge();
+                return;
+            }
+            // 근접 대상에 대해 미니게임 시작(오염 농도 등급별 난이도)
+            var target = Nearest();
+            if (target == null) {
+                return;
+            }
+            pendingTarget = target;
+            SetMoveLock(true);   // 미니게임 동안 잠수정 정지
+            minigame.StartGame(target.PollutionLevel, OnMinigameResult);
+        }
+
+        // 미니게임 결과 — 명중 시에만 실제 수집
+        void OnMinigameResult(bool hit) {
+            SetMoveLock(false);   // 이동 재개
+            var t = pendingTarget;
+            pendingTarget = null;
+            if (hit && t != null) {
+                CollectTarget(t);
+            }
+        }
+
+        // 미니게임 중 잠수정 이동 잠금/해제
+        void SetMoveLock(bool locked) {
+            if (mover != null) {
+                mover.enabled = !locked;
+            }
         }
 
         // 가장 가까운 근접 Pickup 1개 획득 시도(테스트도 직접 호출)
         public bool TryCollectNearest() {
-            if (run == null) {
-                return false;
-            }
-            var target = Nearest();
-            if (target == null) {
+            return CollectTarget(Nearest());
+        }
+
+        // 지정 대상 수집 — 적재/입고/이벤트/파괴(미니게임 성공·즉시 수집 공용)
+        bool CollectTarget(Pickup target) {
+            if (run == null || target == null) {
                 return false;
             }
             if (!run.TryAdd(target.Kind, target.Weight)) {

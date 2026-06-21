@@ -23,6 +23,7 @@ namespace Game.UI {
         [SerializeField] GameObject warnBanner;   // 상단 경고 배너 루트
         [SerializeField] GameObject toastRoot;    // 수집 토스트 루트
         [SerializeField] TMP_Text toastText;      // 토스트 메시지
+        [SerializeField] GameObject interactPrompt;   // "E 정제" 상호작용 프롬프트(범위 진입 시)
 
         // 직전 캐시(변경 시에만 갱신)
         float lastRatio = -1f, lastW = -1f, lastMax = -1f;
@@ -33,6 +34,17 @@ namespace Game.UI {
         void OnEnable() {
             if (collector != null) {
                 collector.OnCollect += OnCollect;
+                collector.OnInteractableChanged += OnInteractable;
+            }
+            if (interactPrompt != null) {
+                interactPrompt.SetActive(false);
+            }
+        }
+
+        // 상호작용 가능 — E 프롬프트 토글
+        void OnInteractable(bool can) {
+            if (interactPrompt != null) {
+                interactPrompt.SetActive(can);
             }
         }
 
@@ -48,6 +60,7 @@ namespace Game.UI {
         void Unsubscribe() {
             if (collector != null) {
                 collector.OnCollect -= OnCollect;
+                collector.OnInteractableChanged -= OnInteractable;
             }
         }
 
@@ -185,13 +198,17 @@ namespace Game.UI {
             }
         }
 
-        // 플레이어 월드Y 획득 — 태그 "Player" 오브젝트 캐시
+        // 플레이어 월드Y 획득 — 배터리(플레이어 잠수정에 부착)의 transform 사용(태그 의존 제거)
         Transform playerTr;
         float GetPlayerY() {
             if (playerTr == null) {
-                var go = GameObject.FindWithTag("Player");
-                if (go != null) {
-                    playerTr = go.transform;
+                if (battery != null) {
+                    playerTr = battery.transform;   // 배터리=잠수정 루트 → 수심 기준
+                } else {
+                    var go = GameObject.FindWithTag("Player");
+                    if (go != null) {
+                        playerTr = go.transform;
+                    }
                 }
             }
             return playerTr != null ? playerTr.position.y : DepthMap.SurfaceY;

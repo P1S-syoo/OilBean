@@ -97,6 +97,10 @@ namespace Game.Core {
                 craftInput.performed += OnCraftInput;
                 craftInput.Enable();
                 Debug.Log($"[GameBootstrap] 시작 상태: {Fsm.Current}");
+                // 셰이더 깨짐 폴백(버전 안전망) — 씬 루트 전체에서 깨진 머티리얼 교체
+                foreach (var go in gameObject.scene.GetRootGameObjects()) {
+                    ShaderGuard.FixBroken(go);
+                }
             } catch (System.Exception e) {
                 Debug.LogError($"[GameBootstrap] Awake 오류: {e.Message}\n{e.StackTrace}");
             }
@@ -188,12 +192,18 @@ namespace Game.Core {
         // 적재 한계 — 강제 복귀 대신 경고만(복귀는 R키로 플레이어 선택)
         void OnInvFull() { if (toast != null) toast.Show("적재 한계 — R키로 정화선 복귀"); }
         void OnHazardHit() {
-            // 내압 프레임 장착 시 충돌 1회 흡수(장갑 소진) — 복귀 면제
+            // 내압 프레임 장착 시 충돌 1회 흡수(장갑 소진)
             if (run != null && run.ConsumeHullArmor()) {
                 if (toast != null) toast.Show("내압 프레임 — 충돌 흡수");
                 return;
             }
-            ForceReturn("오염원 충돌");
+            // 충돌 페널티 완화 — 강제 복귀 대신 배터리 10% 손실(피격 부담↓)
+            if (battery != null) {
+                battery.Drain(battery.Max * 0.1f);
+            }
+            if (toast != null) {
+                toast.Show("오염원 충돌 — 배터리 10% 손실");
+            }
         }
         // 플레이어 수동 복귀(R) — 탐사 중엔 거점 복귀, 클리어 후엔 수면 복귀(W6)
         void OnReturnInput(InputAction.CallbackContext ctx) {

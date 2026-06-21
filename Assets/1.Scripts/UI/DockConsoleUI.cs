@@ -12,6 +12,7 @@ namespace Game.UI {
         [SerializeField] Research research;
         [SerializeField] Crafting crafting;
         [SerializeField] GameBootstrap bootstrap;
+        [SerializeField] Game.Surface.SurfaceBootstrap surface;   // 수상에서 잠수 트리거(미연결 시 자동 탐색)
 
         [SerializeField] TMP_Text resourceBarText;   // 상단 자원 바 텍스트
         [SerializeField] TMP_Text goalBodyText;       // 우측 현재 목표 카드 본문
@@ -20,11 +21,19 @@ namespace Game.UI {
         [SerializeField] Button researchBtn;   // 연구 패널 열기
         [SerializeField] Button craftBtn;      // 제작 패널 열기
         [SerializeField] Button purifyBtn;     // 정화 설치로 전환
+        [SerializeField] Button closeBtn;      // 거점 콘솔 닫기(수상 — 배 조작 복귀)
 
         // 직전 표시값 캐시(매 프레임 재할당 방지)
         float lastSteel0 = -1f, lastSteel1 = -1f, lastSteel2 = -1f;
         int lastSmp = -1, lastPts = -1, lastBuoy = -1;
         float lastWeight = -1f;
+
+        void Awake() {
+            // 미연결 참조 자동 탐색 — 수상 잠수 트리거용
+            if (surface == null) {
+                surface = FindFirstObjectByType<Game.Surface.SurfaceBootstrap>();
+            }
+        }
 
         void OnEnable() {
             // 버튼 이벤트 등록
@@ -39,6 +48,9 @@ namespace Game.UI {
             }
             if (purifyBtn != null) {
                 purifyBtn.onClick.AddListener(OnPurify);
+            }
+            if (closeBtn != null) {
+                closeBtn.onClick.AddListener(OnClose);
             }
             Refresh();
         }
@@ -64,6 +76,9 @@ namespace Game.UI {
             }
             if (purifyBtn != null) {
                 purifyBtn.onClick.RemoveListener(OnPurify);
+            }
+            if (closeBtn != null) {
+                closeBtn.onClick.RemoveListener(OnClose);
             }
         }
 
@@ -136,17 +151,15 @@ namespace Game.UI {
             }
         }
 
-        // 버튼 활성 상태 — 탐사 시작은 항상 활성, 나머지는 콘텐츠 존재 시
+        // 버튼 활성 상태 — 패널 열기는 조건 최소화(가능 항목 판단은 패널 내부에서)
         void UpdateButtonStates() {
             if (researchBtn != null) {
-                researchBtn.interactable = run != null && run.TotalBankSamples > 0
-                    && (research == null || !research.Done);
+                // 연구는 재료(샘플)가 있어야만 열림
+                researchBtn.interactable = run != null && run.TotalBankSamples > 0;
             }
             if (craftBtn != null) {
-                bool canCraft = crafting != null
-                    && (crafting.CanCraftBuoy || crafting.CanUpgrade
-                        || (run != null && (crafting.CanCraft("up_battery") || crafting.CanCraft("gear_hull"))));
-                craftBtn.interactable = canCraft;
+                // 제작은 조건 없이 항상 열림
+                craftBtn.interactable = true;
             }
             if (purifyBtn != null) {
                 purifyBtn.interactable = run != null && run.BuoyReady;
@@ -154,11 +167,20 @@ namespace Game.UI {
         }
 
         // 버튼 핸들러 — GameBootstrap FSM 전환
+        // 탐사 시작 — 수상(도착)에선 잠수 연출(E키와 동일), 거점(Dock)에선 즉시 탐사
         void OnDive() {
-            if (bootstrap != null) {
-                bootstrap.StartDive();
-            } else {
+            if (bootstrap == null) {
                 Debug.LogWarning("[DockConsoleUI] GameBootstrap 미연결 — 탐사 전환 불가");
+                return;
+            }
+            if (bootstrap.State == GameState.Surface) {
+                if (surface != null) {
+                    surface.RequestDive();   // 정화 지점에서 잠수 인계
+                } else {
+                    Debug.LogWarning("[DockConsoleUI] SurfaceBootstrap 미연결 — 잠수 불가");
+                }
+            } else {
+                bootstrap.StartDive();
             }
         }
 
@@ -177,6 +199,13 @@ namespace Game.UI {
         void OnPurify() {
             if (bootstrap != null) {
                 bootstrap.GoPurify();
+            }
+        }
+
+        // 닫기 — 수상에선 콘솔 접고 배 조작 복귀(P키와 동일), 그 외 상태는 무시
+        void OnClose() {
+            if (surface != null && bootstrap != null && bootstrap.State == GameState.Surface) {
+                surface.CloseConsole();
             }
         }
 
