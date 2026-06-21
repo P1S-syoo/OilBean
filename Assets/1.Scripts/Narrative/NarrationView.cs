@@ -14,6 +14,7 @@ namespace Game.Narrative {
         // ── 설정 ────────────────────────────────────────────────────
         [SerializeField] float charDelay = 0.04f;   // 글자 간 딜레이(초)
         [SerializeField] float fadeTime   = 0.35f;   // 패널 페이드 시간
+        [SerializeField] Game.Core.GameConfig config; // 통합 설정 — 연결 시 타자 딜레이 덮어씀(미연결 시 위 기본값 유지)
         [SerializeField] float panelH     = 168f;    // 대사창 높이(위계 상향)
         [SerializeField] float panelBottom = 96f;    // 하단 HUD와 안 겹치게 바닥에서 띄우는 여백
 
@@ -39,12 +40,20 @@ namespace Game.Narrative {
         // 폰트 바인더(DefaultExecutionOrder -1000)의 Awake가 먼저 끝난 뒤 UI를 빌드하도록 Start에서 생성
         void Start() {
             try {
+                ApplyConfig();
                 // Play가 레이스로 먼저 빌드했을 수 있음 — 중복 캔버스 생성 방지
                 if (canvasGroup == null) {
                     BuildUI();
                 }
             } catch (Exception e) {
                 Debug.LogError($"[NarrationView] UI 생성 실패: {e.Message}");
+            }
+        }
+
+        // 통합 설정 적용 — 미연결이면 기존 기본값 유지
+        void ApplyConfig() {
+            if (config != null) {
+                charDelay = config.narrationCharDelay;
             }
         }
 
@@ -138,6 +147,7 @@ namespace Game.Narrative {
                 return;
             }
             try {
+                ApplyConfig();
                 // Start 실행 순서 레이스 방어 — 컨트롤러 Start가 뷰 Start보다 먼저면 UI 미생성 상태
                 // 모든 Awake(폰트 바인더 -1000 포함) 이후 호출되므로 여기서 빌드해도 폰트 주입 순서 안전
                 if (canvasGroup == null) {

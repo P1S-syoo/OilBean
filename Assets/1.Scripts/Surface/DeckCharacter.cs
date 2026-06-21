@@ -16,6 +16,7 @@ namespace Game.Surface {
         [SerializeField] float maxStepDown = 0.7f;               // 내려갈 수 있는 단차 한계(m) — 절벽(물)으로 못 떨어짐
         [SerializeField] float footSink = 0.12f;                 // 발을 표면에 묻는 깊이(m) — 확실한 접지감
         [SerializeField] float snapLerp = 16f;                   // 발 높이 추종 속도(m/s) — 경사·턱을 덜컹임 없이 부드럽게
+        [SerializeField] Game.Core.GameConfig config;            // 통합 설정 — 연결 시 보행 수치 덮어씀(미연결 시 위 기본값 유지)
 
         static readonly int SpeedHash = Animator.StringToHash("Speed");
         static readonly int OnDeckHash = Animator.StringToHash("OnDeck");
@@ -28,6 +29,11 @@ namespace Game.Surface {
 
         void Awake() {
             try {
+                // 통합 설정 적용 — 미연결이면 기존 기본값 유지
+                if (config != null) {
+                    moveSpeed = config.deckMoveSpeed;
+                    turnSpeed = config.deckTurnSpeed;
+                }
                 if (cam == null && Camera.main != null) {
                     cam = Camera.main.transform;
                 }

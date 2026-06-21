@@ -23,6 +23,7 @@ namespace Game.World {
         [SerializeField] int clusterDensity = 90;      // 군집 채움 확률(%)
         [SerializeField] int openSlots = 1;            // 개방 수역 셀 슬롯 수
         [SerializeField] int openDensity = 26;         // 개방 수역 채움 확률(%)
+        [SerializeField] GameConfig config;            // 통합 설정 — 연결 시 군집/개방 밀도 덮어씀(미연결 시 위 기본값 유지)
 
         public const float SpawnTopMargin = 0.5f;   // 수면 아래 여유(u) — 얕은 수집물도 수면 근처까지
         public const float SpawnBottomMargin = 1f;  // 바닥 위 여유(u)
@@ -31,6 +32,18 @@ namespace Game.World {
         readonly List<ItemDef> candidates = new();   // PickByDepth 무할당 재사용
         readonly List<int> removeBuf = new();         // Reconcile 무할당 재사용
         int lastCenter = int.MinValue;
+
+        void Awake() {
+            try {
+                // 통합 설정 적용 — 미연결이면 기존 기본값 유지
+                if (config != null) {
+                    clusterDensity = config.collectibleClusterDensity;
+                    openDensity = config.collectibleOpenDensity;
+                }
+            } catch (Exception e) {
+                Debug.LogError($"[CollectibleStreamer] config 적용 실패: {e.Message}");
+            }
+        }
 
         void LateUpdate() {
             if (target == null || table == null || table.items == null) {

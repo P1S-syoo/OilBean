@@ -869,6 +869,7 @@ MonoBehaviour:
   clusterDensity: 90
   openSlots: 1
   openDensity: 26
+  config: {fileID: 11400000, guid: 91669fa8a94342544b3165dbe7763fad, type: 2}
 --- !u!4 &16105158
 Transform:
   m_ObjectHideFlags: 0
@@ -2289,6 +2290,7 @@ MonoBehaviour:
   toast: {fileID: 330147097}
   autoStartDive: 1
   startOnSurface: 1
+  config: {fileID: 11400000, guid: 91669fa8a94342544b3165dbe7763fad, type: 2}
   forfeitRatio: 0.35
 --- !u!4 &75179097
 Transform:
@@ -2321,6 +2323,7 @@ MonoBehaviour:
   baseValue: 100
   gradeS: 5000
   gradeA: 2500
+  config: {fileID: 11400000, guid: 91669fa8a94342544b3165dbe7763fad, type: 2}
 --- !u!1 &87554677
 GameObject:
   m_ObjectHideFlags: 0
@@ -4530,6 +4533,7 @@ MonoBehaviour:
   descendDepth: 8
   plungeTime: 1.1
   plungeDistance: 6
+  config: {fileID: 11400000, guid: 91669fa8a94342544b3165dbe7763fad, type: 2}
 --- !u!4 &180379554
 Transform:
   m_ObjectHideFlags: 0
@@ -9555,6 +9559,7 @@ MonoBehaviour:
   installTime: 2
   progressFill: {fileID: 1402855615}
   holdPrompt: {fileID: 1951355867}
+  config: {fileID: 11400000, guid: 91669fa8a94342544b3165dbe7763fad, type: 2}
 --- !u!58 &435652912
 CircleCollider2D:
   m_ObjectHideFlags: 0
@@ -10032,6 +10037,7 @@ MonoBehaviour:
   bootstrap: {fileID: 0}
   murkyWeight: 1
   blend: 1.3
+  config: {fileID: 11400000, guid: 91669fa8a94342544b3165dbe7763fad, type: 2}
 --- !u!1001 &463065869
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -31611,6 +31617,7 @@ MonoBehaviour:
   searchLight: {fileID: 0}
   animator: {fileID: 669807488}
   run: {fileID: 0}
+  config: {fileID: 11400000, guid: 91669fa8a94342544b3165dbe7763fad, type: 2}
 --- !u!50 &996603741
 Rigidbody2D:
   serializedVersion: 5
@@ -31727,6 +31734,7 @@ MonoBehaviour:
   max: 100
   drainPerSec: 3.33
   draining: 1
+  config: {fileID: 11400000, guid: 91669fa8a94342544b3165dbe7763fad, type: 2}
 --- !u!114 &996603746
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -31741,6 +31749,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Game::Game.Items.Collector
   run: {fileID: 11400000, guid: bdfdb5cb084574b99b776283a134fd05, type: 2}
   pickupRadius: 1.5
+  config: {fileID: 11400000, guid: 91669fa8a94342544b3165dbe7763fad, type: 2}
 --- !u!1 &1007066338
 GameObject:
   m_ObjectHideFlags: 0
@@ -49878,6 +49887,7 @@ MonoBehaviour:
   surfaceDensity: 8
   deepDensity: 55
   maxPerCell: 2
+  config: {fileID: 11400000, guid: 91669fa8a94342544b3165dbe7763fad, type: 2}
 --- !u!1 &1564907716
 GameObject:
   m_ObjectHideFlags: 0
@@ -50103,6 +50113,7 @@ MonoBehaviour:
   target: {fileID: 996603743}
   smoothTime: 0.18
   zOffset: -20
+  config: {fileID: 11400000, guid: 91669fa8a94342544b3165dbe7763fad, type: 2}
 --- !u!114 &1576908829
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -51310,6 +51321,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Game::Game.Narrative.NarrationController
   view: {fileID: 1630996210}
   bootstrap: {fileID: 75179096}
+  config: {fileID: 11400000, guid: 91669fa8a94342544b3165dbe7763fad, type: 2}
 --- !u!114 &1630996210
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -51324,6 +51336,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Game::Game.Narrative.NarrationView
   charDelay: 0.04
   fadeTime: 0.35
+  config: {fileID: 11400000, guid: 91669fa8a94342544b3165dbe7763fad, type: 2}
   panelH: 120
   panelBottom: 96
 --- !u!4 &1630996211
@@ -60427,6 +60440,7 @@ MonoBehaviour:
   orbital: {fileID: 0}
   sensX: 0.15
   sensY: 0.1
+  config: {fileID: 11400000, guid: 91669fa8a94342544b3165dbe7763fad, type: 2}
 --- !u!1 &1956650268
 GameObject:
   m_ObjectHideFlags: 0
@@ -63314,6 +63328,7 @@ MonoBehaviour:
   maxStepDown: 0.7
   footSink: 0.12
   snapLerp: 16
+  config: {fileID: 11400000, guid: 91669fa8a94342544b3165dbe7763fad, type: 2}
 --- !u!1001 &2089108234
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -64529,6 +64544,7 @@ MonoBehaviour:
   targets:
   - 0.5
   - 1
+  config: {fileID: 11400000, guid: 91669fa8a94342544b3165dbe7763fad, type: 2}
 --- !u!21 &2141247171
 Material:
   serializedVersion: 8

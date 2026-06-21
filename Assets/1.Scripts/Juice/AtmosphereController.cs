@@ -11,9 +11,15 @@ namespace Game.Juice {
         [SerializeField] GameBootstrap bootstrap;
         [SerializeField] float murkyWeight = 1f; // 탐사 중 탁함 강도
         [SerializeField] float blend = 1.3f;     // 탁함↔맑음 전환 시간(초)
+        [SerializeField] GameConfig config;      // 통합 설정 — 연결 시 분위기 수치 덮어씀(미연결 시 위 기본값 유지)
 
         void Start() {
             try {
+                // 통합 설정 적용 — 미연결이면 기존 기본값 유지
+                if (config != null) {
+                    murkyWeight = config.atmosphereMurkyWeight;
+                    blend = config.atmosphereBlend;
+                }
                 if (volume == null) {
                     var go = GameObject.Find("AtmosphereVolume");
                     if (go != null) {

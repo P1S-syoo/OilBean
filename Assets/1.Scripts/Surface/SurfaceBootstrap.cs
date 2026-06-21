@@ -26,6 +26,7 @@ namespace Game.Surface {
         [SerializeField] float descendDepth = 8f;     // 자동 하강 깊이(수면 직하 → 탐사 시작 위치)
         [SerializeField] float plungeTime = 1.1f;     // 덱 캐릭터 입수(RunToDive) 연출 시간
         [SerializeField] float plungeDistance = 6f;   // 입수 시 측면 도약 거리 — 넓어진 선체를 확실히 넘어 물로
+        [SerializeField] GameConfig config;           // 통합 설정 — 연결 시 잠수 연출 수치 덮어씀(미연결 시 위 기본값 유지)
 
         InputAction diveInput;
         bool diveReady;
@@ -46,6 +47,13 @@ namespace Game.Surface {
 
         void Awake() {
             try {
+                // 통합 설정 적용 — 미연결이면 기존 기본값 유지
+                if (config != null) {
+                    blendTime = config.surfaceBlendTime;
+                    descendDepth = config.surfaceDescendDepth;
+                    plungeTime = config.surfacePlungeTime;
+                    plungeDistance = config.surfacePlungeDistance;
+                }
                 diveInput = new InputAction("Dive", InputActionType.Button, "<Keyboard>/e");
                 diveInput.performed += OnDiveInput;
             } catch (Exception e) {

@@ -11,6 +11,7 @@ namespace Game.Surface {
         [SerializeField] float minSpeed = 0.4f;       // 감속 중 최저 속도(완전 멈춤 직전까지 전진)
         [SerializeField] float turnSpeed = 2f;        // 회전 보간 속도(급커브 홱 돌기 방지)
         [SerializeField, Range(0f, 1f)] float[] targets = { 0.5f, 1f };   // 정화 목표(스플라인 정규화 거리)
+        [SerializeField] Game.Core.GameConfig config;   // 통합 설정 — 연결 시 항해 수치 덮어씀(미연결 시 위 기본값 유지)
 
         float distance;     // 스플라인 위 누적 이동 거리(m)
         float length;       // 스플라인 전체 길이 캐시
@@ -25,6 +26,13 @@ namespace Game.Surface {
 
         void Awake() {
             try {
+                // 통합 설정 적용 — 미연결이면 기존 기본값 유지
+                if (config != null) {
+                    speed = config.navSpeed;
+                    brakeDistance = config.navBrakeDistance;
+                    minSpeed = config.navMinSpeed;
+                    turnSpeed = config.navTurnSpeed;
+                }
                 if (river == null) {
                     Debug.LogError("[SubNavigator] 강 스플라인 미연결 — 인스펙터에서 할당하세요.");
                     enabled = false;

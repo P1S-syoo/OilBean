@@ -9,11 +9,17 @@ namespace Game.Surface {
         [SerializeField] CinemachineOrbitalFollow orbital;   // 미연결 시 같은 오브젝트에서 검색
         [SerializeField] float sensX = 0.15f;
         [SerializeField] float sensY = 0.1f;
+        [SerializeField] Game.Core.GameConfig config;   // 통합 설정 — 연결 시 감도 덮어씀(미연결 시 위 기본값 유지)
 
         InputAction look;
 
         void Awake() {
             try {
+                // 통합 설정 적용 — 미연결이면 기존 기본값 유지
+                if (config != null) {
+                    sensX = config.orbitSensX;
+                    sensY = config.orbitSensY;
+                }
                 if (orbital == null) {
                     orbital = GetComponent<CinemachineOrbitalFollow>();
                 }

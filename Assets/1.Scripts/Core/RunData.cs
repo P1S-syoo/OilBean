@@ -239,6 +239,12 @@ namespace Game.Core {
             maxWeight += Mathf.Max(0f, d);
         }
 
+        // 적재 한계 기준값 설정(통합 설정 적용) — base/current 동시 갱신, ResetRun 후 호출 전제
+        public void SetMaxWeightBase(float w) {
+            baseMaxWeight = Mathf.Max(0f, w);
+            maxWeight = baseMaxWeight;
+        }
+
         // 정화 부유체 제작 완료 표시
         public void SetBuoyReady(bool v) {
             buoyReady = v;

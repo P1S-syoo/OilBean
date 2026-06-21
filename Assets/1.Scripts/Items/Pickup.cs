@@ -7,7 +7,7 @@ namespace Game.Items {
     [RequireComponent(typeof(Collider2D))]
     public class Pickup : MonoBehaviour {
         [SerializeField] ResourceKind kind = ResourceKind.Scrap;
-        [SerializeField] float weight = 5f;   // 적재 무게(kg)
+        [SerializeField] float weight = 5f;   // 적재 무게(kg) — 수동 배치 폴백(스폰 픽업은 SetDef가 결정)
 
         ItemDef def;   // 스트리머가 주입(데이터 주도) — 없으면 직렬화 폴백
 

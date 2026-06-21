@@ -12,6 +12,7 @@ namespace Game.Items {
     public class Collector : MonoBehaviour {
         [SerializeField] RunData run;          // 인벤토리(공유 RunData 자산)
         [SerializeField] float pickupRadius = 1.5f;   // 수집 감지 반경(전용 트리거 센서)
+        [SerializeField] GameConfig config;    // 통합 설정 — 연결 시 수집 반경 덮어씀(미연결 시 위 기본값 유지)
 
         readonly HashSet<Pickup> inRange = new();
         InputAction interact;                  // E 키(코드 정의)
@@ -22,6 +23,10 @@ namespace Game.Items {
 
         void Awake() {
             try {
+                // 통합 설정 적용 — 미연결이면 기존 기본값 유지(센서 반경 설정 전에 적용)
+                if (config != null) {
+                    pickupRadius = config.collectorPickupRadius;
+                }
                 // 본체 콜라이더는 벽 충돌용(비트리거) 유지 — 수집 감지는 전용 트리거 센서(CircleCollider2D)
                 var sensor = GetComponent<CircleCollider2D>();
                 if (sensor == null) {

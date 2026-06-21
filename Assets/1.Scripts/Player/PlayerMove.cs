@@ -14,6 +14,7 @@ namespace Game.Player {
         [SerializeField] Transform searchLight;   // 전방 서치라이트(진행 방향 회전)
         [SerializeField] Animator animator;       // 캐릭터 애니(Idle↔Swim) — 속도로 전환
         [SerializeField] RunData run;             // 수심 게이트(부유체 단계로 진입 한계) — 미연결 시 자동 탐색
+        [SerializeField] GameConfig config;       // 통합 설정 — 연결 시 이동 수치 덮어씀(미연결 시 위 기본값 유지)
 
         Rigidbody2D rb;
         Vector2 input;            // 정규화된 이동 입력
@@ -28,6 +29,12 @@ namespace Game.Player {
 
         void Awake() {
             try {
+                // 통합 설정 적용 — 미연결이면 기존 [SerializeField] 기본값 유지
+                if (config != null) {
+                    accel = config.playerAccel;
+                    maxSpeed = config.playerMaxSpeed;
+                    turnSpeed = config.playerTurnSpeed;
+                }
                 rb = GetComponent<Rigidbody2D>();
                 rb.gravityScale = 0f;        // 수중: 중력 없음
                 rb.linearDamping = 3f;       // 관성 감속

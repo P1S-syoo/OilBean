@@ -6,7 +6,8 @@ namespace Game.Narrative {
     // 인트로/클리어 내레이션 트리거 — GameBootstrap 상태 변화를 구독해 NarrationView에 재생 요청
     public class NarrationController : MonoBehaviour {
 
-        // ── 인트로 대사 (Surface 최초 진입 시) ─────────────────────
+        // 대사 정본(SSOT)은 GameConfig.introLines/clearLines — 아래 하드코딩은 config 미연결 폴백일 뿐
+        // ── 인트로 대사 (Surface 최초 진입 시 폴백) ─────────────────
         static readonly string[] IntroLines = {
             "2042년, 한강은 죽었다.",
             "오염 물질이 강바닥을 덮고, 물고기는 사라졌다.",
@@ -24,10 +25,16 @@ namespace Game.Narrative {
         // ── 직렬화 필드 ─────────────────────────────────────────────
         [SerializeField] NarrationView    view;
         [SerializeField] GameBootstrap    bootstrap;
+        [SerializeField] GameConfig       config;   // 통합 설정 — 대사가 채워져 있으면 하드코딩 대신 사용
 
         // ── 재생 가드 ────────────────────────────────────────────────
         bool introPlayed;
         bool clearPlayed;
+
+        // ── 대사 출처 ────────────────────────────────────────────────
+        // config에 대사가 채워져 있으면 그것을, 없으면 하드코딩 폴백 사용
+        string[] IntroSource => (config != null && config.introLines != null && config.introLines.Length > 0) ? config.introLines : IntroLines;
+        string[] ClearSource => (config != null && config.clearLines != null && config.clearLines.Length > 0) ? config.clearLines : ClearLines;
 
         // ── 라이프사이클 ─────────────────────────────────────────────
 
@@ -51,7 +58,7 @@ namespace Game.Narrative {
                 // 시작 상태가 이미 Surface면 진입 이벤트가 없으므로(FSM 초기 상태는 OnChanged 미발생) 인트로 직접 재생
                 if (bootstrap.State == GameState.Surface && !introPlayed) {
                     introPlayed = true;
-                    PlayNarration(IntroLines);
+                    PlayNarration(IntroSource);
                 }
             } catch (Exception e) {
                 Debug.LogError($"[NarrationController] Start 초기화 실패: {e.Message}");
@@ -75,13 +82,13 @@ namespace Game.Narrative {
                 // Surface 최초 진입 — 인트로 재생(1회)
                 if (to == GameState.Surface && !introPlayed) {
                     introPlayed = true;
-                    PlayNarration(IntroLines);
+                    PlayNarration(IntroSource);
                     return;
                 }
                 // Clear 진입 — 클리어 재생(1회)
                 if (to == GameState.Clear && !clearPlayed) {
                     clearPlayed = true;
-                    PlayNarration(ClearLines);
+                    PlayNarration(ClearSource);
                 }
             } catch (Exception e) {
                 Debug.LogError($"[NarrationController] 상태 변화 처리 실패 (from={from} to={to}): {e.Message}");

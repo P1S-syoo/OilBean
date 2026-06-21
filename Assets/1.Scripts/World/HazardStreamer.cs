@@ -14,6 +14,7 @@ namespace Game.World {
         [SerializeField] float surfaceDensity = 8f;     // 수면 근처 셀 스폰 확률(%)
         [SerializeField] float deepDensity = 55f;       // 해저 근처 셀 스폰 확률(%)
         [SerializeField] int maxPerCell = 2;            // 셀당 최대 슬롯 수
+        [SerializeField] GameConfig config;             // 통합 설정 — 연결 시 스폰 밀도 덮어씀(미연결 시 위 기본값 유지)
 
         const float SpawnTopMargin = 0.5f;      // 수면 아래 여유(u)
         const float SpawnBottomMargin = 1f;     // 바닥 위 여유(u)
@@ -29,6 +30,12 @@ namespace Game.World {
         void Start() {
             // AmbientParticleGate 패턴 — GameBootstrap 자가탐색 후 상태 구독
             try {
+                // 통합 설정 적용 — 미연결이면 기존 기본값 유지
+                if (config != null) {
+                    surfaceDensity = config.hazardSurfaceDensity;
+                    deepDensity = config.hazardDeepDensity;
+                    maxPerCell = config.hazardMaxPerCell;
+                }
                 bootstrap = FindFirstObjectByType<GameBootstrap>();
                 if (bootstrap != null) {
                     bootstrap.OnStateChanged += OnState;
@@ -175,11 +182,13 @@ namespace Game.World {
             return Mathf.Lerp(surfaceDensity, deepDensity, Mathf.Clamp01(depthT));
         }
 
-        // Hazard 프리팹 인스턴스화 — Hazard 컴포넌트 자체 patrol 사용, 추가 설정 불필요
+        // Hazard 프리팹 인스턴스화 — 스폰 직후 config 주입(런타임 스폰엔 인스펙터 연결이 없으므로 hazardSpeed 반영)
         GameObject SpawnHazard(int cell, int slot, Vector3 pos) {
             try {
                 var go = Instantiate(hazardPrefab, pos, Quaternion.identity, transform);
                 go.name = $"Hazard_{cell}_{slot}";
+                // 통합 설정 주입 — config 미연결이면 Hazard 자체 기본값 유지
+                go.GetComponent<Game.Items.Hazard>()?.ApplyConfig(config);
                 return go;
             } catch (Exception e) {
                 Debug.LogError($"[HazardStreamer] Hazard_{cell}_{slot} 스폰 실패: {e.Message}");

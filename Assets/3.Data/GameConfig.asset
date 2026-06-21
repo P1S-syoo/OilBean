@@ -1,0 +1,60 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d973d02f9d74f10409a7a319f333db44, type: 3}
+  m_Name: GameConfig
+  m_EditorClassIdentifier: Game::Game.Core.GameConfig
+  playerAccel: 30
+  playerMaxSpeed: 6
+  playerTurnSpeed: 360
+  deckMoveSpeed: 1.6
+  deckTurnSpeed: 12
+  navSpeed: 4
+  navBrakeDistance: 8
+  navMinSpeed: 0.4
+  navTurnSpeed: 2
+  orbitSensX: 0.15
+  orbitSensY: 0.1
+  batteryMax: 100
+  batteryDrainPerSec: 3.33
+  runMaxWeight: 70
+  forfeitRatio: 0.35
+  collectorPickupRadius: 1.5
+  surfaceBlendTime: 2.2
+  surfaceDescendDepth: 8
+  surfacePlungeTime: 1.1
+  surfacePlungeDistance: 6
+  atmosphereMurkyWeight: 1
+  atmosphereBlend: 1.3
+  camSmoothTime: 0.18
+  hazardSpeed: 2
+  hazardSurfaceDensity: 8
+  hazardDeepDensity: 55
+  hazardMaxPerCell: 2
+  collectibleClusterDensity: 90
+  collectibleOpenDensity: 26
+  purifyInstallTime: 2.5
+  scoreComboWindow: 3
+  scoreBaseValue: 100
+  scoreGradeS: 5000
+  scoreGradeA: 2500
+  introLines:
+  - "2042\uB144, \uD55C\uAC15\uC740 \uC8FD\uC5C8\uB2E4."
+  - "\uC624\uC5FC \uBB3C\uC9C8\uC774 \uAC15\uBC14\uB2E5\uC744 \uB36E\uACE0, \uBB3C\uACE0\uAE30\uB294
+    \uC0AC\uB77C\uC84C\uB2E4."
+  - "\uB2F9\uC2E0\uC740 \uC815\uD654\uC120\uC758 \uB9C8\uC9C0\uB9C9 \uC7A0\uC218\uC0AC."
+  - "\uC7A0\uC218\uC815\uC744 \uD0C0\uACE0 \uB0B4\uB824\uAC00 \uAC15\uC744 \uB418\uC0B4\uB824\uB77C."
+  clearLines:
+  - "\uC815\uD654 \uBD80\uC720\uCCB4\uAC00 \uC790\uB9AC\uB97C \uC7A1\uC558\uB2E4."
+  - "\uD0C1\uD55C \uBB3C\uC774 \uC870\uAE08\uC529 \uB9D1\uC544\uC9C0\uAE30 \uC2DC\uC791\uD55C\uB2E4."
+  - "\uAC15\uC740 \uC544\uC9C1 \uAE30\uC5B5\uD558\uACE0 \uC788\uC5C8\uB2E4 \u2014
+    \uD750\uB974\uB294 \uBC95\uC744."
+  narrationCharDelay: 0.04
