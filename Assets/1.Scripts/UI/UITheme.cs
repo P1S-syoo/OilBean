@@ -484,11 +484,25 @@ namespace Game.UI {
 
         // ── 스프라이트 헬퍼 (에디터 전용) ──────────────────────────────
 #if UNITY_EDITOR
-        // UI 아이콘/크롬 스프라이트 로드 — Assets/4.Art/UI/icons/{name}.png
+        // 크롬 스프라이트 이름 → Sci-Fi UI 팩 스프라이트 매핑(scifi 폴더). 매핑에 없으면 icons 폴더 폴백.
+        // 청록 컷코너 글래스 패널/버튼으로 평평한 단색 UI를 교체. 아이콘(icon_*)은 매핑 제외 → icons 유지.
+        static string ResolveSpritePath(string name) {
+            switch (name) {
+                case "panel_bg":      return "Assets/4.Art/UI/scifi/window_transparent.png";   // 메인 글래스 패널
+                case "header_bar":    return "Assets/4.Art/UI/scifi/window_transparent1.png";  // 헤더 바(대체 패널)
+                case "button_accent": return "Assets/4.Art/UI/scifi/button_active.png";         // 주행동 CTA 기본
+                case "button_dark":   return "Assets/4.Art/UI/scifi/button_active.png";         // 보조 버튼(톤 통일)
+                case "__scifi_button_active": return "Assets/4.Art/UI/scifi/button_active.png";  // SpriteSwap hover 상태
+                case "__scifi_button_pushed": return "Assets/4.Art/UI/scifi/button_pushed.png";  // SpriteSwap press 상태
+                default:              return $"Assets/4.Art/UI/icons/{name}.png";                // 그 외 아이콘은 icons
+            }
+        }
+
+        // UI 아이콘/크롬 스프라이트 로드 — 크롬은 scifi, 아이콘은 icons(ResolveSpritePath)
         // 없으면 null 반환(Image.sprite = null → 흰 사각형 폴백)
         public static Sprite LoadUISprite(string name) {
             try {
-                string path = $"Assets/4.Art/UI/icons/{name}.png";
+                string path = ResolveSpritePath(name);
                 var sp = AssetDatabase.LoadAssetAtPath<Sprite>(path);
                 if (sp == null) {
                     Debug.LogWarning($"[UITheme] 스프라이트 없음: {path}");
@@ -550,8 +564,9 @@ namespace Game.UI {
             return fillImg;
         }
 
-        // 버튼 배경에 스프라이트 적용 — Image.type Sliced 시도, 보더 없으면 Simple 폴백
-        // bgSpriteName이 null이면 기존 단색 유지
+        // 버튼 배경에 Sci-Fi 스프라이트 적용 + SpriteSwap 상태 배선(hover/press)
+        // 기본=button_active, highlighted=button_active(글로우), pressed=button_pushed. 무틴트(흰색)로 원본 청록 유지.
+        // bgSpriteName이 null이면 기존 단색 유지. 시그니처는 호출부 보존을 위해 그대로 둔다.
         public static void ApplySpriteButton(Button btn, string bgSpriteName) {
             if (btn == null || string.IsNullOrEmpty(bgSpriteName)) {
                 return;
@@ -570,12 +585,33 @@ namespace Game.UI {
                 bool hasBorder = sp.border.sqrMagnitude > 0.01f;
                 img.type = hasBorder ? Image.Type.Sliced : Image.Type.Simple;
                 img.color = Color.white;   // 틴트 제거 — 스프라이트 원본 색 사용
+
+                // hover=button_active(글로우), press=button_pushed 상태 스프라이트로 SpriteSwap 전환 배선
+                var spActive = LoadUISprite("__scifi_button_active");   // 직접 경로 로드용 내부 키
+                var spPushed = LoadUISprite("__scifi_button_pushed");
+                if (spActive != null && spPushed != null) {
+                    btn.transition = Selectable.Transition.SpriteSwap;
+                    var ss = btn.spriteState;
+                    ss.highlightedSprite = spActive;
+                    ss.pressedSprite     = spPushed;
+                    ss.selectedSprite    = spActive;
+                    ss.disabledSprite    = sp;
+                    btn.spriteState = ss;
+                    btn.targetGraphic = img;
+                }
             } catch (System.Exception e) {
                 Debug.LogError($"[UITheme] 버튼 스프라이트 적용 오류({bgSpriteName}): {e.Message}");
             }
         }
 
+        // scifi 폴더 크롬 스프라이트 여부 — 기존 단색 오버레이 tint(알파 0.04/0.08)를 1.0으로 보정하기 위한 판별
+        static bool IsScifiChromeSprite(string name) {
+            return name == "panel_bg" || name == "header_bar";
+        }
+
         // 패널 배경에 스프라이트 적용 — Image.type Sliced/Simple 자동 선택
+        // scifi 크롬 스프라이트(panel_bg/header_bar)는 tint 알파를 강제 1.0으로 보정한다.
+        // 호출부가 단색 오버레이 의도로 넘긴 alpha 0.04/0.08이 scifi 스프라이트에 곱해지면 사실상 투명해지기 때문.
         public static void ApplyPanelSprite(GameObject panel, string spriteName, Color? tint = null) {
             if (panel == null || string.IsNullOrEmpty(spriteName)) {
                 return;
@@ -592,7 +628,12 @@ namespace Game.UI {
                 img.sprite = sp;
                 bool hasBorder = sp.border.sqrMagnitude > 0.01f;
                 img.type = hasBorder ? Image.Type.Sliced : Image.Type.Simple;
-                img.color = tint ?? Color.white;
+                // scifi 크롬은 무틴트(흰색)로 원본 청록 글래스를 유지. 단색 폴백은 호출부 tint 그대로.
+                Color finalTint = tint ?? Color.white;
+                if (IsScifiChromeSprite(spriteName)) {
+                    finalTint = new Color(finalTint.r, finalTint.g, finalTint.b, 1f);
+                }
+                img.color = finalTint;
             } catch (System.Exception e) {
                 Debug.LogError($"[UITheme] 패널 스프라이트 적용 오류({spriteName}): {e.Message}");
             }
