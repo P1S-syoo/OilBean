@@ -15,6 +15,7 @@ namespace Game.Editor.Surface {
         const string SubFallbackPath = "Assets/4.Art/Models/PolyPizza/submarine1.glb";
         const string CharModelPath = "Assets/4.Art/Characters/MainCharacter.fbx";
         const string CharAnimPath = "Assets/4.Art/Characters/PlayerAnim.controller";
+        const string CharMatPath = "Assets/4.Art/Characters/MainCharacterMat.mat";   // 덱 캐릭터도 수중과 동일 머티리얼 적용(FBX 기본 머티리얼 = 텍스처 없음)
         const float SubLength = 15f;          // 잠수정 진행축(Z) 목표 길이 — 덱 보행 공간 확보
         const float SubWidthMul = 1.5f;       // 가로(X) 추가 배수 — 함교 양옆 통로 확보(앞↔뒤 이동 가능)
         const float CharacterHeight = 1.7f;   // 덱 캐릭터 목표 키
@@ -221,6 +222,19 @@ namespace Game.Editor.Surface {
             if (prefab != null) {
                 var model = (GameObject)PrefabUtility.InstantiatePrefab(prefab, playerRoot.transform);
                 model.name = "Model";
+                // 덱 캐릭터 머티리얼 — FBX 기본(텍스처 없음) 대신 수중과 동일한 MainCharacterMat 적용
+                var charMat = AssetDatabase.LoadAssetAtPath<Material>(CharMatPath);
+                if (charMat != null) {
+                    foreach (var r in model.GetComponentsInChildren<Renderer>(true)) {
+                        var mats = r.sharedMaterials;
+                        for (int i = 0; i < mats.Length; i++) {
+                            mats[i] = charMat;
+                        }
+                        r.sharedMaterials = mats;
+                    }
+                } else {
+                    Debug.LogWarning($"[SurfaceRigBuilder] 캐릭터 머티리얼 없음({CharMatPath}) — FBX 기본 머티리얼 사용");
+                }
                 var b = CalcBounds(model);
                 if (b.size.y > 0.0001f) {
                     model.transform.localScale = Vector3.one * (CharacterHeight / b.size.y);
