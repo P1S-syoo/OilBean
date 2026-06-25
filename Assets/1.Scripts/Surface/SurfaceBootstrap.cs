@@ -222,6 +222,11 @@ namespace Game.Surface {
             ShowConsole(false);
         }
 
+        // 외부(덱 스크린 콘솔 E)에서 수상 거점 콘솔 열기 — 커서/조작 해제 포함(ShowConsole 경유)
+        public void OpenConsole() {
+            ShowConsole(true);
+        }
+
         // 수상 콘솔 표시 토글 — UI 라우터 통지 + 조작/커서 전환(표시 중엔 배 조작 정지, 닫으면 재개)
         void ShowConsole(bool show) {
             if (consoleShown == show) {

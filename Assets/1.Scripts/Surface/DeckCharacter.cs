@@ -159,7 +159,15 @@ namespace Game.Surface {
             bool found = false;
             var ray = new Ray(origin, Vector3.down);
             foreach (var c in deckColliders) {
-                if (c != null && c.Raycast(ray, out var hit, len) && hit.distance < best) {
+                if (c == null) {
+                    continue;
+                }
+                // XZ 사전 컬링 — 하향 레이의 기둥이 콜라이더 XZ 밖이면 적중 불가(요철 그리드 다수 셀 비용 절감)
+                var bb = c.bounds;
+                if (origin.x < bb.min.x || origin.x > bb.max.x || origin.z < bb.min.z || origin.z > bb.max.z) {
+                    continue;
+                }
+                if (c.Raycast(ray, out var hit, len) && hit.distance < best) {
                     best = hit.distance;
                     bestHit = hit;
                     found = true;

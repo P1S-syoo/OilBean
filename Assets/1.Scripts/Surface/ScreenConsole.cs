@@ -4,10 +4,10 @@ using UnityEngine.InputSystem;
 using Game.Core;
 
 namespace Game.Surface {
-    // 정화선 스크린 콘솔 — 플레이어 근접 시 E로 연구패널 열기(잠수 E와 분기)
+    // 정화선 스크린 콘솔 — 플레이어 근접 시 E로 거점 콘솔(허브) 열기(잠수 E와 분기)
     public class ScreenConsole : MonoBehaviour {
-        [SerializeField] GameBootstrap game;        // 연구 전환(GoResearch)
-        [SerializeField] SurfaceBootstrap surface;  // 잠수 E 억제 통지
+        [SerializeField] GameBootstrap game;        // 수상 상태 판정용
+        [SerializeField] SurfaceBootstrap surface;  // 거점 콘솔 열기 + 잠수 E 억제 통지
         [SerializeField] GameObject prompt;         // "E 연구" 프롬프트(근접 시 표시)
         [SerializeField] float range = 2.2f;        // 상호작용 근접 거리(m)
 
@@ -73,11 +73,15 @@ namespace Game.Surface {
         }
 
         void OnInteract(InputAction.CallbackContext ctx) {
-            // 근접 + 수상 상태에서만 연구 열기
+            // 근접 + 수상 상태에서만 — 거점 콘솔(허브: 탐사 시작/연구/제작/정화) 열기. 커서·조작 해제는 콘솔이 처리
             if (!near || game == null || game.State != GameState.Surface) {
                 return;
             }
-            game.GoResearch();
+            if (surface != null) {
+                surface.OpenConsole();
+            } else {
+                game.GoResearch();   // 폴백 — SurfaceBootstrap 미연결 시 기존 동작
+            }
         }
     }
 }

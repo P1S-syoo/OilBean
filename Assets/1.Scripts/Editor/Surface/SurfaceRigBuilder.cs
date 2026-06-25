@@ -153,16 +153,13 @@ namespace Game.Editor.Surface {
                 if (needRetint) {
                     RetintSubmarine(model);               // 폴백 모델만 — VARCO 모델은 자체 아포칼립스 텍스처 유지
                 }
-                // 평탄 보행면 — 거친 선체 메시 대신 평탄 BoxCollider로 계단현상 제거(비주얼 메시는 그대로 유지)
+                // 요철 보행 그리드 — 단일 평탄 박스 대신 셀별로 선체 윗면 높이를 떠 박스를 깔아 굴곡을 표현.
+                // 가파른 면·함교(잠망경) 측벽은 셀을 생략 → 그곳은 못 걸어 함교 관통이 차단됨
                 var walkGo = new GameObject("DeckWalkSurface");
                 walkGo.transform.SetParent(subRoot.transform, false);
-                const float walkThick = 0.2f;
-                // 박스 '윗면'이 실측 덱면(deckTop)과 일치하도록 두께 절반만큼 내려 배치(캐릭터는 윗면 위에 섬)
-                walkGo.transform.localPosition = new Vector3(0f, deckTop - walkThick * 0.5f, 0f);
-                var walkBox = walkGo.AddComponent<BoxCollider>();
-                walkBox.size = new Vector3(deckHalf.x * 2f, walkThick, deckHalf.y * 2f);   // 덱 전체를 덮는 평면 판
-                deckCols.Add(walkBox);
-                model.AddComponent<FloatBob>();           // 부유 모션은 모델에만(루트는 항해 위치 고정)
+                walkGo.AddComponent<FloatBob>();          // 모델과 동일 부유(기본 설정) — 보행면이 선체와 함께 떠 캐릭터 부양 방지
+                BuildDeckGrid(model, subRoot.transform, b, deckHalf, walkGo, deckCols);
+                model.AddComponent<FloatBob>();           // 선체 비주얼 부유(보행 그리드와 동일 위상이라 동기)
             } else {
                 Debug.LogWarning($"[SurfaceRigBuilder] 잠수정 모델 없음({SubModelPath}) — 큐브 그레이박스로 대체");
                 var hull = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -306,6 +303,58 @@ namespace Game.Editor.Surface {
                     r.sharedMaterials = mats;
                 }
             }
+        }
+
+        // 요철 보행 그리드 — 덱 footprint(로컬 XZ)를 셀로 나눠 각 셀에서 선체 메시 윗면으로 하향 레이캐스트,
+        // 적중면이 완만(법선 y≥0.5)한 셀에만 얇은 BoxCollider를 깔아 굴곡을 표현하고 가파른 함교 측벽은 비워 관통을 차단
+        static void BuildDeckGrid(GameObject model, Transform refFrame, Bounds modelBounds,
+                Vector2 deckHalf, GameObject walkGo, System.Collections.Generic.List<Collider> deckCols) {
+            const float walkThick = 0.2f;
+            const float cell = 0.6f;   // 셀 한 변(m) — 촘촘한 요철감
+            // 레이캐스트용 임시 메시 콜라이더 부착(측정 후 제거)
+            var tmp = new System.Collections.Generic.List<MeshCollider>();
+            foreach (var mf in model.GetComponentsInChildren<MeshFilter>()) {
+                if (mf.sharedMesh != null && mf.GetComponent<MeshCollider>() == null) {
+                    tmp.Add(mf.gameObject.AddComponent<MeshCollider>());
+                }
+            }
+            Physics.SyncTransforms();   // 갓 추가된 콜라이더를 물리 씬에 반영해야 Raycast 적중
+            int nx = Mathf.Clamp(Mathf.RoundToInt(deckHalf.x * 2f / cell), 2, 24);
+            int nz = Mathf.Clamp(Mathf.RoundToInt(deckHalf.y * 2f / cell), 2, 40);
+            float originY = modelBounds.max.y + 2f;            // 레이 시작 높이(월드 — 빌드시 refFrame은 원점·단위회전)
+            float rayLen = originY - modelBounds.min.y + 4f;
+            int made = 0;
+            for (int ix = 0; ix < nx; ix++) {
+                float lx = Mathf.Lerp(-deckHalf.x, deckHalf.x, (ix + 0.5f) / nx);
+                for (int iz = 0; iz < nz; iz++) {
+                    float lz = Mathf.Lerp(-deckHalf.y, deckHalf.y, (iz + 0.5f) / nz);
+                    Vector3 world = refFrame.TransformPoint(new Vector3(lx, 0f, lz));
+                    var ray = new Ray(new Vector3(world.x, originY, world.z), Vector3.down);
+                    float bestDist = float.MaxValue;
+                    RaycastHit best = default;
+                    bool found = false;
+                    foreach (var mc in tmp) {
+                        if (mc.Raycast(ray, out var hit, rayLen) && hit.distance < bestDist) {
+                            bestDist = hit.distance;
+                            best = hit;
+                            found = true;
+                        }
+                    }
+                    if (!found || best.normal.y < 0.5f) {
+                        continue;   // 미적중·가파른 면(함교 측벽 등) → 보행 불가 셀
+                    }
+                    float surfY = refFrame.InverseTransformPoint(best.point).y;
+                    var box = walkGo.AddComponent<BoxCollider>();   // 한 오브젝트에 셀마다 BoxCollider 누적(부유 동기 일괄)
+                    box.center = new Vector3(lx, surfY - walkThick * 0.5f, lz);
+                    box.size = new Vector3(cell * 1.05f, walkThick, cell * 1.05f);   // 살짝 겹쳐 셀 사이 빈틈 방지
+                    deckCols.Add(box);
+                    made++;
+                }
+            }
+            foreach (var mc in tmp) {
+                UnityEngine.Object.DestroyImmediate(mc);
+            }
+            Debug.Log($"[SurfaceRigBuilder] 덱 요철 그리드 {made}/{nx * nz}셀 보행면 생성");
         }
 
         // 실제 덱 보행면 Y(refFrame 로컬) — 메시 정점을 길이축으로 N등분해 버킷별 최고 Y의 중앙값.
