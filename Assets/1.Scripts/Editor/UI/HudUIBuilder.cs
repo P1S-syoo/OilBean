@@ -176,10 +176,8 @@ namespace Game.Editor.UI {
             diveRt.pivot = new Vector2(0.5f, 1f);
             diveRt.sizeDelta = new Vector2(diveW, diveH);
             diveRt.anchoredPosition = new Vector2(0f, -UITheme.SpaceMD);
-            // 잠수 아이콘 — 버튼 레이블 왼쪽에 붙임
-            UITheme.MakeIconImage("DiveBtnIcon", diveBtn.transform, "icon_dive", 32f,
-                new Vector2(UITheme.SpaceLG + 16f, 0f),
-                new Vector2(0f, 0.5f), Color.white);
+            // 잠수 아이콘 — 버튼 레이블 왼쪽에 붙이고 레이블은 아이콘 너머로 인셋(첫 글자 잘림 방지)
+            AddButtonIcon(diveBtn, "icon_dive", 32f, UITheme.SpaceLG + 16f);
             UITheme.AddShadow(diveBtn.gameObject, 0.5f, 0f, -3f);   // 주행동 버튼 강조 깊이
             UITheme.AddScaleFeedback(diveBtn, 1.06f, 0.95f);        // 주행동 — 더 큰 스케일 강조
 
@@ -297,12 +295,21 @@ namespace Game.Editor.UI {
 
         // 보조 버튼에 아이콘 이미지 추가 — 버튼 레이블 좌측 중앙 고정(20px)
         static void AddSubBtnIcon(Button btn, string spriteName) {
+            AddButtonIcon(btn, spriteName, 20f, UITheme.SpaceMD + 10f);
+        }
+
+        // 버튼 좌측 아이콘 + 가운데 레이블 겹침 방지 — 레이블 좌측 여백을 아이콘 우측 너머로 인셋(첫 글자 잘림 해소)
+        static void AddButtonIcon(Button btn, string spriteName, float size, float xPos) {
             if (btn == null) {
                 return;
             }
-            UITheme.MakeIconImage(spriteName + "_Icon", btn.transform, spriteName, 20f,
-                new Vector2(UITheme.SpaceMD + 10f, 0f),
-                new Vector2(0f, 0.5f), Color.white);
+            UITheme.MakeIconImage(spriteName + "_Icon", btn.transform, spriteName, size,
+                new Vector2(xPos, 0f), new Vector2(0f, 0.5f), Color.white);
+            var label = btn.transform.Find("Label") as RectTransform;
+            if (label != null) {
+                float clear = xPos + size * 0.5f + UITheme.SpaceSM;   // 아이콘 우측 끝 + 여백
+                label.offsetMin = new Vector2(clear, label.offsetMin.y);
+            }
         }
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -570,10 +577,8 @@ namespace Game.Editor.UI {
                 "샘플 분석", UITheme.FontBody,
                 new Vector2(anaW, anaH), Vector2.zero,
                 UITheme.Accent, UITheme.BgDeep);
-            UITheme.ApplySpriteButton(analyzeBtn, "button_accent");
-            UITheme.MakeIconImage("AnalyzeBtnIcon", analyzeBtn.transform, "icon_research", 20f,
-                new Vector2(UITheme.SpaceMD + 10f, 0f),
-                new Vector2(0f, 0.5f), Color.white);
+            // sci-fi 버튼 스프라이트(어둡고 중앙 반투명)는 라벨을 가림 → 불투명 솔리드 액센트 배경 유지(가독성 확보)
+            AddButtonIcon(analyzeBtn, "icon_research", 20f, UITheme.SpaceMD + 10f);
             UITheme.AddScaleFeedback(analyzeBtn);
             // 하단 중앙 고정(앵커 0.5,0 / 피벗 0.5,0)
             var anaRt = analyzeBtn.GetComponent<RectTransform>();
@@ -741,15 +746,12 @@ namespace Game.Editor.UI {
             detailStatusRt.offsetMin = new Vector2(UITheme.SpaceMD, 0f);
             detailStatusRt.offsetMax = new Vector2(-UITheme.SpaceMD, 0f);
 
-            // 제작 버튼 — button_accent 스프라이트 + 제작 아이콘
+            // 제작 버튼 — 불투명 솔리드 액센트 배경(어둡고 반투명한 sci-fi 스프라이트는 라벨을 가려 미적용)
             Button craftExecBtn = UITheme.MakeButton("CraftExecBtn", rightCol.transform,
                 "제작", UITheme.FontHeading,
                 Vector2.zero, Vector2.zero,
                 UITheme.Accent, UITheme.BgDeep);
-            UITheme.ApplySpriteButton(craftExecBtn, "button_accent");
-            UITheme.MakeIconImage("CraftExecBtnIcon", craftExecBtn.transform, "icon_craft", 24f,
-                new Vector2(UITheme.SpaceLG + 12f, 0f),
-                new Vector2(0f, 0.5f), Color.white);
+            AddButtonIcon(craftExecBtn, "icon_craft", 24f, UITheme.SpaceLG + 12f);
             UITheme.AddScaleFeedback(craftExecBtn);
             // 제작 버튼 — 황금비 기반 비율(폭 = 높이 × φ³)로 하단 중앙 고정(요구: 제작 버튼도 황금비)
             float crH = 60f;
@@ -982,9 +984,10 @@ namespace Game.Editor.UI {
             var rt = t.GetComponent<RectTransform>();
             rt.anchorMin = new Vector2(0f, 0f);
             rt.anchorMax = new Vector2(1f, 1f);
-            rt.offsetMin = new Vector2(UITheme.SpaceLG + 16f, UITheme.SpaceXS);
-            rt.offsetMax = new Vector2(-UITheme.SpaceLG - 64f, -UITheme.SpaceXS);
+            rt.offsetMin = new Vector2(UITheme.SpaceLG + 16f, 0f);
+            rt.offsetMax = new Vector2(-UITheme.SpaceLG - 64f, 0f);
             t.fontStyle = UITheme.HeadingStyle;
+            t.overflowMode = TextOverflowModes.Overflow;   // 56px 헤더에 40px 타이틀이 세로로 잘려 "…" 뜨던 것 방지(가로는 충분)
 
             // 우상단 닫기 버튼 — 폰트 글리프 안전한 "X" 사용(✕ 깨짐 회피), 스케일 피드백
             var closeBtn = UITheme.MakeButton("CloseBtn", header.transform, "X", UITheme.FontHeading,

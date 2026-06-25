@@ -78,11 +78,12 @@ namespace Game.Narrative {
             canvasGroup.alpha = 0f;
             canvasGroup.blocksRaycasts = false;
 
-            // 전체 화면 딤 백드롭 — 뒤 UI를 어둡게 덮어 "겹침"이 아닌 "포커스된 다이얼로그"로 분리
+            // 전체 화면 클릭 캐처(투명) — 시작 시 화면이 어두워지는 딤은 제거(요청: 너무 어둡고 불필요).
+            // 시각적 딤 없이 클릭으로 진행 + 뒤 UI 오클릭 차단 기능만 유지
             var dimGo = UITheme.MakeStretchPanel("Backdrop", canvasGo.transform, 0, 0, 0, 0,
-                new Color(UITheme.BgDeep.r, UITheme.BgDeep.g, UITheme.BgDeep.b, 0.72f));
+                new Color(0f, 0f, 0f, 0f));
             backdrop = dimGo.GetComponent<Image>();
-            backdrop.raycastTarget = true;   // 뒤 UI 클릭 차단
+            backdrop.raycastTarget = true;   // 투명하지만 클릭은 받음(진행/오클릭 차단)
             // 백드롭 클릭으로도 진행
             var dimBtn = dimGo.AddComponent<Button>();
             dimBtn.transition = Selectable.Transition.None;
