@@ -28,8 +28,11 @@ namespace Game.Tests {
             sub = new GameObject("Sub");
             sub.SetActive(false);
             var bat = sub.AddComponent<Battery>();
-            SetField(bat, "max", 1f);
-            SetField(bat, "drainPerSec", 100f);
+            // 리터럴 직접 주입 대신 config(SO)로 주입 — SetActive(true) 전에 설정해 Awake가 읽게 함
+            var batCfg = ScriptableObject.CreateInstance<잠수설정>();
+            batCfg.배터리최대 = 1f;
+            batCfg.배터리소모 = 100f;
+            SetField(bat, "config", batCfg);
             var gb = sub.AddComponent<GameBootstrap>();
             SetField(gb, "battery", bat);
             sub.SetActive(true);

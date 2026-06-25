@@ -24,6 +24,10 @@ namespace Game.UI {
         [SerializeField] GameObject toastRoot;    // 수집 토스트 루트
         [SerializeField] TMP_Text toastText;      // 토스트 메시지
         [SerializeField] GameObject interactPrompt;   // "E 정제" 상호작용 프롬프트(범위 진입 시)
+        [SerializeField] 잠수설정 config;             // 잠수 설정 — 연결 시 수심 경고 임계 덮어씀(미연결 시 아래 기본값 유지)
+
+        float dangerDepth;   // 위험색 표시 수심(m) — 기본값은 잠수설정.위험수심
+        float warnDepth;     // 경고색 표시 수심(m) — 기본값은 잠수설정.경고수심
 
         // 직전 캐시(변경 시에만 갱신)
         float lastRatio = -1f, lastW = -1f, lastMax = -1f;
@@ -32,6 +36,14 @@ namespace Game.UI {
         const float ToastDuration = 2.0f;   // 토스트 표시 초
 
         void OnEnable() {
+            try {
+                // 잠수 설정 적용 — 미연결 시 SO 기본값 사용(중복 제거)
+                var cfg = config != null ? config : Game.Core.잠수설정.기본;
+                dangerDepth = cfg.위험수심;
+                warnDepth = cfg.경고수심;
+            } catch (System.Exception e) {
+                Debug.LogError($"[HudExtUI] 설정 적용 실패: {e.Message}");
+            }
             if (collector != null) {
                 collector.OnCollect += OnCollect;
                 collector.OnInteractableChanged += OnInteractable;
@@ -119,8 +131,8 @@ namespace Game.UI {
             float depth = Mathf.Max(0f, DepthMap.WorldToDepth(GetPlayerY()));
             if (depthText != null) {
                 depthText.text = $"수심 {depth:0}m";
-                depthText.color = depth > 40f ? UITheme.ColDanger
-                                : depth > 25f ? UITheme.ColWarn
+                depthText.color = depth > dangerDepth ? UITheme.ColDanger
+                                : depth > warnDepth ? UITheme.ColWarn
                                 : UITheme.ColInfo;
             }
             UpdateDepthMarker(depth);

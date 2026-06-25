@@ -85,6 +85,7 @@ namespace Game.Items {
                 warnSr.gameObject.SetActive(true);
                 warnSr.transform.position = new Vector3(warnX, laneY, 0f);   // 화면 안쪽 진입 가장자리
             }
+            Game.Audio.GameAudio.Instance?.PlayHazardWarn();   // 돌진 경고음
         }
 
         void Update() {

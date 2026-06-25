@@ -8,6 +8,7 @@ namespace Game.Craft {
     public class Crafting : MonoBehaviour {
         [SerializeField] RunData run;
         [SerializeField] Battery battery;   // 배터리 셀 업그레이드 대상(선택)
+        [SerializeField] 제작설정 config;   // 제작 설정 — 연결 시 레시피 비용/효과 덮어씀(미연결 시 아래 기본값 유지)
 
         enum Effect { Buoy, MaxWeight, BatteryCap, Hull }
 
@@ -21,17 +22,34 @@ namespace Game.Craft {
             public float amount;     // Buoy=단계 / MaxWeight=증가 / BatteryCap=용량 / Hull=1
         }
 
-        static readonly Recipe[] Recipes = {
-            new Recipe { id = "buoy_1", agent = "agent_mild",   grade = 0, kg = 24f, effect = Effect.Buoy, amount = 1 },
-            new Recipe { id = "buoy_2", agent = "agent_mid",    grade = 1, kg = 30f, effect = Effect.Buoy, amount = 2 },
-            new Recipe { id = "buoy_3", agent = "agent_strong", grade = 2, kg = 40f, effect = Effect.Buoy, amount = 3 },
-            new Recipe { id = "up_cargo",   agent = "", grade = 0, kg = 16f, effect = Effect.MaxWeight,  amount = 20f },
-            new Recipe { id = "up_battery", agent = "", grade = 1, kg = 18f, effect = Effect.BatteryCap, amount = 33f },  // ≈탐사시간 +10s
-            new Recipe { id = "gear_hull",  agent = "", grade = 2, kg = 30f, effect = Effect.Hull,       amount = 1 },
-        };
+        // 레시피 테이블 — Awake에서 config 값으로 빌드(인스턴스). config 미연결이면 아래 기본값 그대로
+        Recipe[] recipes;
+
+        Recipe[] Recipes {
+            get {
+                if (recipes == null) {
+                    BuildRecipes();
+                }
+                return recipes;
+            }
+        }
 
         public event Action OnBuoyCrafted;
         public event Action OnUpgraded;
+
+        // 레시피 빌드 — 미연결 시 SO 기본값(제작설정.기본)에서 비용/효과를 가져옴(리터럴 중복 제거)
+        // (Recipes getter가 최초 접근 시 1회 lazy 빌드 — Awake 순서 의존 없이 안전)
+        void BuildRecipes() {
+            var cfg = config != null ? config : 제작설정.기본;
+            recipes = new[] {
+                new Recipe { id = "buoy_1", agent = "agent_mild",   grade = 0, kg = cfg.부유체1비용, effect = Effect.Buoy, amount = 1 },
+                new Recipe { id = "buoy_2", agent = "agent_mid",    grade = 1, kg = cfg.부유체2비용, effect = Effect.Buoy, amount = 2 },
+                new Recipe { id = "buoy_3", agent = "agent_strong", grade = 2, kg = cfg.부유체3비용, effect = Effect.Buoy, amount = 3 },
+                new Recipe { id = "up_cargo",   agent = "", grade = 0, kg = cfg.적재비용,   effect = Effect.MaxWeight,  amount = cfg.적재증가 },
+                new Recipe { id = "up_battery", agent = "", grade = 1, kg = cfg.배터리비용, effect = Effect.BatteryCap, amount = cfg.배터리증가 },  // ≈탐사시간 +10s
+                new Recipe { id = "gear_hull",  agent = "", grade = 2, kg = cfg.내압비용,   effect = Effect.Hull,       amount = 1 },
+            };
+        }
 
         // 특정 레시피 제작 가능 여부 — 약품 해금 + 강재 충족 + 부유체 순차/내압 중복 방지
         public bool CanCraft(string id) {
@@ -101,7 +119,7 @@ namespace Game.Craft {
             }
         }
 
-        static bool TryFind(string id, out Recipe r) {
+        bool TryFind(string id, out Recipe r) {
             foreach (var x in Recipes) {
                 if (x.id == id) {
                     r = x;

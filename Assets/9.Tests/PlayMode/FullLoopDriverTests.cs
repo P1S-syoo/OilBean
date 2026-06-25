@@ -73,11 +73,16 @@ namespace Game.Tests {
 
             // 정화 설치 스팟 — installTime=1f(실제 대기 없음: ArmInstant가 t를 시드해 첫 프레임 완료)
             spot = new GameObject("Spot");
+            spot.SetActive(false);   // Awake가 config를 읽도록 비활성 생성 후 주입 → 활성화
             spot.AddComponent<BoxCollider2D>().isTrigger = true;
             var inst = spot.AddComponent<PurifyInstaller>();
             SetField(inst, "run", run);
-            SetField(inst, "installTime", 1f);   // 임의 값 — ArmInstant로 즉시 완료시키므로 실제 경과와 무관
+            // 리터럴 직접 주입 대신 config(SO)로 주입 — SetActive(true) 전에 설정해 Awake가 읽게 함
+            var instCfg = ScriptableObject.CreateInstance<제작설정>();
+            instCfg.설치시간 = 1f;   // 임의 값 — ArmInstant로 즉시 완료시키므로 실제 경과와 무관
+            SetField(inst, "config", instCfg);
             SetField(inst, "holdOverride", true);   // 키보드 없는 테스트에서 F홀드 대체
+            spot.SetActive(true);
             int purifiedCount = 0;
             // 구독은 모든 시드/SetActive 전에 등록 — 이후 어떤 프레임에서 OnPurified가 발화해도 놓치지 않음
             inst.OnPurified += () => purifiedCount++;
@@ -174,7 +179,10 @@ namespace Game.Tests {
             SetField(gb, "run", run);
             SetField(gb, "mover", mover);
             SetField(gb, "sub", sub.transform);
-            SetField(gb, "forfeitRatio", 0.5f);   // 결정적 손실 비율(절반)
+            // 리터럴 직접 주입 대신 config(SO)로 주입 — SetActive(true) 전에 설정해 Awake가 읽게 함
+            var gbCfg = ScriptableObject.CreateInstance<수집설정>();
+            gbCfg.손실비율 = 0.5f;   // 결정적 손실 비율(절반)
+            SetField(gb, "config", gbCfg);
             sub.SetActive(true);   // Awake → ResetRun
 
             // ── 강제복귀 정산: 미정착분의 forfeitRatio 만큼 거점 보유분에서 차감 ──

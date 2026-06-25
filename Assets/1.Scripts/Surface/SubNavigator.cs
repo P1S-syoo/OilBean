@@ -6,12 +6,12 @@ namespace Game.Surface {
     // 잠수정 자동 항해 — 강 스플라인을 일정 속도로 추종, 정화 목표 지점에서 감속 정지
     public class SubNavigator : MonoBehaviour {
         [SerializeField] SplineContainer river;       // 강 중심선 스플라인
-        [SerializeField] float speed = 4f;            // 순항 속도(m/s)
-        [SerializeField] float brakeDistance = 8f;    // 목표 앞 감속 시작 거리(m)
-        [SerializeField] float minSpeed = 0.4f;       // 감속 중 최저 속도(완전 멈춤 직전까지 전진)
-        [SerializeField] float turnSpeed = 2f;        // 회전 보간 속도(급커브 홱 돌기 방지)
+        [SerializeField] float speed;            // 순항 속도(m/s) — 기본값은 수면위설정.항해속도
+        [SerializeField] float brakeDistance;    // 목표 앞 감속 시작 거리(m) — 기본값은 수면위설정.감속거리
+        [SerializeField] float minSpeed;         // 감속 중 최저 속도 — 기본값은 수면위설정.최저속도
+        [SerializeField] float turnSpeed;        // 회전 보간 속도 — 기본값은 수면위설정.항해회전
         [SerializeField, Range(0f, 1f)] float[] targets = { 0.5f, 1f };   // 정화 목표(스플라인 정규화 거리)
-        [SerializeField] Game.Core.GameConfig config;   // 통합 설정 — 연결 시 항해 수치 덮어씀(미연결 시 위 기본값 유지)
+        [SerializeField] Game.Core.수면위설정 config;   // 수면위 설정 — 연결 시 항해 수치 적용(미연결 시 SO 기본값)
 
         float distance;     // 스플라인 위 누적 이동 거리(m)
         float length;       // 스플라인 전체 길이 캐시
@@ -26,13 +26,12 @@ namespace Game.Surface {
 
         void Awake() {
             try {
-                // 통합 설정 적용 — 미연결이면 기존 기본값 유지
-                if (config != null) {
-                    speed = config.navSpeed;
-                    brakeDistance = config.navBrakeDistance;
-                    minSpeed = config.navMinSpeed;
-                    turnSpeed = config.navTurnSpeed;
-                }
+                // 통합 설정 적용 — 미연결 시 SO 기본값 사용(중복 제거)
+                var cfg = config != null ? config : Game.Core.수면위설정.기본;
+                speed = cfg.항해속도;
+                brakeDistance = cfg.감속거리;
+                minSpeed = cfg.최저속도;
+                turnSpeed = cfg.항해회전;
                 if (river == null) {
                     Debug.LogError("[SubNavigator] 강 스플라인 미연결 — 인스펙터에서 할당하세요.");
                     enabled = false;

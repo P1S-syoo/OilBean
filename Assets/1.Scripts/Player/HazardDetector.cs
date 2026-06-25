@@ -12,14 +12,22 @@ namespace Game.Player {
         // 발화 가드 — 탐사 중에만 true(코디네이터가 상태에 맞춰 토글)
         bool armed = true;
 
+        // 일시 면제 — 상호작용(수집 미니게임)·스턴 등 회피 불가 상황에서 피격 면제(armed와 독립)
+        bool immune = false;
+
         // 발화 허용/차단(Dive 진입 시 true, Dock 복귀 시 false)
         public void SetArmed(bool on) {
             armed = on;
         }
 
+        // 일시 면제 토글 — 미니게임·스턴처럼 이동이 잠겨 회피 불가한 동안 켠다(켜는 쪽이 끄는 책임)
+        public void SetImmune(bool on) {
+            immune = on;
+        }
+
         void OnTriggerEnter2D(Collider2D other) {
-            // armed가 아니면 무시 — Dock 상태·다중 발화 방지
-            if (!armed) {
+            // armed가 아니거나 면제 중이면 무시 — Dock 상태·상호작용/스턴 중 피격 방지
+            if (!armed || immune) {
                 return;
             }
             if (other.GetComponentInParent<Hazard>() != null) {

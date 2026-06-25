@@ -7,14 +7,14 @@ namespace Game.Player {
     // 탐사 기계 2.5D 이동 — 입력 방향으로 기수를 서서히 정렬(측면 유지: 화면 Z회전 + 좌우 flip)하며 그 방향으로 전진
     [RequireComponent(typeof(Rigidbody2D))]
     public class PlayerMove : MonoBehaviour {
-        [SerializeField] float accel = 30f;       // 가속력
-        [SerializeField] float maxSpeed = 6f;     // 최고 속도
+        [SerializeField] float accel;             // 가속력 — 기본값은 잠수설정.가속력
+        [SerializeField] float maxSpeed;          // 최고 속도 — 기본값은 잠수설정.최고속도
         [SerializeField] Transform model;         // 비주얼 피벗(화면 Z회전+flip 적용, 물리와 분리)
-        [SerializeField] float turnSpeed = 360f;  // 기수 선회 각속도(deg/s) — '서서히' 정도
+        [SerializeField] float turnSpeed;         // 기수 선회 각속도(deg/s) — 기본값은 잠수설정.선회속도
         [SerializeField] Transform searchLight;   // 전방 서치라이트(진행 방향 회전)
         [SerializeField] Animator animator;       // 캐릭터 애니(Idle↔Swim) — 속도로 전환
         [SerializeField] RunData run;             // 수심 게이트(부유체 단계로 진입 한계) — 미연결 시 자동 탐색
-        [SerializeField] GameConfig config;       // 통합 설정 — 연결 시 이동 수치 덮어씀(미연결 시 위 기본값 유지)
+        [SerializeField] 잠수설정 config;       // 잠수 설정 — 연결 시 이동 수치 덮어씀(미연결 시 위 기본값 유지)
 
         Rigidbody2D rb;
         Vector2 input;            // 정규화된 이동 입력
@@ -29,12 +29,11 @@ namespace Game.Player {
 
         void Awake() {
             try {
-                // 통합 설정 적용 — 미연결이면 기존 [SerializeField] 기본값 유지
-                if (config != null) {
-                    accel = config.playerAccel;
-                    maxSpeed = config.playerMaxSpeed;
-                    turnSpeed = config.playerTurnSpeed;
-                }
+                // 통합 설정 적용 — 미연결 시 SO 기본값 사용(중복 제거)
+                var cfg = config != null ? config : 잠수설정.기본;
+                accel = cfg.가속력;
+                maxSpeed = cfg.최고속도;
+                turnSpeed = cfg.선회속도;
                 rb = GetComponent<Rigidbody2D>();
                 rb.gravityScale = 0f;        // 수중: 중력 없음
                 rb.linearDamping = 3f;       // 관성 감속

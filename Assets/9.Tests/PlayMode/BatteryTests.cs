@@ -3,6 +3,7 @@ using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
+using Game.Core;
 using Game.Player;
 
 namespace Game.Tests {
@@ -24,8 +25,11 @@ namespace Game.Tests {
             go = new GameObject("Sub");
             go.SetActive(false);
             var b = go.AddComponent<Battery>();
-            SetField(b, "max", max);
-            SetField(b, "drainPerSec", drain);
+            // 리터럴 직접 주입 대신 config(SO)로 주입 — SetActive(true) 전에 설정해 Awake가 읽게 함
+            var c = ScriptableObject.CreateInstance<잠수설정>();
+            c.배터리최대 = max;
+            c.배터리소모 = drain;
+            SetField(b, "config", c);
             go.SetActive(true);
             b.SetDraining(true);   // 기본값이 비소모로 바뀌어 테스트는 명시적으로 소모 활성화
             return b;

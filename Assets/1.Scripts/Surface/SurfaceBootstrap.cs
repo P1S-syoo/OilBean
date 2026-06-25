@@ -22,11 +22,11 @@ namespace Game.Surface {
         [SerializeField] GameObject worldBlocks;      // 2.5D 블록 스트리머 루트 — 수상에선 강변 벽이 다리처럼 보여 숨김
         [SerializeField] GameObject skyQuad;          // 2.5D 하늘 백드롭 퀀드 — 수상 동안 숨김(안개 하늘과 충돌)
         [SerializeField] float sideZOffset = -20f;    // CamFollow zOffset과 일치해야 끊김 없음
-        [SerializeField] float blendTime = 2.2f;      // 카메라 블렌드·하강 연출 시간
-        [SerializeField] float descendDepth = 8f;     // 자동 하강 깊이(수면 직하 → 탐사 시작 위치)
-        [SerializeField] float plungeTime = 1.1f;     // 덱 캐릭터 입수(RunToDive) 연출 시간
-        [SerializeField] float plungeDistance = 6f;   // 입수 시 측면 도약 거리 — 넓어진 선체를 확실히 넘어 물로
-        [SerializeField] GameConfig config;           // 통합 설정 — 연결 시 잠수 연출 수치 덮어씀(미연결 시 위 기본값 유지)
+        [SerializeField] float blendTime;       // 카메라 블렌드·하강 연출 시간 — 기본값은 수면위설정.입수시간
+        [SerializeField] float descendDepth;    // 자동 하강 깊이 — 기본값은 수면위설정.하강깊이
+        [SerializeField] float plungeTime;      // 덱 캐릭터 입수 연출 시간 — 기본값은 수면위설정.도약시간
+        [SerializeField] float plungeDistance;  // 입수 시 측면 도약 거리 — 기본값은 수면위설정.도약거리
+        [SerializeField] 수면위설정 config;           // 수면위 설정 — 연결 시 잠수 연출 수치 적용(미연결 시 SO 기본값)
 
         InputAction diveInput;
         InputAction consoleInput;       // 수상 거점 콘솔 토글(P)
@@ -52,13 +52,12 @@ namespace Game.Surface {
 
         void Awake() {
             try {
-                // 통합 설정 적용 — 미연결이면 기존 기본값 유지
-                if (config != null) {
-                    blendTime = config.surfaceBlendTime;
-                    descendDepth = config.surfaceDescendDepth;
-                    plungeTime = config.surfacePlungeTime;
-                    plungeDistance = config.surfacePlungeDistance;
-                }
+                // 통합 설정 적용 — 미연결 시 SO 기본값 사용(중복 제거)
+                var cfg = config != null ? config : 수면위설정.기본;
+                blendTime = cfg.입수시간;
+                descendDepth = cfg.하강깊이;
+                plungeTime = cfg.도약시간;
+                plungeDistance = cfg.도약거리;
                 diveInput = new InputAction("Dive", InputActionType.Button, "<Keyboard>/e");
                 diveInput.performed += OnDiveInput;
                 consoleInput = new InputAction("Console", InputActionType.Button, "<Keyboard>/p");
@@ -157,7 +156,9 @@ namespace Game.Surface {
 
         // 클리어 후 Surface 복귀 감지 — 비활성 상태에서도 델리게이트는 수신되므로 여기서 재활성
         void OnGameStateChanged(GameState from, GameState to) {
-            if (to == GameState.Surface && from != GameState.Surface) {
+            // 잠수 복귀(Dock 경유)·클리어 복귀만 다음 목표로 항해 재개 — 연구/제작 허브 닫기 등은 제자리 유지(다음 지점 자동 전진 방지)
+            // 화이트리스트로 게이팅 — 향후 →Surface 상태가 추가돼도 기본은 '재개 안 함'(fail-safe)
+            if (to == GameState.Surface && (from == GameState.Dock || from == GameState.Clear)) {
                 ReturnToSurface();
             }
         }

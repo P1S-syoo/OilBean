@@ -472,6 +472,7 @@ namespace Game.Minigame {
 
             // 슬롯 채움 색 표시
             sd.Img.color = UITheme.ColSuccess;
+            Game.Audio.GameAudio.Instance?.PlaySlotPlace();   // 슬롯 배치음
 
             // 채움 연출
             td.Rt.DOScale(Vector3.one * 1.08f, 0.1f).SetUpdate(true)

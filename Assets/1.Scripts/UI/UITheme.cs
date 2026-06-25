@@ -432,6 +432,36 @@ namespace Game.UI {
             }
         }
 
+        // ── 거부 흔들림 피드백(제작 불가 클릭 등) ───────────────────
+        // 좌우로 짧게 흔들어 "불가" 신호. SFX 부재 시 시각 대체. 끝나면 원위치 복귀.
+        public static void Shake(GameObject go, float amount = 12f, float dur = 0.32f) {
+            if (go == null) {
+                return;
+            }
+            try {
+                var rt = go.GetComponent<RectTransform>();
+                if (rt == null) {
+                    return;
+                }
+                DOTween.Kill(rt);
+                // 흔들기 전 안정 좌표를 먼저 확보(중복 호출 시 누적 드리프트 방지)
+                Vector2 home = rt.anchoredPosition;
+                float t = 0f;
+                DOTween.To(() => t, v => {
+                        t = v;
+                        // 감쇠 사인 — 진폭이 점점 줄며 멈춤
+                        float damp = 1f - Mathf.Clamp01(v);
+                        float off = Mathf.Sin(v * Mathf.PI * 6f) * amount * damp;
+                        rt.anchoredPosition = home + new Vector2(off, 0f);
+                    }, 1f, dur)
+                    .SetUpdate(true)
+                    .SetTarget(rt)
+                    .OnComplete(() => rt.anchoredPosition = home);
+            } catch (System.Exception e) {
+                Debug.LogError($"[UITheme] 흔들림 피드백 오류: {e.Message}");
+            }
+        }
+
         // ── 버튼 hover/press 스케일 피드백 ──────────────────────────
         // hover scale 1.04 / press scale 0.96, ease-out. 이벤트 트리거로 부착.
         public static void AddScaleFeedback(Button btn, float hover = 1.04f, float press = 0.96f) {
@@ -441,6 +471,8 @@ namespace Game.UI {
             try {
                 var fb = btn.gameObject.AddComponent<UIThemeButtonFeedback>();
                 fb.Setup(btn, hover, press);
+                // 공용 클릭음 — 스케일 피드백이 붙는 버튼에 일괄 적용
+                btn.onClick.AddListener(() => Game.Audio.GameAudio.Instance?.PlayUiClick());
             } catch (System.Exception e) {
                 Debug.LogError($"[UITheme] 버튼 스케일 피드백 부착 오류: {e.Message}");
             }

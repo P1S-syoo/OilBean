@@ -22,7 +22,7 @@ namespace Game.Core {
         [SerializeField] Toast toast;              // 행동 피드백 배너
         [SerializeField] bool autoStartDive;      // 3D 씬: 시작 시 바로 탐사 진입
         [SerializeField] bool startOnSurface;     // 수상 항해(Surface)로 시작 — 잠수 전까지 탐사 루프 잠금
-        [SerializeField] GameConfig config;       // 통합 설정 — 연결 시 손실 비율·적재 한계 덮어씀(미연결 시 기본값 유지)
+        [SerializeField] 수집설정 config;       // 수집 설정 — 연결 시 손실 비율·적재 한계 적용(미연결 시 SO 기본값)
 
         GameFsm fsm;
         Vector3 dockPos;
@@ -49,17 +49,14 @@ namespace Game.Core {
 
         void Awake() {
             try {
-                // 통합 설정 적용 — 미연결이면 기존 기본값 유지
-                if (config != null) {
-                    forfeitRatio = config.forfeitRatio;
-                }
+                // 통합 설정 적용 — 미연결 시 SO 기본값 사용(중복 제거)
+                var cfg = config != null ? config : 수집설정.기본;
+                forfeitRatio = cfg.손실비율;
                 if (run == null) {
                     Debug.LogWarning("[GameBootstrap] RunData 미연결 — 인스펙터에서 할당하세요.");
                 } else {
                     run.ResetRun();   // 세션 시작 시 초기화(자산 persist 잔재 제거)
-                    if (config != null) {
-                        run.SetMaxWeightBase(config.runMaxWeight);   // 적재 한계 통합 설정(ResetRun 후 덮어씀)
-                    }
+                    run.SetMaxWeightBase(cfg.최대적재);   // 적재 한계 통합 설정(ResetRun 후 덮어씀)
                 }
                 // 컴포넌트 래치도 세션 초기화(재시작 시 클리어/정화 재현 가능)
                 if (clearView != null) clearView.ResetState();
@@ -111,7 +108,8 @@ namespace Game.Core {
         bool returnHintShown;
 
         // E6 push-your-luck — 강제 복귀 시 이번 탐사 미정착분 손실 비율(좌절 없는 선, 플레이로 조정)
-        [SerializeField] float forfeitRatio = 0.35f;
+        // 기본값은 수집설정.손실비율 (Awake에서 적용)
+        [SerializeField] float forfeitRatio;
         bool forcedReturn;   // 직전 복귀가 강제(방전·충돌)였는지
 
         void Start() {

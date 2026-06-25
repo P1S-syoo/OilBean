@@ -5,6 +5,7 @@ using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Splines;
 using UnityEngine.TestTools;
+using Game.Core;
 using Game.Surface;
 
 namespace Game.Tests {
@@ -48,7 +49,10 @@ namespace Game.Tests {
             subGo.SetActive(false);
             var nav = subGo.AddComponent<SubNavigator>();
             SetField(nav, "river", container);
-            SetField(nav, "speed", speed);
+            // 리터럴 직접 주입 대신 config(SO)로 주입 — SetActive(true) 전에 설정해 Awake가 읽게 함
+            var c = ScriptableObject.CreateInstance<수면위설정>();
+            c.항해속도 = speed;
+            SetField(nav, "config", c);
             SetField(nav, "targets", new[] { 0.5f, 1f });
             subGo.SetActive(true);
             return nav;

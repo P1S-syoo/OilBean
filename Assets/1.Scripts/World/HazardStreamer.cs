@@ -10,30 +10,31 @@ namespace Game.World {
         [SerializeField] Transform target;          // 2.5D 잠수정(화면 중심 기준)
         [SerializeField] GameObject hazardPrefab;   // 클론할 오염원 프리팹
         [SerializeField] Camera diveCam;            // 화면 좌우 경계 산정(미연결 시 Camera.main)
-        [SerializeField] GameConfig config;         // 통합 설정 — 연결 시 공격 수치 덮어씀
-        [SerializeField] float attackInterval = 2.2f;
-        [SerializeField] float warnTime = 0.8f;
-        [SerializeField] float dashSpeed = 14f;
-        [SerializeField] float marginX = 3f;        // 화면 밖 시작/종료 여유(u)
+        [SerializeField] 위험설정 config;           // 위험 설정 — 연결 시 공격/스폰 수치 덮어씀(미연결 시 SO 기본값)
+        [SerializeField] float attackInterval;      // 돌진 공격 간격 — 기본값은 위험설정.공격간격
+        [SerializeField] float warnTime;            // 경고(텔레그래프) 시간 — 기본값은 위험설정.경고시간
+        [SerializeField] float dashSpeed;           // 돌진 속도 — 기본값은 위험설정.돌진속도
+        [SerializeField] float marginX;             // 화면 밖 시작/종료 여유(u) — 기본값은 위험설정.화면여유
 
         const float LaneTopMargin = 1.5f;     // 진입 높이 상단 여유
         const float LaneBottomMargin = 1.5f;  // 진입 높이 하단 여유
         const float WarnInset = 1.4f;         // 경고 아이콘을 화면 안쪽으로 들인 거리
+        const uint Xorshift32Seed = 2463534242;   // xorshift32 초기 시드(런타임 난수 — Time/Random 의존 최소)
 
         GameBootstrap bootstrap;
         bool spawning;
         float timer;
-        uint seed = 2463534242;   // xorshift32 시드(런타임 난수 — Time/Random 의존 최소)
+        uint seed = Xorshift32Seed;
         bool warnedTarget;
 
         void Start() {
             try {
-                // 통합 설정 적용 — 미연결이면 기존 기본값 유지
-                if (config != null) {
-                    attackInterval = config.hazardAttackInterval;
-                    warnTime = config.hazardWarnTime;
-                    dashSpeed = config.hazardDashSpeed;
-                }
+                // 통합 설정 적용 — 미연결 시 SO 기본값 사용(중복 제거)
+                var cfg = config != null ? config : 위험설정.기본;
+                attackInterval = cfg.공격간격;
+                warnTime = cfg.경고시간;
+                dashSpeed = cfg.돌진속도;
+                marginX = cfg.화면여유;
                 if (diveCam == null) {
                     diveCam = Camera.main;
                 }

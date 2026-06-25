@@ -32,11 +32,16 @@ namespace Game.Tests {
             sub.AddComponent<PlayerMove>();                 // Rigidbody2D 자동
             sub.AddComponent<BoxCollider2D>().isTrigger = true;
             spot = new GameObject("Spot");
+            spot.SetActive(false);   // Awake가 config를 읽도록 비활성 생성 후 주입 → 활성화
             spot.AddComponent<BoxCollider2D>().isTrigger = true;
             var p = spot.AddComponent<PurifyInstaller>();
             SetField(p, "run", run);
-            SetField(p, "installTime", 0.2f);
+            // 리터럴 직접 주입 대신 config(SO)로 주입 — SetActive(true) 전에 설정해 Awake가 읽게 함
+            var c = ScriptableObject.CreateInstance<제작설정>();
+            c.설치시간 = 0.2f;
+            SetField(p, "config", c);
             SetField(p, "holdOverride", true);   // E6 hold-to-install — 키보드 없는 테스트에서 홀드 대체
+            spot.SetActive(true);
         }
 
         // 설치 완료(OnPurified) 대기 — 이벤트 카운터 폴링 + 실시간 deadline.

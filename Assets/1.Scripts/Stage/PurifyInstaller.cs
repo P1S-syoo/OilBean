@@ -9,10 +9,10 @@ namespace Game.Stage {
     [RequireComponent(typeof(Collider2D))]
     public class PurifyInstaller : MonoBehaviour {
         [SerializeField] RunData run;
-        [SerializeField] float installTime = 2.5f;   // 설치 소요(초, 홀드 누적)
+        [SerializeField] float installTime;   // 설치 소요(초, 홀드 누적) — 기본값은 제작설정.설치시간
         [SerializeField] Transform progressFill;      // 월드 진행 게이지(스케일 X = 진행), 선택
         [SerializeField] GameObject holdPrompt;        // 'F 홀드' 안내 오브젝트, 선택
-        [SerializeField] GameConfig config;            // 통합 설정 — 연결 시 설치 시간 덮어씀(미연결 시 위 기본값 유지)
+        [SerializeField] 제작설정 config;            // 제작 설정 — 연결 시 설치 시간 적용(미연결 시 SO 기본값)
 
         bool inside;       // 스팟 안에 탐사 기계가 있나
         bool armed = true; // 탐사 중에만 설치 허용(코디네이터가 토글). 단독 사용 시 기본 on
@@ -24,11 +24,14 @@ namespace Game.Stage {
         public event Action OnPurified;
 
         void Awake() {
-            // 통합 설정 적용 — 미연결이면 기존 기본값 유지
-            if (config != null) {
-                installTime = config.purifyInstallTime;
+            try {
+                // 통합 설정 적용 — 미연결 시 SO 기본값 사용(중복 제거)
+                var cfg = config != null ? config : 제작설정.기본;
+                installTime = cfg.설치시간;
+                GetComponent<Collider2D>().isTrigger = true;
+            } catch (Exception e) {
+                Debug.LogError($"[PurifyInstaller] 설정 적용 실패: {e.Message}");
             }
-            GetComponent<Collider2D>().isTrigger = true;
         }
 
         void OnTriggerEnter2D(Collider2D other) {

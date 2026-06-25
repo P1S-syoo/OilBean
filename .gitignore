@@ -76,3 +76,8 @@ Thumbs.db
 # 유니티 크래시 복구 스냅샷
 /Assets/_Recovery/
 /Assets/_Recovery.meta
+
+# OMC tool artifacts (nested)
+**/.omc/
+# Orphan debug-symbol meta (mdb itself ignored)
+*.dll.mdb.meta

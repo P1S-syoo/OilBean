@@ -7,10 +7,15 @@ namespace Game.Core {
     //    (모드 토글로 Sub 비활성화가 생기면 세션 사본 Instantiate로 전환 검토 — S3)
     [CreateAssetMenu(fileName = "RunData", menuName = "Game/RunData")]
     public class RunData : ScriptableObject {
+        [Header("부유체 수심 게이트")]
+        // 주의: 수심 게이트는 제작설정에서 직접, 적재 한계(최대적재)는 수집설정에서 GameBootstrap.SetMaxWeightBase로 주입 — 출처 분리
+        [SerializeField] 제작설정 config;     // 제작 설정 — 연결 시 부유체 단계별 수심 게이트 덮어씀(미연결 시 15/35/50 폴백)
+
         [Header("적재(통합 무게)")]
         [SerializeField] float weight;        // 현재 총 적재 무게(kg) — 단일 회계
         [SerializeField] float maxWeight = 70f;
-        [SerializeField] float baseMaxWeight = 70f;   // 업그레이드 전 기준(리셋용) — 기획 70kg
+        // ⚠️ 적재 한계의 단일 원천(SSOT)은 수집설정.최대적재 — GameBootstrap이 SetMaxWeightBase로 주입
+        [SerializeField] float baseMaxWeight = 70f;   // 업그레이드 전 기준(리셋용) — 기획 70kg, 미연결 시 폴백
         [SerializeField] int scrapCount;      // 고철 개수(표시용)
         [SerializeField] int sampleCount;     // 샘플 개수(표시용)
 
@@ -48,12 +53,13 @@ namespace Game.Core {
         public int MaxAnalyzedLevel => maxAnalyzedLevel;
         public int SurfaceTargetIdx => surfaceTargetIdx;
 
-        // 현재 진입 가능 최대 수심(m, 양수) — 부유체 단계로 해제(기본 15 → 35 → 50)
+        // 현재 진입 가능 최대 수심(m, 양수) — 부유체 단계로 해제. 미연결 시 SO 기본값(제작설정.기본 = 15/35/50)
         public float MaxDepth() {
+            var cfg = config != null ? config : 제작설정.기본;
             switch (buoyStage) {
-                case 0: return 15f;
-                case 1: return 35f;
-                default: return 50f;
+                case 0: return cfg.부유수심1;
+                case 1: return cfg.부유수심2;
+                default: return cfg.부유수심3;
             }
         }
 

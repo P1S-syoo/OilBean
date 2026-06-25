@@ -4,10 +4,10 @@ using UnityEngine;
 namespace Game.Player {
     // 탐사 제한 게이지 — 시간에 따라 소모, 0이 되면 복귀 유도(OnEmpty)
     public class Battery : MonoBehaviour {
-        [SerializeField] float max = 100f;
-        [SerializeField] float drainPerSec = 3.33f;   // 약 30초/회 탐사(5분에 ~3회)
+        [SerializeField] float max;            // 기본값은 잠수설정.배터리최대
+        [SerializeField] float drainPerSec;    // 초당 소모 — 기본값은 잠수설정.배터리소모
         [SerializeField] bool draining = false;   // 코디네이터가 탐사 진입 시 SetDraining(true)로 켬 — 미배선 시 무단 소모 방지
-        [SerializeField] Game.Core.GameConfig config;   // 통합 설정 — 연결 시 용량/소모 덮어씀(미연결 시 위 기본값 유지)
+        [SerializeField] Game.Core.잠수설정 config;   // 잠수 설정 — 연결 시 용량/소모 적용(미연결 시 SO 기본값)
 
         float current;
         bool emptied;
@@ -20,14 +20,17 @@ namespace Game.Player {
         public event Action OnEmpty;
 
         void Awake() {
-            // 통합 설정 적용 — 미연결이면 기존 기본값 유지(충전 전에 적용)
-            if (config != null) {
-                max = config.batteryMax;
-                drainPerSec = config.batteryDrainPerSec;
+            try {
+                // 통합 설정 적용 — 미연결 시 SO 기본값 사용(중복 제거)
+                var cfg = config != null ? config : Game.Core.잠수설정.기본;
+                max = cfg.배터리최대;
+                drainPerSec = cfg.배터리소모;
+                // 최초 1회만 충전(재활성화 시 무단 리필 방지 — 탐사 재시작은 Refill로 명시 호출)
+                current = max;
+                emptied = false;
+            } catch (Exception e) {
+                Debug.LogError($"[Battery] 설정 적용 실패: {e.Message}");
             }
-            // 최초 1회만 충전(재활성화 시 무단 리필 방지 — 탐사 재시작은 Refill로 명시 호출)
-            current = max;
-            emptied = false;
         }
 
         void Update() {

@@ -6,35 +6,19 @@ namespace Game.Narrative {
     // 인트로/클리어 내레이션 트리거 — GameBootstrap 상태 변화를 구독해 NarrationView에 재생 요청
     public class NarrationController : MonoBehaviour {
 
-        // 대사 정본(SSOT)은 GameConfig.introLines/clearLines — 아래 하드코딩은 config 미연결 폴백일 뿐
-        // ── 인트로 대사 (Surface 최초 진입 시 폴백) ─────────────────
-        static readonly string[] IntroLines = {
-            "2042년, 한강은 죽었다.",
-            "오염 물질이 강바닥을 덮고, 물고기는 사라졌다.",
-            "당신은 정화선의 마지막 잠수사.",
-            "잠수정을 타고 내려가 강을 되살려라.",
-        };
-
-        // ── 클리어 대사 (Clear 진입 시) ────────────────────────────
-        static readonly string[] ClearLines = {
-            "정화 부유체가 자리를 잡았다.",
-            "탁한 물이 조금씩 맑아지기 시작한다.",
-            "강은 아직 기억하고 있었다 — 흐르는 법을.",
-        };
-
         // ── 직렬화 필드 ─────────────────────────────────────────────
         [SerializeField] NarrationView    view;
         [SerializeField] GameBootstrap    bootstrap;
-        [SerializeField] GameConfig       config;   // 통합 설정 — 대사가 채워져 있으면 하드코딩 대신 사용
+        [SerializeField] 연출설정         config;   // 연출 설정 — 미연결 시 SO 기본값(연출설정.기본)의 대사 사용
 
         // ── 재생 가드 ────────────────────────────────────────────────
         bool introPlayed;
         bool clearPlayed;
 
         // ── 대사 출처 ────────────────────────────────────────────────
-        // config에 대사가 채워져 있으면 그것을, 없으면 하드코딩 폴백 사용
-        string[] IntroSource => (config != null && config.introLines != null && config.introLines.Length > 0) ? config.introLines : IntroLines;
-        string[] ClearSource => (config != null && config.clearLines != null && config.clearLines.Length > 0) ? config.clearLines : ClearLines;
+        // 대사 정본(SSOT)은 연출설정.인트로대사/클리어대사 — 미연결 시 SO 기본값 인스턴스에서 가져옴(하드코딩 중복 제거)
+        string[] IntroSource => (config != null ? config : 연출설정.기본).인트로대사;
+        string[] ClearSource => (config != null ? config : 연출설정.기본).클리어대사;
 
         // ── 라이프사이클 ─────────────────────────────────────────────
 

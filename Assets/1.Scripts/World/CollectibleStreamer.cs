@@ -9,22 +9,22 @@ namespace Game.World {
     public class CollectibleStreamer : MonoBehaviour {
         [SerializeField] Transform target;          // 2.5D 플레이어(잠수정)
         [SerializeField] ItemDataTable table;       // 수집물 마스터 데이터
-        [SerializeField] float cellWidth = 6f;      // 셀 폭(u)
-        [SerializeField] int radiusCells = 6;       // 좌우 로드 반경(셀) — 화면+α
-        [SerializeField] int slotsPerCell = 2;      // (호환) 기본 슬롯 — 하이브리드에서는 군집/개방 슬롯이 우선
-        [SerializeField] int density = 70;          // (호환) 기본 채움 확률
-        [SerializeField] float colliderRadius = 1f; // 수집 트리거 월드 반경(m)
-        [SerializeField] float zSpread = 3f;        // 오염체 z축 분산 폭 — 시각적 입체감(2D 수집은 xy만 사용)
+        [SerializeField] float cellWidth;           // 셀 폭(u) — 기본값은 수집설정.셀폭
+        [SerializeField] int radiusCells;           // 좌우 로드 반경(셀) — 기본값은 수집설정.로드반경
+        [SerializeField] int slotsPerCell = 2;      // (호환) 기본 슬롯 — 하이브리드에서는 군집/개방 슬롯이 우선(config 비대상)
+        [SerializeField] int density = 70;          // (호환) 기본 채움 확률(config 비대상)
+        [SerializeField] float colliderRadius;      // 수집 트리거 월드 반경(m) — 기본값은 수집설정.트리거반경
+        [SerializeField] float zSpread;             // 오염체 z축 분산 폭 — 기본값은 수집설정.깊이분산
 
         [Header("하이브리드 배치 — 난파 군집 + 개방 수역")]
-        [SerializeField] float clusterInterval = 60f;  // 난파 군집 간격(u) — 다리 앵커 기준 주기
-        [SerializeField] float clusterRadius = 13f;    // 군집 반경(u) — 이 안은 밀집, 밖은 희소
-        [SerializeField] float bridgeAnchorX = 38f;    // 양화대교 잔해 X — 군집 격자의 기준점(BridgePlacer와 일치)
-        [SerializeField] int clusterSlots = 5;         // 군집 셀 슬롯 수(수직 잔해 더미)
-        [SerializeField] int clusterDensity = 90;      // 군집 채움 확률(%)
-        [SerializeField] int openSlots = 1;            // 개방 수역 셀 슬롯 수
-        [SerializeField] int openDensity = 26;         // 개방 수역 채움 확률(%)
-        [SerializeField] GameConfig config;            // 통합 설정 — 연결 시 군집/개방 밀도 덮어씀(미연결 시 위 기본값 유지)
+        [SerializeField] float clusterInterval;        // 난파 군집 간격(u) — 기본값은 수집설정.군집간격
+        [SerializeField] float clusterRadius;          // 군집 반경(u) — 기본값은 수집설정.군집반경
+        [SerializeField] float bridgeAnchorX;          // 양화대교 잔해 X — 기본값은 수집설정.다리기준(BridgePlacer와 일치)
+        [SerializeField] int clusterSlots;             // 군집 셀 슬롯 수 — 기본값은 수집설정.군집슬롯
+        [SerializeField] int clusterDensity;           // 군집 채움 확률(%) — 기본값은 수집설정.군집밀도
+        [SerializeField] int openSlots;                // 개방 수역 셀 슬롯 수 — 기본값은 수집설정.개방슬롯
+        [SerializeField] int openDensity;              // 개방 수역 채움 확률(%) — 기본값은 수집설정.개방밀도
+        [SerializeField] 수집설정 config;            // 수집 설정 — 연결 시 스폰/군집 수치 덮어씀(미연결 시 위 기본값 유지)
 
         public const float SpawnTopMargin = 0.5f;   // 수면 아래 여유(u) — 얕은 수집물도 수면 근처까지
         public const float SpawnBottomMargin = 1f;  // 바닥 위 여유(u)
@@ -36,11 +36,19 @@ namespace Game.World {
 
         void Awake() {
             try {
-                // 통합 설정 적용 — 미연결이면 기존 기본값 유지
-                if (config != null) {
-                    clusterDensity = config.collectibleClusterDensity;
-                    openDensity = config.collectibleOpenDensity;
-                }
+                // 통합 설정 적용 — 미연결 시 SO 기본값 사용(중복 제거)
+                var cfg = config != null ? config : 수집설정.기본;
+                cellWidth = cfg.셀폭;
+                radiusCells = cfg.로드반경;
+                colliderRadius = cfg.트리거반경;
+                zSpread = cfg.깊이분산;
+                clusterInterval = cfg.군집간격;
+                clusterRadius = cfg.군집반경;
+                clusterSlots = cfg.군집슬롯;
+                clusterDensity = cfg.군집밀도;
+                openSlots = cfg.개방슬롯;
+                openDensity = cfg.개방밀도;
+                bridgeAnchorX = cfg.다리기준;
             } catch (Exception e) {
                 Debug.LogError($"[CollectibleStreamer] config 적용 실패: {e.Message}");
             }
@@ -89,50 +97,68 @@ namespace Game.World {
 
         // 셀 1칸 채움 — 난파 군집(밀집·수직 더미·희귀 센터피스) vs 개방 수역(희소). 깊이대 = 수심 biome
         void FillCell(int cell, List<GameObject> outList) {
-            float unitPerM = (DepthMap.SurfaceY - DepthMap.SeabedY) / DepthMap.MaxDepthM;
             float cellMidX = (cell + 0.5f) * cellWidth;
             float anchor = NearestAnchor(cellMidX);
-            float dist = Mathf.Abs(cellMidX - anchor);
-            bool inCluster = dist < clusterRadius;
+            bool inCluster = Mathf.Abs(cellMidX - anchor) < clusterRadius;
             int slots = inCluster ? clusterSlots : openSlots;
             int dens = inCluster ? clusterDensity : openDensity;
 
             for (int s = 0; s < slots; s++) {
                 int h = Hash(cell, s);
                 if (h % 100 >= dens) {
-                    continue;
+                    continue;   // 채움 확률 미달 슬롯
                 }
-                // 31비트 해시 비트대역 분리(독립 난수) — x분산 / 깊이 / 아이템선택
-                float x = cell * cellWidth + ((h & 0x3FF) / 1024f) * cellWidth;
-                // 군집은 슬롯별로 다른 깊이대에 쌓아 '수직 잔해 더미' 형성, 개방은 균등 랜덤
-                float depthT = inCluster
-                    ? (s + ((h >> 10) & 0xFF) / 255f) / Mathf.Max(1, slots)
-                    : ((h >> 10) & 0x3FF) / 1024f;
-                float yWorld = Mathf.Lerp(DepthMap.SurfaceY - SpawnTopMargin, DepthMap.SeabedY + SpawnBottomMargin, depthT);
-                float excelY = (yWorld - DepthMap.SurfaceY) / unitPerM;   // 게임y → 엑셀 수심
-                var def = PickByDepth(excelY, h);
-                if (def == null || def.prefab == null) {
-                    continue;
-                }
-                var go = Spawn(def, new Vector3(x, FloorClamp(x, yWorld) + 0.5f, 0f));
-                if (go != null) {
-                    outList.Add(go);
-                }
+                PlaceSlot(cell, s, h, slots, inCluster, outList);
             }
 
             // 군집 중심 셀 — 앵커를 '포함하는' 셀에만 1회(앵커가 셀 경계면 인접 두 셀 중복 방지)
             if (inCluster && Mathf.FloorToInt(anchor / cellWidth) == cell) {
-                float deepY = Mathf.Lerp(DepthMap.SeabedY + SpawnBottomMargin, DepthMap.SurfaceY - SpawnTopMargin, 0.18f);
-                float deepExcel = (deepY - DepthMap.SurfaceY) / unitPerM;
-                var rare = PickRarest(deepExcel);
-                if (rare != null && rare.prefab != null) {
-                    var go = Spawn(rare, new Vector3(anchor, FloorClamp(anchor, deepY) + 0.5f, 0f));
-                    if (go != null) {
-                        outList.Add(go);
-                    }
-                }
+                PlaceCenterpiece(anchor, outList);
             }
         }
+
+        // 슬롯 1개 배치 — 해시 비트대역으로 x분산·깊이를 독립 결정해 수집물 1개 스폰
+        void PlaceSlot(int cell, int s, int h, int slots, bool inCluster, List<GameObject> outList) {
+            float x = cell * cellWidth + HashX(h) * cellWidth;
+            // 군집은 슬롯별로 다른 깊이대에 쌓아 '수직 잔해 더미' 형성, 개방은 균등 랜덤
+            float depthT = inCluster
+                ? (s + HashClusterDepth(h)) / Mathf.Max(1, slots)
+                : HashDepth(h);
+            float yWorld = Mathf.Lerp(DepthMap.SurfaceY - SpawnTopMargin, DepthMap.SeabedY + SpawnBottomMargin, depthT);
+            float excelY = WorldToExcel(yWorld);
+            var def = PickByDepth(excelY, h);
+            if (def == null || def.prefab == null) {
+                return;
+            }
+            var go = Spawn(def, new Vector3(x, FloorClamp(x, yWorld) + 0.5f, 0f));
+            if (go != null) {
+                outList.Add(go);
+            }
+        }
+
+        // 군집 중심 희귀 센터피스 1개 배치(앵커 위치, 깊은 대역)
+        void PlaceCenterpiece(float anchor, List<GameObject> outList) {
+            float deepY = Mathf.Lerp(DepthMap.SeabedY + SpawnBottomMargin, DepthMap.SurfaceY - SpawnTopMargin, 0.18f);
+            var rare = PickRarest(WorldToExcel(deepY));
+            if (rare == null || rare.prefab == null) {
+                return;
+            }
+            var go = Spawn(rare, new Vector3(anchor, FloorClamp(anchor, deepY) + 0.5f, 0f));
+            if (go != null) {
+                outList.Add(go);
+            }
+        }
+
+        // 게임 월드 y → 엑셀 수심 좌표
+        static float WorldToExcel(float yWorld) {
+            float unitPerM = (DepthMap.SurfaceY - DepthMap.SeabedY) / DepthMap.MaxDepthM;
+            return (yWorld - DepthMap.SurfaceY) / unitPerM;
+        }
+
+        // 31비트 해시 비트대역 분리(독립 난수, 각 0~1) — x분산[0..10] / 깊이[10..20] / 아이템선택은 PickByDepth가 [20..30] 사용
+        static float HashX(int h) => (h & 0x3FF) / 1024f;            // 하위 10비트 — 셀 내 x 분산
+        static float HashDepth(int h) => ((h >> 10) & 0x3FF) / 1024f; // 중위 10비트 — 개방 수역 깊이
+        static float HashClusterDepth(int h) => ((h >> 10) & 0xFF) / 255f; // 중위 8비트 — 군집 슬롯 내 미세 깊이
 
         // 가장 가까운 군집 앵커 X(다리 기준 주기 격자)
         float NearestAnchor(float x) {

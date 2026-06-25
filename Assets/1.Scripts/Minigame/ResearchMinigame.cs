@@ -14,8 +14,10 @@ namespace Game.Minigame {
         State state = State.Closed;
         Action onSolved;
 
-        const int NodeCount = 5;
-        const float HitRadius = 46f;   // 노드 통과 판정 반경(px)
+        [SerializeField] Game.Core.연출설정 config;   // 연출 설정 — 미연결 시 SO 기본값(연출설정.기본) 사용
+
+        int NodeCount;           // 미니게임 노드 수 — 기본값은 연출설정.미니노드
+        float HitRadius;         // 노드 통과 판정 반경(px) — 기본값은 연출설정.미니판정
 
         GameObject panelRoot;
         RectTransform field;
@@ -30,9 +32,17 @@ namespace Game.Minigame {
         public bool IsOpen => state == State.Open;
 
         void Awake() {
-            BuildUI();
-            if (panelRoot != null) {
-                panelRoot.SetActive(false);
+            try {
+                // 연출 설정 적용 — 미연결 시 SO 기본값 사용(중복 제거, UI 빌드 전에 적용)
+                var cfg = config != null ? config : Game.Core.연출설정.기본;
+                NodeCount = cfg.미니노드;
+                HitRadius = cfg.미니판정;
+                BuildUI();
+                if (panelRoot != null) {
+                    panelRoot.SetActive(false);
+                }
+            } catch (Exception e) {
+                Debug.LogError($"[ResearchMinigame] 설정 적용 실패: {e.Message}");
             }
         }
 
@@ -96,6 +106,7 @@ namespace Game.Minigame {
                 lastPoint = nodes[nextIdx].anchoredPosition;
                 MarkNode(nextIdx, true);
                 nextIdx++;
+                Game.Audio.GameAudio.Instance?.PlayNodePass();   // 노드 통과음
             }
         }
 
@@ -112,6 +123,7 @@ namespace Game.Minigame {
                 activeLine.gameObject.SetActive(false);
             }
             if (success) {
+                Game.Audio.GameAudio.Instance?.PlayPuzzleDone();   // 완성 성공음
                 state = State.Closed;
                 var cb = onSolved;
                 onSolved = null;
@@ -120,6 +132,7 @@ namespace Game.Minigame {
                 }
                 cb?.Invoke();
             } else {
+                Game.Audio.GameAudio.Instance?.PlayMgMiss();   // 실패음
                 ResetPath();   // 실패 — 리셋 후 재시도
             }
         }

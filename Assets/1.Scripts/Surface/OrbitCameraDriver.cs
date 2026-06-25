@@ -7,19 +7,18 @@ namespace Game.Surface {
     // 마우스 궤도 카메라 — Cinemachine OrbitalFollow 축을 마우스 델타로 구동(수직은 Range로 클램프)
     public class OrbitCameraDriver : MonoBehaviour {
         [SerializeField] CinemachineOrbitalFollow orbital;   // 미연결 시 같은 오브젝트에서 검색
-        [SerializeField] float sensX = 0.15f;
-        [SerializeField] float sensY = 0.1f;
-        [SerializeField] Game.Core.GameConfig config;   // 통합 설정 — 연결 시 감도 덮어씀(미연결 시 위 기본값 유지)
+        [SerializeField] float sensX;   // 카메라 수평 감도 — 기본값은 수면위설정.좌우감도
+        [SerializeField] float sensY;   // 카메라 수직 감도 — 기본값은 수면위설정.상하감도
+        [SerializeField] Game.Core.수면위설정 config;   // 수면위 설정 — 연결 시 감도 덮어씀(미연결 시 위 기본값 유지)
 
         InputAction look;
 
         void Awake() {
             try {
-                // 통합 설정 적용 — 미연결이면 기존 기본값 유지
-                if (config != null) {
-                    sensX = config.orbitSensX;
-                    sensY = config.orbitSensY;
-                }
+                // 통합 설정 적용 — 미연결 시 SO 기본값 사용(중복 제거)
+                var cfg = config != null ? config : Game.Core.수면위설정.기본;
+                sensX = cfg.좌우감도;
+                sensY = cfg.상하감도;
                 if (orbital == null) {
                     orbital = GetComponent<CinemachineOrbitalFollow>();
                 }

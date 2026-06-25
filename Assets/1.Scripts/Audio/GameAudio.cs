@@ -23,8 +23,8 @@ namespace Game.Audio {
         [Header("BGM")]
         [SerializeField] AudioClip bgmDive;
         [SerializeField] AudioClip bgmSurface;
-        [SerializeField] float bgmVolume = 0.35f;
-        [SerializeField] float bgmFade = 0.8f;
+        [SerializeField] float bgmVolume;   // 배경음 볼륨 — 기본값은 오디오설정.배경음크기
+        [SerializeField] float bgmFade;     // 배경음 교차 페이드 — 기본값은 오디오설정.배경음전환
 
         [Header("SFX")]
         [SerializeField] AudioClip sfxCollect;
@@ -35,7 +35,19 @@ namespace Game.Audio {
         [SerializeField] AudioClip sfxToast;
         [SerializeField] AudioClip sfxBatteryLow;
         [SerializeField] AudioClip sfxDive;
-        [SerializeField] float sfxVolume = 0.9f;
+        [SerializeField] AudioClip sfxCraftDenied;   // 제작 불가 클릭 — 둔탁한 거부음
+        [SerializeField] AudioClip sfxCraftDone;     // 제작/업그레이드 완료음
+        [SerializeField] AudioClip sfxMgHit;         // 수집 미니게임 명중
+        [SerializeField] AudioClip sfxMgMiss;        // 미니게임 빗나감/실패
+        [SerializeField] AudioClip sfxNodePass;      // 한붓그리기 노드 통과
+        [SerializeField] AudioClip sfxPuzzleDone;    // 미니게임 성공 완성
+        [SerializeField] AudioClip sfxSlotPlace;     // 제작 슬롯 배치
+        [SerializeField] AudioClip sfxHazardWarn;    // 위험체 돌진 경고
+        [SerializeField] AudioClip sfxUiClick;       // UI 버튼 클릭
+        [SerializeField] float sfxVolume;   // 효과음 볼륨 — 기본값은 오디오설정.효과음크기
+
+        [Header("오디오 설정")]
+        [SerializeField] 오디오설정 config;   // 오디오 설정 — 연결 시 볼륨/페이드 덮어씀(미연결 시 위 기본값 유지)
 
         [Header("캐릭터 대사")]
         [SerializeField] AudioClip voiceIntro;
@@ -57,8 +69,17 @@ namespace Game.Audio {
         readonly Queue<AudioClip> voiceQueue = new Queue<AudioClip>();
         Coroutine fading;
 
+        // UI(static)·미니게임에서 효과음을 간단히 재생하기 위한 전역 접근점
+        public static GameAudio Instance { get; private set; }
+
         void Awake() {
+            Instance = this;
             try {
+                // 오디오 설정 적용 — 미연결 시 SO 기본값 사용(중복 제거, 소스 생성 전에 적용)
+                var cfg = config != null ? config : 오디오설정.기본;
+                bgmVolume = cfg.배경음크기;
+                bgmFade = cfg.배경음전환;
+                sfxVolume = cfg.효과음크기;
                 bgmSource = CreateSource("BgmSource", true);
                 sfxSource = CreateSource("SfxSource", false);
                 voiceSource = CreateSource("VoiceSource", false);
@@ -93,7 +114,7 @@ namespace Game.Audio {
             }
             if (crafting != null) {
                 crafting.OnBuoyCrafted += HandleBuoyCrafted;
-                crafting.OnUpgraded += HandleToast;
+                crafting.OnUpgraded += HandleUpgraded;
             }
             if (research != null) {
                 research.OnUnlocked += HandleToast;
@@ -101,6 +122,9 @@ namespace Game.Audio {
         }
 
         void OnDestroy() {
+            if (Instance == this) {
+                Instance = null;
+            }
             if (bootstrap != null) {
                 bootstrap.OnStateChanged -= HandleStateChanged;
             }
@@ -119,7 +143,7 @@ namespace Game.Audio {
             }
             if (crafting != null) {
                 crafting.OnBuoyCrafted -= HandleBuoyCrafted;
-                crafting.OnUpgraded -= HandleToast;
+                crafting.OnUpgraded -= HandleUpgraded;
             }
             if (research != null) {
                 research.OnUnlocked -= HandleToast;
@@ -171,9 +195,28 @@ namespace Game.Audio {
         }
 
         void HandleBuoyCrafted() {
-            PlaySfx(sfxToast);
+            PlaySfx(sfxCraftDone);   // 부유체 제작 완료음
             PlayVoice(voiceBuoy);
         }
+
+        // 업그레이드(적재/배터리/내압) 완료음 — 연구 해금(HandleToast)과 분리
+        void HandleUpgraded() {
+            PlaySfx(sfxCraftDone);
+        }
+
+        // 제작 불가 클릭 — 둔탁한 거부음(UI에서 호출)
+        public void PlayCraftDenied() {
+            PlaySfx(sfxCraftDenied);
+        }
+
+        // ── 미니게임/UI 효과음(static Instance로 외부에서 호출) ──
+        public void PlayMgHit()      => PlaySfx(sfxMgHit);
+        public void PlayMgMiss()     => PlaySfx(sfxMgMiss);
+        public void PlayNodePass()   => PlaySfx(sfxNodePass);
+        public void PlayPuzzleDone() => PlaySfx(sfxPuzzleDone);
+        public void PlaySlotPlace()  => PlaySfx(sfxSlotPlace);
+        public void PlayHazardWarn() => PlaySfx(sfxHazardWarn);
+        public void PlayUiClick()    => PlaySfx(sfxUiClick);
 
         void HandlePurified() {
             PlaySfx(sfxPurifyDone);

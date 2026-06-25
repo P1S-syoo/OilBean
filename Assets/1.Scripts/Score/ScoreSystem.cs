@@ -6,11 +6,11 @@ using Game.Items;
 namespace Game.Score {
     // 콤보·점수·등급 로직 — UI 의존 없이 이벤트로 외부에 노출
     public class ScoreSystem : MonoBehaviour {
-        [SerializeField] float comboWindow = 3f;   // 콤보 유지 시간(초)
-        [SerializeField] int baseValue = 100;       // 수집 1회 기본 점수
-        [SerializeField] int gradeS = 5000;         // S 등급 임계값
-        [SerializeField] int gradeA = 2500;         // A 등급 임계값(미만은 B)
-        [SerializeField] GameConfig config;         // 통합 설정 — 연결 시 점수 수치 덮어씀(미연결 시 위 기본값 유지)
+        [SerializeField] float comboWindow;   // 콤보 유지 시간(초) — 기본값은 점수설정.콤보시간
+        [SerializeField] int baseValue;       // 수집 1회 기본 점수 — 기본값은 점수설정.기본점수
+        [SerializeField] int gradeS;          // S 등급 임계값 — 기본값은 점수설정.S등급
+        [SerializeField] int gradeA;          // A 등급 임계값(미만은 B) — 기본값은 점수설정.A등급
+        [SerializeField] 점수설정 config;         // 점수 설정 — 연결 시 점수 수치 덮어씀(미연결 시 위 기본값 유지)
 
         // 점수·콤보 공개 상태
         public int Score { get; private set; }
@@ -30,13 +30,12 @@ namespace Game.Score {
 
         void Start() {
             try {
-                // 통합 설정 적용 — 미연결이면 기존 기본값 유지
-                if (config != null) {
-                    comboWindow = config.scoreComboWindow;
-                    baseValue = config.scoreBaseValue;
-                    gradeS = config.scoreGradeS;
-                    gradeA = config.scoreGradeA;
-                }
+                // 통합 설정 적용 — 미연결 시 SO 기본값 사용(중복 제거)
+                var cfg = config != null ? config : 점수설정.기본;
+                comboWindow = cfg.콤보시간;
+                baseValue = cfg.기본점수;
+                gradeS = cfg.S등급;
+                gradeA = cfg.A등급;
                 collector = FindFirstObjectByType<Collector>();
                 if (collector != null) {
                     collector.OnCollect += HandleCollect;

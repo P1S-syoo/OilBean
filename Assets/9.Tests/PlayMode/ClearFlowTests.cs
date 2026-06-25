@@ -49,11 +49,16 @@ namespace Game.Tests {
             SetField(cv, "clearText", clearText);
             // 정화 스팟
             spot = new GameObject("Spot");
+            spot.SetActive(false);   // Awake가 config를 읽도록 비활성 생성 후 주입 → 활성화
             spot.AddComponent<BoxCollider2D>().isTrigger = true;
             var inst = spot.AddComponent<PurifyInstaller>();
             SetField(inst, "run", run);
-            SetField(inst, "installTime", 0.2f);
+            // 리터럴 직접 주입 대신 config(SO)로 주입 — SetActive(true) 전에 설정해 Awake가 읽게 함
+            var instCfg = ScriptableObject.CreateInstance<제작설정>();
+            instCfg.설치시간 = 0.2f;
+            SetField(inst, "config", instCfg);
             SetField(inst, "holdOverride", true);   // E6 hold-to-install — 키보드 없는 테스트에서 홀드 대체
+            spot.SetActive(true);
             // 탐사 기계 + 코디네이터
             sub = new GameObject("Sub");
             sub.SetActive(false);
@@ -88,11 +93,16 @@ namespace Game.Tests {
             var cv = cvGo.AddComponent<ClearView>();
             SetField(cv, "clearText", clearText);
             spot = new GameObject("Spot");
+            spot.SetActive(false);   // Awake가 config를 읽도록 비활성 생성 후 주입 → 활성화
             spot.AddComponent<BoxCollider2D>().isTrigger = true;
             var inst = spot.AddComponent<PurifyInstaller>();
             SetField(inst, "run", run);
-            SetField(inst, "installTime", 0.2f);
+            // 리터럴 직접 주입 대신 config(SO)로 주입 — SetActive(true) 전에 설정해 Awake가 읽게 함
+            var instCfg = ScriptableObject.CreateInstance<제작설정>();
+            instCfg.설치시간 = 0.2f;
+            SetField(inst, "config", instCfg);
             SetField(inst, "holdOverride", true);   // E6 hold-to-install — 홀드 대체
+            spot.SetActive(true);
             sub = new GameObject("Sub");
             sub.SetActive(false);
             var mover = sub.AddComponent<PlayerMove>();
@@ -124,12 +134,17 @@ namespace Game.Tests {
             SetField(cv, "clearText", clearText);
             // 스팟은 거점(원점)과 분리해 강제복귀 시 트리거에서 빠지게
             spot = new GameObject("Spot");
+            spot.SetActive(false);   // Awake가 config를 읽도록 비활성 생성 후 주입 → 활성화
             spot.transform.position = new Vector3(3f, 20f, 0f);   // 수심 게이트 한계(15m=y18.9) 위
             spot.AddComponent<BoxCollider2D>().isTrigger = true;
             var inst = spot.AddComponent<PurifyInstaller>();
             SetField(inst, "run", run);
-            SetField(inst, "installTime", 0.5f);   // 설치 도중 개입할 시간 확보
+            // 리터럴 직접 주입 대신 config(SO)로 주입 — SetActive(true) 전에 설정해 Awake가 읽게 함
+            var instCfg = ScriptableObject.CreateInstance<제작설정>();
+            instCfg.설치시간 = 0.5f;   // 설치 도중 개입할 시간 확보
+            SetField(inst, "config", instCfg);
             SetField(inst, "holdOverride", true);   // E6 hold-to-install — 홀드 대체
+            spot.SetActive(true);
             sub = new GameObject("Sub");
             sub.SetActive(false);
             var mover = sub.AddComponent<PlayerMove>();

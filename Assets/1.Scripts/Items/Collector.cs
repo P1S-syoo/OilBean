@@ -11,8 +11,8 @@ namespace Game.Items {
     [RequireComponent(typeof(Rigidbody2D))]
     public class Collector : MonoBehaviour {
         [SerializeField] RunData run;          // 인벤토리(공유 RunData 자산)
-        [SerializeField] float pickupRadius = 1.5f;   // 수집 감지 반경(전용 트리거 센서)
-        [SerializeField] GameConfig config;    // 통합 설정 — 연결 시 수집 반경 덮어씀(미연결 시 위 기본값 유지)
+        [SerializeField] float pickupRadius;   // 수집 감지 반경 — 기본값은 수집설정.수집반경
+        [SerializeField] 수집설정 config;    // 수집 설정 — 연결 시 수집 반경 덮어씀(미연결 시 위 기본값 유지)
         [SerializeField] Game.UI.CollectMinigame minigame;   // 수집 미니게임(미연결 시 즉시 수집 폴백)
 
         Pickup pendingTarget;   // 미니게임 진행 중인 수집 대상
@@ -27,13 +27,13 @@ namespace Game.Items {
 
         Pickup highlightTarget;   // 현재 강조 중인 최근접 대상
         Game.Player.PlayerMove mover;   // 미니게임 중 이동 잠금용
+        Game.Player.HazardDetector hazard;   // 미니게임(이동 잠금) 동안 피격 면제용
 
         void Awake() {
             try {
-                // 통합 설정 적용 — 미연결이면 기존 기본값 유지(센서 반경 설정 전에 적용)
-                if (config != null) {
-                    pickupRadius = config.collectorPickupRadius;
-                }
+                // 통합 설정 적용 — 미연결 시 SO 기본값 사용(중복 제거, 센서 반경 설정 전에 적용)
+                var cfg = config != null ? config : 수집설정.기본;
+                pickupRadius = cfg.수집반경;
                 // 본체 콜라이더는 벽 충돌용(비트리거) 유지 — 수집 감지는 전용 트리거 센서(CircleCollider2D)
                 var sensor = GetComponent<CircleCollider2D>();
                 if (sensor == null) {
@@ -43,6 +43,7 @@ namespace Game.Items {
                 sensor.radius = pickupRadius;
                 interact = new InputAction("Interact", InputActionType.Button, "<Keyboard>/e");
                 mover = GetComponent<Game.Player.PlayerMove>();   // 미니게임 중 정지용(같은 잠수정)
+                hazard = GetComponentInParent<Game.Player.HazardDetector>();   // 같은 잠수정의 오염원 감지기(면제 토글)
             } catch (Exception e) {
                 Debug.LogError($"[Collector] Awake 오류: {e.Message}\n{e.StackTrace}");
             }
@@ -135,10 +136,13 @@ namespace Game.Items {
             }
         }
 
-        // 미니게임 중 잠수정 이동 잠금/해제
+        // 미니게임 중 잠수정 이동 잠금/해제 — 잠금 동안엔 회피 불가라 오염원 피격도 면제
         void SetMoveLock(bool locked) {
             if (mover != null) {
                 mover.enabled = !locked;
+            }
+            if (hazard != null) {
+                hazard.SetImmune(locked);
             }
         }
 

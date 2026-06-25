@@ -12,9 +12,9 @@ namespace Game.Narrative {
     public class NarrationView : MonoBehaviour {
 
         // ── 설정 ────────────────────────────────────────────────────
-        [SerializeField] float charDelay = 0.04f;   // 글자 간 딜레이(초)
-        [SerializeField] float fadeTime   = 0.35f;   // 패널 페이드 시간
-        [SerializeField] Game.Core.GameConfig config; // 통합 설정 — 연결 시 타자 딜레이 덮어씀(미연결 시 위 기본값 유지)
+        [SerializeField] float charDelay;            // 글자 간 딜레이(초) — 기본값은 연출설정.글자속도
+        [SerializeField] float fadeTime;             // 패널 페이드 시간 — 기본값은 연출설정.페이드시간
+        [SerializeField] Game.Core.연출설정 config; // 연출 설정 — 미연결 시 SO 기본값(연출설정.기본) 사용
         [SerializeField] float panelH     = 168f;    // 대사창 높이(위계 상향)
         [SerializeField] float panelBottom = 96f;    // 하단 HUD와 안 겹치게 바닥에서 띄우는 여백
 
@@ -50,11 +50,11 @@ namespace Game.Narrative {
             }
         }
 
-        // 통합 설정 적용 — 미연결이면 기존 기본값 유지
+        // 통합 설정 적용 — 미연결 시 SO 기본값 사용(중복 제거)
         void ApplyConfig() {
-            if (config != null) {
-                charDelay = config.narrationCharDelay;
-            }
+            var cfg = config != null ? config : Game.Core.연출설정.기본;
+            charDelay = cfg.글자속도;
+            fadeTime = cfg.페이드시간;
         }
 
         // 런타임 UI 빌드 — 씬에 전용 Canvas + 패널을 직접 생성

@@ -52,13 +52,19 @@ namespace Game.Tests {
             subGo.transform.SetParent(rig.transform, false);
             nav = subGo.AddComponent<SubNavigator>();
             SetField(nav, "river", container);
-            SetField(nav, "speed", 200f);
+            // 리터럴 직접 주입 대신 config(SO)로 주입 — rig.SetActive(true) 전에 설정해 Awake가 읽게 함
+            var navCfg = ScriptableObject.CreateInstance<수면위설정>();
+            navCfg.항해속도 = 200f;
+            SetField(nav, "config", navCfg);
             SetField(nav, "targets", new[] { 0.9f });
 
             var boot = rig.AddComponent<SurfaceBootstrap>();
             SetField(boot, "game", game);
             SetField(boot, "nav", nav);
-            SetField(boot, "blendTime", 0.05f);
+            // boot는 별도 config 인스턴스 — 입수시간(blendTime)만 테스트값으로
+            var bootCfg = ScriptableObject.CreateInstance<수면위설정>();
+            bootCfg.입수시간 = 0.05f;
+            SetField(boot, "config", bootCfg);
             rig.SetActive(true);
             return boot;
         }
@@ -99,6 +105,24 @@ namespace Game.Tests {
             yield return new WaitForSeconds(0.3f);
             Assert.IsTrue(rig.activeSelf, "인계 거부 시 수상 리그 유지");
             Assert.AreEqual(GameState.Dock, ((GameBootstrap)GetGame(boot)).State, "상태는 그대로 Dock");
+        }
+
+        [UnityTest]
+        public IEnumerator Hub_open_close_does_not_advance_voyage() {
+            // 정화지점 도착 후 연구/제작 허브를 열었다 닫아도 잠수정이 다음 목표로 전진하면 안 됨(제자리 유지)
+            var boot = Make(out var nav);
+            for (int i = 0; i < 600 && !boot.DiveReady; i++) {
+                yield return null;
+            }
+            Assert.IsTrue(boot.DiveReady, "선행 조건 — 목표 도달");
+            int targetBefore = nav.TargetIndex;
+            var game = (GameBootstrap)GetGame(boot);
+            game.GoResearch();   // Surface→Research(허브 열기)
+            game.CloseHub();     // Research→Surface(허브 닫기) — 항해 재개되면 안 됨
+            yield return null;
+            Assert.IsFalse(nav.Sailing, "허브 닫기로 항해가 재개되면 안 됨");
+            Assert.AreEqual(targetBefore, nav.TargetIndex, "다음 목표로 전진하면 안 됨");
+            Assert.IsTrue(boot.DiveReady, "도착 지점 잠수 가능 상태 유지");
         }
 
         static object GetGame(SurfaceBootstrap boot) {

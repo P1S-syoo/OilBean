@@ -6,8 +6,8 @@ namespace Game.Surface {
     // 덱 위 3인칭 캐릭터 — 카메라 기준 WASD 로컬 이동, 덱 경계 클램프(물에 못 떨어짐)
     public class DeckCharacter : MonoBehaviour {
         [SerializeField] Transform cam;                          // 이동 방향 기준 카메라(미연결 시 Camera.main)
-        [SerializeField] float moveSpeed = 1.6f;                 // 보행 속도(사람보다 살짝 빠름) — Walk 클립과 큰 어긋남 없음
-        [SerializeField] float turnSpeed = 12f;                  // 이동 방향 회전 보간 속도
+        [SerializeField] float moveSpeed;                        // 보행 속도 — 기본값은 수면위설정.덱속도
+        [SerializeField] float turnSpeed;                        // 이동 방향 회전 보간 속도 — 기본값은 수면위설정.덱회전
         [SerializeField] Vector2 deckHalf = new(1.8f, 4.6f);    // 덱 절반 크기(로컬 x, z) — 1차 클램프(거친 한계)
         [SerializeField] Animator animator;                      // 선택 — 이동 시 Speed 파라미터로 모션 전환
         [SerializeField] Collider[] deckColliders;               // 선체 메시 콜라이더 — 실제 표면 위로만 보행 허용
@@ -16,7 +16,7 @@ namespace Game.Surface {
         [SerializeField] float maxStepDown = 0.7f;               // 내려갈 수 있는 단차 한계(m) — 절벽(물)으로 못 떨어짐
         [SerializeField] float footSink = 0.12f;                 // 발을 표면에 묻는 깊이(m) — 확실한 접지감
         [SerializeField] float snapLerp = 16f;                   // 발 높이 추종 속도(m/s) — 경사·턱을 덜컹임 없이 부드럽게
-        [SerializeField] Game.Core.GameConfig config;            // 통합 설정 — 연결 시 보행 수치 덮어씀(미연결 시 위 기본값 유지)
+        [SerializeField] Game.Core.수면위설정 config;            // 수면위 설정 — 연결 시 보행 수치 덮어씀(미연결 시 위 기본값 유지)
 
         static readonly int SpeedHash = Animator.StringToHash("Speed");
         static readonly int OnDeckHash = Animator.StringToHash("OnDeck");
@@ -29,13 +29,16 @@ namespace Game.Surface {
 
         void Awake() {
             try {
-                // 통합 설정 적용 — 미연결이면 기존 기본값 유지
-                if (config != null) {
-                    moveSpeed = config.deckMoveSpeed;
-                    turnSpeed = config.deckTurnSpeed;
-                }
+                // 통합 설정 적용 — 미연결 시 SO 기본값 사용(중복 제거)
+                var cfg = config != null ? config : Game.Core.수면위설정.기본;
+                moveSpeed = cfg.덱속도;
+                turnSpeed = cfg.덱회전;
                 if (cam == null && Camera.main != null) {
                     cam = Camera.main.transform;
+                }
+                // 콜라이더 미배선 경고 — 강제접지·표면검사가 무력화돼 클램프만 동작(공중부양 가능). 보행면 콜라이더를 배선할 것
+                if (deckColliders == null || deckColliders.Length == 0) {
+                    Debug.LogWarning("[DeckCharacter] deckColliders 미배선 — 덱 표면 검사·강제접지 불가. 잠수정 보행면 콜라이더를 인스펙터에 배선하세요.");
                 }
                 move = new InputAction("DeckMove", InputActionType.Value);
                 move.AddCompositeBinding("2DVector")
@@ -130,7 +133,7 @@ namespace Game.Surface {
             }
             float footY = transform.localPosition.y;
             // 발 밑이 보행 가능면(완만)이어야 — 가장자리 밖/수직 벽이면 이동 취소(물로 못 나감)
-            if (!ProbeColumn(localPos, out float surfaceY, out float surfaceN) || surfaceN < walkableNormalY) {
+            if (!ProbeColumn(localPos, maxStepUp + 1f, maxStepUp + 1f + maxStepDown, out float surfaceY, out float surfaceN) || surfaceN < walkableNormalY) {
                 return false;
             }
             float targetY = surfaceY - footSink;
@@ -144,13 +147,13 @@ namespace Game.Surface {
             return true;
         }
 
-        // 한 지점 기둥 프로브 — 현재 발 높이 기준 stepUp 위에서 stepDown 아래까지 하향 레이캐스트(경사·단차 모두 포착)
-        bool ProbeColumn(Vector3 localPos, out float localY, out float normalY) {
+        // 한 지점 기둥 프로브 — origin(발 위 upOffset)에서 length 만큼 하향 레이캐스트(경사·단차·강제접지 공용)
+        bool ProbeColumn(Vector3 localPos, float upOffset, float length, out float localY, out float normalY) {
             localY = 0f;
             normalY = 0f;
             Vector3 world = transform.parent.TransformPoint(localPos);
-            Vector3 origin = world + Vector3.up * (maxStepUp + 1f);
-            float len = maxStepUp + 1f + maxStepDown;
+            Vector3 origin = world + Vector3.up * upOffset;
+            float len = length;
             float best = float.MaxValue;
             RaycastHit bestHit = default;
             bool found = false;
