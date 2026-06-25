@@ -47,6 +47,15 @@ namespace Game.Editor.Audio {
                 missing += SetClip(so, "sfxToast", "SFX/sfx_toast");
                 missing += SetClip(so, "sfxBatteryLow", "SFX/sfx_battery_low");
                 missing += SetClip(so, "sfxDive", "SFX/sfx_dive");
+                missing += SetClip(so, "sfxCraftDenied", "SFX/sfx_craft_denied");
+                missing += SetClip(so, "sfxCraftDone", "SFX/sfx_craft_done");
+                missing += SetClip(so, "sfxMgHit", "SFX/sfx_mg_hit");
+                missing += SetClip(so, "sfxMgMiss", "SFX/sfx_mg_miss");
+                missing += SetClip(so, "sfxNodePass", "SFX/sfx_node_pass");
+                missing += SetClip(so, "sfxPuzzleDone", "SFX/sfx_puzzle_done");
+                missing += SetClip(so, "sfxSlotPlace", "SFX/sfx_slot_place");
+                missing += SetClip(so, "sfxHazardWarn", "SFX/sfx_hazard_warn");
+                missing += SetClip(so, "sfxUiClick", "SFX/sfx_ui_click");
                 missing += SetClip(so, "voiceIntro", "Voice/voice_intro");
                 missing += SetClip(so, "voiceDive", "Voice/voice_dive");
                 missing += SetClip(so, "voiceInvFull", "Voice/voice_inv_full");

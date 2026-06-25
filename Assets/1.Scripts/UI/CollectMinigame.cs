@@ -93,6 +93,14 @@ namespace Game.UI {
                 return;
             }
             bool hit = Mathf.Abs(t - targetCenter) <= targetHalf;
+            // 명중/빗나감 효과음
+            if (Game.Audio.GameAudio.Instance != null) {
+                if (hit) {
+                    Game.Audio.GameAudio.Instance.PlayMgHit();
+                } else {
+                    Game.Audio.GameAudio.Instance.PlayMgMiss();
+                }
+            }
             active = false;
             if (panel != null) {
                 panel.SetActive(false);

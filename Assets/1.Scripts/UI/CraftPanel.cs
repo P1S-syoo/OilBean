@@ -6,32 +6,28 @@ using Game.Craft;
 using Game.Items;
 
 namespace Game.UI {
-    // 제작 패널(uGUI) — 정화 부유체 제작 / 무게 업그레이드 버튼 + 상태 텍스트
+    // 제작 패널 상태 표시(uGUI) — 강재/부유체 요약 텍스트만 담당.
+    // 레시피 버튼 클릭·제작 실행·활성 제어는 CraftPanelExtUI가 단독 소유(이중 등록/interactable 충돌 방지)
     public class CraftPanel : MonoBehaviour {
         [SerializeField] Crafting crafting;
-        [SerializeField] Research research;     // 레시피 해금 시 제작 가능 갱신용
+        [SerializeField] Research research;     // 해금 시 상태 텍스트 갱신용
         [SerializeField] RunData run;
         [SerializeField] Collector collector;   // 고철 수집 시 갱신용
-        [SerializeField] Button buoyBtn;
-        [SerializeField] Button upgradeBtn;
+        [SerializeField] Button buoyBtn;        // (호환) 빌더 배선 유지 — 제어는 ExtUI가 담당
+        [SerializeField] Button upgradeBtn;     // (호환) 빌더 배선 유지 — 제어는 ExtUI가 담당
         [SerializeField] TMP_Text statusText;
 
         void OnEnable() {
-            if (buoyBtn != null) {
-                buoyBtn.onClick.AddListener(OnBuoy);
-            }
-            if (upgradeBtn != null) {
-                upgradeBtn.onClick.AddListener(OnUpgrade);
-            }
+            // 버튼 onClick·interactable은 건드리지 않음 — CraftPanelExtUI 단독 소유
             if (crafting != null) {
                 crafting.OnBuoyCrafted += OnChanged;
                 crafting.OnUpgraded += OnChanged;
             }
             if (research != null) {
-                research.OnUnlocked += OnChanged;   // 해금 → 부유체 버튼 활성 갱신
+                research.OnUnlocked += OnChanged;
             }
             if (collector != null) {
-                collector.OnCollect += OnCollected;   // 고철 수집 → 갱신
+                collector.OnCollect += OnCollected;
             }
             Refresh();
         }
@@ -46,12 +42,6 @@ namespace Game.UI {
 
         // 이벤트 해제 — OnDisable과 OnDestroy 양쪽에서 호출(중복 해제 안전)
         void Unsubscribe() {
-            if (buoyBtn != null) {
-                buoyBtn.onClick.RemoveListener(OnBuoy);
-            }
-            if (upgradeBtn != null) {
-                upgradeBtn.onClick.RemoveListener(OnUpgrade);
-            }
             if (crafting != null) {
                 crafting.OnBuoyCrafted -= OnChanged;
                 crafting.OnUpgraded -= OnChanged;
@@ -64,32 +54,12 @@ namespace Game.UI {
             }
         }
 
-        void OnBuoy() {
-            if (crafting != null) {
-                crafting.CraftBuoy();
-            }
-            Refresh();
-        }
-
-        void OnUpgrade() {
-            if (crafting != null) {
-                crafting.UpgradeWeight();
-            }
-            Refresh();
-        }
-
-        // 제작/해금/수집 이벤트 → 실시간 갱신
+        // 제작/해금/수집 이벤트 → 상태 텍스트 갱신
         void OnChanged() => Refresh();
         void OnCollected(ResourceKind kind) => Refresh();
 
-        // 버튼 활성/상태 갱신(이벤트성)
+        // 강재/부유체 요약 텍스트(이벤트성)
         void Refresh() {
-            if (buoyBtn != null && crafting != null) {
-                buoyBtn.interactable = crafting.CanCraftBuoy;
-            }
-            if (upgradeBtn != null && crafting != null) {
-                upgradeBtn.interactable = crafting.CanUpgrade;
-            }
             if (statusText != null && run != null) {
                 string buoy = run.BuoyStage > 0 ? $"부유체 {run.BuoyStage}단계" : "부유체 미제작";
                 statusText.text = $"강재 일{run.GetSteel(0):0}/합{run.GetSteel(1):0}/특{run.GetSteel(2):0}kg  한계 {run.MaxWeight:0}  {buoy}";
