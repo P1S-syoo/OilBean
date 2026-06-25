@@ -145,8 +145,9 @@ namespace Game.Editor.Surface {
                 model.transform.position -= b.center;     // 선체 중심을 흘수선(루트 원점)에
                 model.transform.position += Vector3.up * (b.extents.y * HullLift);   // 수면 위로 흘수 보정
                 b = CalcBounds(model);
-                // 선체 윗면 — 단일 메시 모델은 HullTopY가 함교 꼭대기를 반환하므로 원통 선체 근사(바닥+지름)로 캡
-                deckTop = Mathf.Min(HullTopY(model), b.min.y + b.extents.x * 2f);
+                // 선체 윗면 — 메시 정점을 길이축으로 버킷팅해 버킷별 최고 Y의 중앙값으로 실측(함교·안테나는 소수 버킷 이상치라 배제).
+                // 과거 원통 근사(b.min.y+반지름×2)는 실제 덱보다 ~3m 높게 잡혀 캐릭터가 공중부양했음
+                deckTop = DeckSurfaceY(model, subRoot.transform);
                 // 1차 클램프는 거친 한계만 — 실제 보행 경계는 선체 콜라이더 레이캐스트가 결정하므로 넉넉히
                 deckHalf = new Vector2(Mathf.Max(b.extents.x * 0.92f, 0.6f), b.extents.z * 0.92f);
                 if (needRetint) {
@@ -155,9 +156,11 @@ namespace Game.Editor.Surface {
                 // 평탄 보행면 — 거친 선체 메시 대신 평탄 BoxCollider로 계단현상 제거(비주얼 메시는 그대로 유지)
                 var walkGo = new GameObject("DeckWalkSurface");
                 walkGo.transform.SetParent(subRoot.transform, false);
-                walkGo.transform.localPosition = new Vector3(0f, deckTop, 0f);
+                const float walkThick = 0.2f;
+                // 박스 '윗면'이 실측 덱면(deckTop)과 일치하도록 두께 절반만큼 내려 배치(캐릭터는 윗면 위에 섬)
+                walkGo.transform.localPosition = new Vector3(0f, deckTop - walkThick * 0.5f, 0f);
                 var walkBox = walkGo.AddComponent<BoxCollider>();
-                walkBox.size = new Vector3(deckHalf.x * 2f, 0.2f, deckHalf.y * 2f);   // 덱 전체를 덮는 평면 판
+                walkBox.size = new Vector3(deckHalf.x * 2f, walkThick, deckHalf.y * 2f);   // 덱 전체를 덮는 평면 판
                 deckCols.Add(walkBox);
                 model.AddComponent<FloatBob>();           // 부유 모션은 모델에만(루트는 항해 위치 고정)
             } else {
@@ -303,6 +306,56 @@ namespace Game.Editor.Surface {
                     r.sharedMaterials = mats;
                 }
             }
+        }
+
+        // 실제 덱 보행면 Y(refFrame 로컬) — 메시 정점을 길이축으로 N등분해 버킷별 최고 Y의 중앙값.
+        // 함교·안테나는 소수 버킷의 이상치라 중앙값에서 자연히 배제됨(원통 근사보다 정확). refFrame은 빌드시 원점·단위회전 가정
+        static float DeckSurfaceY(GameObject model, Transform refFrame) {
+            var rends = model.GetComponentsInChildren<Renderer>();
+            if (rends.Length == 0) {
+                return 0.75f;
+            }
+            Bounds wb = rends[0].bounds;
+            for (int i = 1; i < rends.Length; i++) {
+                wb.Encapsulate(rends[i].bounds);
+            }
+            // 가로 두 축(x,z) 중 더 긴 쪽 = 길이축 — 그 축을 따라 버킷팅
+            Vector3 lMin = refFrame.InverseTransformPoint(wb.min);
+            Vector3 lMax = refFrame.InverseTransformPoint(wb.max);
+            bool lengthIsX = Mathf.Abs(lMax.x - lMin.x) >= Mathf.Abs(lMax.z - lMin.z);
+            float lo = lengthIsX ? lMin.x : lMin.z;
+            float span = Mathf.Max((lengthIsX ? lMax.x : lMax.z) - lo, 0.001f);
+            const int N = 16;
+            var topY = new float[N];
+            for (int i = 0; i < N; i++) {
+                topY[i] = float.NegativeInfinity;
+            }
+            foreach (var mf in model.GetComponentsInChildren<MeshFilter>()) {
+                if (mf.sharedMesh == null) {
+                    continue;
+                }
+                var mtx = mf.transform.localToWorldMatrix;
+                foreach (var v in mf.sharedMesh.vertices) {
+                    Vector3 lp = refFrame.InverseTransformPoint(mtx.MultiplyPoint3x4(v));
+                    float along = lengthIsX ? lp.x : lp.z;
+                    int bi = Mathf.Clamp(Mathf.FloorToInt((along - lo) / span * N), 0, N - 1);
+                    if (lp.y > topY[bi]) {
+                        topY[bi] = lp.y;
+                    }
+                }
+            }
+            // 채워진 버킷만 모아 중앙값 — 함교 버킷(소수의 높은 값)을 배제
+            var vals = new System.Collections.Generic.List<float>();
+            foreach (var y in topY) {
+                if (!float.IsNegativeInfinity(y)) {
+                    vals.Add(y);
+                }
+            }
+            if (vals.Count == 0) {
+                return HullTopY(model);
+            }
+            vals.Sort();
+            return vals[vals.Count / 2];
         }
 
         // 가장 부피 큰 렌더러(선체)의 윗면 Y — 함교·잠망경·프로펠러가 바운즈를 부풀리는 것을 배제

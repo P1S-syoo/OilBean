@@ -167,7 +167,8 @@ namespace Game.Editor.UI {
                 "탐사 시작 — 수중 잠수", UITheme.FontHeading,
                 new Vector2(diveW, diveH), Vector2.zero,
                 UITheme.Accent, UITheme.BgDeep);
-            UITheme.ApplySpriteButton(diveBtn, "button_accent");
+            // sci-fi 버튼 스프라이트(button_active)는 어둡고 중앙이 반투명 → 어두운 패널 위에서 버튼·라벨이 사라짐.
+            // 불투명 솔리드 액센트 배경 유지(밝은 청록 CTA + 어두운 라벨 = 고대비)로 '잠수 개시' 텍스트 가독성 확보
             // 중앙 상단 고정(앵커 0.5,1 / 피벗 0.5,1) — 패널 폭이 줄어도 중앙 정렬 유지
             var diveRt = diveBtn.GetComponent<RectTransform>();
             diveRt.anchorMin = new Vector2(0.5f, 1f);
@@ -187,10 +188,7 @@ namespace Game.Editor.UI {
             Button researchBtn = MakeSubButton("ResearchBtn",  center.transform, "연구",     subBtnY, 0f);
             Button craftBtn    = MakeSubButton("CraftBtn",     center.transform, "제작",     subBtnY, 1f);
             Button purifyBtn   = MakeSubButton("PurifyBtn",    center.transform, "정화 설치", subBtnY, 2f);
-            // 보조 버튼 스프라이트 + 아이콘 부착 (button_dark 배경)
-            UITheme.ApplySpriteButton(researchBtn, "button_dark");
-            UITheme.ApplySpriteButton(craftBtn,    "button_dark");
-            UITheme.ApplySpriteButton(purifyBtn,   "button_accent");
+            // 보조 버튼 — 솔리드 불투명 배경 유지(스프라이트 미적용). 어두운 패널 위에서도 버튼 형태가 또렷
             AddSubBtnIcon(researchBtn, "icon_research");
             AddSubBtnIcon(craftBtn,    "icon_craft");
             AddSubBtnIcon(purifyBtn,   "icon_purify");
@@ -538,6 +536,7 @@ namespace Game.Editor.UI {
                 new Vector2(0f, 0f), new Vector2(0.4f, 1f),
                 new Vector2(0f, 0f), new Vector2(-UITheme.SpaceSM, 0f),
                 UITheme.BgPanel);
+            ApplyColumnGlass(leftCol);
 
             // 섹션 타이틀
             MakeColTitle(leftCol.transform, "보유 샘플");
@@ -660,6 +659,7 @@ namespace Game.Editor.UI {
                 new Vector2(0f, 0f), new Vector2(0.3f, 1f),
                 new Vector2(0f, 0f), new Vector2(-UITheme.SpaceSM, 0f),
                 UITheme.BgPanel);
+            ApplyColumnGlass(leftCol);
 
             MakeColTitle(leftCol.transform, "보유 자원");
             var steel0Txt = MakeResourceRow(leftCol.transform, "일반 강재", UITheme.ColInfo,    0.82f);
@@ -683,6 +683,7 @@ namespace Game.Editor.UI {
                 new Vector2(0.3f, 0f), new Vector2(0.65f, 1f),
                 new Vector2(UITheme.SpaceSM, 0f), new Vector2(-UITheme.SpaceSM, 0f),
                 UITheme.BgPanel);
+            ApplyColumnGlass(midCol);
 
             MakeColTitle(midCol.transform, "레시피");
 
@@ -711,6 +712,7 @@ namespace Game.Editor.UI {
                 new Vector2(0.65f, 0f), new Vector2(1f, 1f),
                 new Vector2(UITheme.SpaceSM, 0f), new Vector2(0f, 0f),
                 UITheme.BgPanel);
+            ApplyColumnGlass(rightCol);
 
             MakeColTitle(rightCol.transform, "제작 상세");
 
@@ -996,15 +998,27 @@ namespace Game.Editor.UI {
             closeBtn.gameObject.AddComponent<Game.UI.HubCloseButton>();
         }
 
-        // 컬럼 타이틀 텍스트 (anchorY 중심)
+        // 컬럼 타이틀 텍스트 (anchorY 중심) — 좌측 세로 액센트 + 하단 짧은 언더라인으로 섹션 구분 강화
         static void MakeColTitle(Transform parent, string label, float anchorYCenter = 0.9f) {
+            // 좌측 4px 세로 액센트 바(타이틀 높이만큼)
+            var bar = new GameObject("ColAccent_" + label);
+            bar.transform.SetParent(parent, false);
+            var barRt = bar.AddComponent<RectTransform>();
+            barRt.anchorMin = new Vector2(0f, anchorYCenter - 0.022f);
+            barRt.anchorMax = new Vector2(0f, anchorYCenter + 0.022f);
+            barRt.offsetMin = new Vector2(UITheme.SpaceMD, 0f);
+            barRt.offsetMax = new Vector2(UITheme.SpaceMD + 4f, 0f);
+            var barImg = bar.AddComponent<Image>();
+            barImg.color = UITheme.Accent;
+            barImg.raycastTarget = false;
+            UITheme.ApplyRound(barImg, 4f);
+
             var t = UITheme.MakeText("Title_" + label, parent,
-                label, UITheme.FontCaption, UITheme.TextSecondary, TextAlignmentOptions.Left);
+                label, UITheme.FontCaption, UITheme.TextPrimary, TextAlignmentOptions.Left);
             var rt = t.GetComponent<RectTransform>();
-            float h = 20f;
             rt.anchorMin = new Vector2(0f, anchorYCenter - 0.03f);
             rt.anchorMax = new Vector2(1f, anchorYCenter + 0.03f);
-            rt.offsetMin = new Vector2(UITheme.SpaceMD, 0f);
+            rt.offsetMin = new Vector2(UITheme.SpaceMD + 12f, 0f);
             rt.offsetMax = new Vector2(-UITheme.SpaceSM, 0f);
             t.fontStyle = FontStyles.Bold;
         }
@@ -1236,6 +1250,28 @@ namespace Game.Editor.UI {
             var block = UITheme.MakeGlassPanel(name, parent,
                 new Vector2(ax, ay), new Vector2(ax, ay), offMin, offMax);
             return block;
+        }
+
+        // 컬럼 패널에 글래스 깊이감 부여 — 라운드 코너 + 1px 아쿠아 보더 + 상단 미세 하이라이트
+        // 평평한 BgPanel 단색 컬럼을 카드처럼 떠 보이게 함(제작/연구 3열 공통)
+        static void ApplyColumnGlass(GameObject col) {
+            if (col == null) {
+                return;
+            }
+            var img = col.GetComponent<Image>();
+            if (img != null) {
+                UITheme.ApplyRound(img);   // 라운드 코너(9슬라이스)
+            }
+            // 1px 아쿠아 보더
+            var ol = col.AddComponent<Outline>();
+            ol.effectColor = UITheme.GlassBorder;
+            ol.effectDistance = new Vector2(1f, 1f);
+            // 상단 미세 하이라이트 바(장식 — 레이캐스트 제외)
+            var hi = UITheme.MakeAccentBar(col.name + "_Hi", col.transform, 1f, 2f, UITheme.SpaceSM, UITheme.GlassHighlight);
+            var hiImg = hi.GetComponent<Image>();
+            if (hiImg != null) {
+                hiImg.raycastTarget = false;
+            }
         }
 
         // 황금비 팝업 패널 — 화면 중앙 고정크기(가로:세로=1.618), 안전영역 내. longSide=가로
