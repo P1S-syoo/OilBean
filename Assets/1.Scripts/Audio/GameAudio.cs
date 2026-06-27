@@ -45,6 +45,7 @@ namespace Game.Audio {
         [SerializeField] AudioClip sfxHazardWarn;    // 위험체 돌진 경고
         [SerializeField] AudioClip sfxUiClick;       // UI 버튼 클릭
         [SerializeField] float sfxVolume;   // 효과음 볼륨 — 기본값은 오디오설정.효과음크기
+        [SerializeField] float hazardWarnBoost = 2.6f;   // 위험 경고만 강하게 — 돌진 전 즉시 인지용
 
         [Header("오디오 설정")]
         [SerializeField] 오디오설정 config;   // 오디오 설정 — 연결 시 볼륨/페이드 덮어씀(미연결 시 위 기본값 유지)
@@ -216,7 +217,10 @@ namespace Game.Audio {
         public void PlayNodePass()   => PlaySfx(sfxNodePass);
         public void PlayPuzzleDone() => PlaySfx(sfxPuzzleDone);
         public void PlaySlotPlace()  => PlaySfx(sfxSlotPlace);
-        public void PlayHazardWarn() => PlaySfx(sfxHazardWarn);
+        public void PlayHazardWarn() {
+            PlaySfx(sfxHazardWarn, hazardWarnBoost);
+            PlaySfx(sfxHazardWarn, hazardWarnBoost * 0.65f);   // 짧은 더블 탭으로 경고감 강화
+        }
         public void PlayUiClick()    => PlaySfx(sfxUiClick);
 
         void HandlePurified() {
@@ -226,10 +230,15 @@ namespace Game.Audio {
 
         // 효과음 1회 재생(클립 미할당이면 무시)
         public void PlaySfx(AudioClip clip) {
+            PlaySfx(clip, 1f);
+        }
+
+        // 효과음 1회 재생(배율 지원) — 위험 경고처럼 특정 SFX만 강조할 때 사용
+        public void PlaySfx(AudioClip clip, float volumeScale) {
             if (clip == null || sfxSource == null) {
                 return;
             }
-            sfxSource.PlayOneShot(clip, sfxVolume);
+            sfxSource.PlayOneShot(clip, sfxVolume * Mathf.Max(0f, volumeScale));
         }
 
         // 대사 재생 — 재생 중이면 큐 대기(최대 3개, 초과분은 버림)

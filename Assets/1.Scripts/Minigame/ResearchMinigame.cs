@@ -7,10 +7,18 @@ using TMPro;
 using Game.UI;
 
 namespace Game.Minigame {
-    // 한붓그리기 연구 미니게임 — 1번을 누른 채 2,3,4,5를 순서대로 통과하고 5에서 떼면 성공
+    // 한붓그리기 연구 미니게임 — 아무 노드에서 시작해 누른 채 5개 노드를 모두 지나면 성공
     // 경로는 빛나는 선으로 그려진다. 외부 API(Open/Cancel/IsOpen)는 기존 호환 유지
     public class ResearchMinigame : MonoBehaviour, IPointerDownHandler, IDragHandler, IPointerUpHandler {
         enum State { Closed, Open }
+        struct PathSeg {
+            public Vector2 a;
+            public Vector2 b;
+        }
+
+        const int PopupSortingOrder = 1500;
+        const float PathResetDistance = 5.5f;
+
         State state = State.Closed;
         Action onSolved;
 
@@ -23,11 +31,13 @@ namespace Game.Minigame {
         RectTransform field;
         readonly List<RectTransform> nodes = new();
         readonly List<Image> nodeImgs = new();
-        readonly List<Image> segs = new();   // 확정된 경로 선
-        Image activeLine;                    // 마우스를 따라 그려지는 선
-        Vector2 lastPoint;                   // 마지막 확정 노드 위치(필드 로컬)
-        int nextIdx;                         // 다음 통과 목표 노드(1=2번)
+        readonly List<Image> segs = new();          // 붓으로 그린 경로 선
+        readonly List<PathSeg> strokeSegs = new();  // 현재 붓 궤적 — 되돌아 그리기 판정
+        Vector2 lastDragPoint;               // 직전 드래그 샘플 위치
+        bool[] visited;                      // 노드 방문 상태 — 순서 자유
+        int visitedCount;
         bool drawing;
+        bool solved;
 
         public bool IsOpen => state == State.Open;
 
@@ -54,7 +64,7 @@ namespace Game.Minigame {
                 canvas = gameObject.AddComponent<Canvas>();
             }
             canvas.overrideSorting = true;
-            canvas.sortingOrder = 300;
+            canvas.sortingOrder = PopupSortingOrder;
             if (GetComponent<GraphicRaycaster>() == null) {
                 gameObject.AddComponent<GraphicRaycaster>();
             }
@@ -99,17 +109,15 @@ namespace Game.Minigame {
                 return;
             }
             Vector2 p = ToLocal(e);
-            // 1번 노드 근처에서만 시작
-            if ((p - nodes[0].anchoredPosition).sqrMagnitude > HitRadius * HitRadius) {
+            int start = FindNodeAt(p);
+            if (start < 0) {
                 return;
             }
+            ResetPath();
             drawing = true;
-            nextIdx = 1;
-            lastPoint = nodes[0].anchoredPosition;
-            MarkNode(0, true);
-            if (activeLine != null) {
-                activeLine.gameObject.SetActive(true);
-            }
+            solved = false;
+            lastDragPoint = nodes[start].anchoredPosition;
+            VisitNode(start);
         }
 
         public void OnDrag(PointerEventData e) {
@@ -117,50 +125,44 @@ namespace Game.Minigame {
                 return;
             }
             Vector2 p = ToLocal(e);
-            // 마우스 추종 선
-            DrawSeg(activeLine, lastPoint, p);
-            // 다음 목표 노드 통과 판정
-            if (nextIdx < NodeCount
-                && (p - nodes[nextIdx].anchoredPosition).sqrMagnitude <= HitRadius * HitRadius) {
-                var seg = NewSeg();
-                DrawSeg(seg, lastPoint, nodes[nextIdx].anchoredPosition);
-                segs.Add(seg);
-                lastPoint = nodes[nextIdx].anchoredPosition;
-                MarkNode(nextIdx, true);
-                nextIdx++;
-                Game.Audio.GameAudio.Instance?.PlayNodePass();   // 노드 통과음
+            if (TouchesOldPath(lastDragPoint, p)) {
+                FailAndReset();
+                return;
             }
+            DrawStroke(lastDragPoint, p);
+            VisitNodesOnSegment(lastDragPoint, p);
+            lastDragPoint = p;
         }
 
         public void OnPointerUp(PointerEventData e) {
-            if (!drawing) {
+            if (!drawing || solved) {
                 return;
             }
             drawing = false;
-            Finish(nextIdx >= NodeCount);   // 5번까지 모두 순서대로 통과 시 성공
+            FailAndReset();   // 완성 전에 손을 떼면 실패
         }
 
-        void Finish(bool success) {
-            if (activeLine != null) {
-                activeLine.gameObject.SetActive(false);
+        void FinishSuccess() {
+            solved = true;
+            drawing = false;
+            Game.Audio.GameAudio.Instance?.PlayPuzzleDone();   // 완성 성공음
+            state = State.Closed;
+            var cb = onSolved;
+            onSolved = null;
+            if (panelRoot != null) {
+                panelRoot.SetActive(false);
             }
-            if (success) {
-                Game.Audio.GameAudio.Instance?.PlayPuzzleDone();   // 완성 성공음
-                state = State.Closed;
-                var cb = onSolved;
-                onSolved = null;
-                if (panelRoot != null) {
-                    panelRoot.SetActive(false);
-                }
-                cb?.Invoke();
-            } else {
-                Game.Audio.GameAudio.Instance?.PlayMgMiss();   // 실패음
-                ResetPath();   // 실패 — 리셋 후 재시도
-            }
+            cb?.Invoke();
+        }
+
+        void FailAndReset() {
+            Game.Audio.GameAudio.Instance?.PlayMgMiss();   // 실패음
+            ResetPath();   // 실패 — 리셋 후 재시도
         }
 
         // ── 구성 ────────────────────────────────────────────────
         void Setup() {
+            EnsureVisited();
             ResetPath();
             // field.rect는 첫 Open 시 레이아웃 전이라 0일 수 있어 고정 분산 반경 사용(노드 겹침 방지)
             float w = 280f;
@@ -175,20 +177,27 @@ namespace Game.Minigame {
             }
         }
 
+        void EnsureVisited() {
+            if (visited == null || visited.Length != NodeCount) {
+                visited = new bool[NodeCount];
+            }
+        }
+
         void ResetPath() {
             foreach (var s in segs) {
                 if (s != null) {
-                    Destroy(s.gameObject);
+                    DestroySeg(s.gameObject);
                 }
             }
             segs.Clear();
+            strokeSegs.Clear();
             drawing = false;
-            nextIdx = 0;
+            solved = false;
+            visitedCount = 0;
+            EnsureVisited();
+            Array.Clear(visited, 0, visited.Length);
             for (int i = 0; i < nodeImgs.Count; i++) {
                 MarkNode(i, false);
-            }
-            if (activeLine != null) {
-                activeLine.gameObject.SetActive(false);
             }
         }
 
@@ -198,6 +207,37 @@ namespace Game.Minigame {
                 return;
             }
             nodeImgs[i].color = visited ? UITheme.Accent : UITheme.BgBorder;
+        }
+
+        int FindNodeAt(Vector2 p) {
+            float r2 = HitRadius * HitRadius;
+            for (int i = 0; i < nodes.Count; i++) {
+                if ((p - nodes[i].anchoredPosition).sqrMagnitude <= r2) {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        void VisitNode(int i) {
+            if (i < 0 || i >= NodeCount || visited[i]) {
+                return;
+            }
+            visited[i] = true;
+            visitedCount++;
+            MarkNode(i, true);
+            Game.Audio.GameAudio.Instance?.PlayNodePass();   // 노드 통과음
+            if (visitedCount >= NodeCount) {
+                FinishSuccess();
+            }
+        }
+
+        void VisitNodesOnSegment(Vector2 a, Vector2 b) {
+            for (int i = 0; i < nodes.Count; i++) {
+                if (!visited[i] && SegmentNearPoint(a, b, nodes[i].anchoredPosition, HitRadius)) {
+                    VisitNode(i);
+                }
+            }
         }
 
         // ── UI 생성(1회) ─────────────────────────────────────────
@@ -214,7 +254,7 @@ namespace Game.Minigame {
             var boxImg = box.AddComponent<Image>();
             boxImg.color = new Color(0.05f, 0.12f, 0.14f, 0.97f);
 
-            var title = NewText("Title", box.transform, "연구 — 한붓그리기  (1번을 누른 채 5번까지 통과)", 28);
+            var title = NewText("Title", box.transform, "연구 — 한붓그리기  (누른 채 5개 노드 모두 통과)", 28);
             var tRt = title.rectTransform;
             tRt.anchorMin = new Vector2(0f, 1f);
             tRt.anchorMax = new Vector2(1f, 1f);
@@ -231,10 +271,6 @@ namespace Game.Minigame {
             field.offsetMax = new Vector2(-40f, -76f);
             var fImg = f.AddComponent<Image>();   // 드래그 입력 수신용(거의 투명)
             fImg.color = new Color(0f, 0f, 0f, 0.004f);
-
-            activeLine = NewSeg();   // 마우스 추종 선(항상 1개)
-            activeLine.color = new Color(UITheme.Accent.r, UITheme.Accent.g, UITheme.Accent.b, 0.6f);
-            activeLine.gameObject.SetActive(false);
 
             for (int i = 0; i < NodeCount; i++) {
                 var n = NewChild("Node" + (i + 1), field);
@@ -286,11 +322,29 @@ namespace Game.Minigame {
             rt.localEulerAngles = new Vector3(0f, 0f, ang);
         }
 
+        void DrawStroke(Vector2 a, Vector2 b) {
+            var seg = NewSeg();
+            DrawSeg(seg, a, b);
+            segs.Add(seg);
+            strokeSegs.Add(new PathSeg { a = a, b = b });
+        }
+
         static GameObject NewChild(string name, Transform parent) {
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
             go.AddComponent<RectTransform>();
             return go;
+        }
+
+        static void DestroySeg(GameObject go) {
+            if (go == null) {
+                return;
+            }
+            if (Application.isPlaying) {
+                Destroy(go);
+            } else {
+                DestroyImmediate(go);
+            }
         }
 
         static void StretchFull(RectTransform rt) {
@@ -311,34 +365,157 @@ namespace Game.Minigame {
             return t;
         }
 
+        // 이미 그린 선을 다시 밟거나 교차하면 한붓그리기 실패
+        bool TouchesOldPath(Vector2 a, Vector2 b) {
+            if ((b - a).sqrMagnitude < 1f) {
+                return false;
+            }
+            for (int i = 0; i < strokeSegs.Count; i++) {
+                var s = strokeSegs[i];
+                if (i == strokeSegs.Count - 1 && IsForwardContinuation(s, a, b)) {
+                    continue;
+                }
+                if (PassesNearSegment(a, b, s.a, s.b)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        static bool IsForwardContinuation(PathSeg oldSeg, Vector2 a, Vector2 b) {
+            if ((oldSeg.b - a).sqrMagnitude > 4f) {
+                return false;
+            }
+            Vector2 oldDir = oldSeg.b - oldSeg.a;
+            Vector2 newDir = b - a;
+            if (oldDir.sqrMagnitude < 0.001f || newDir.sqrMagnitude < 0.001f) {
+                return false;
+            }
+            return Vector2.Dot(oldDir.normalized, newDir.normalized) > 0.15f;
+        }
+
+        static bool PassesNearSegment(Vector2 a, Vector2 b, Vector2 c, Vector2 d) {
+            if (CrossesSegment(a, b, c, d)) {
+                return true;
+            }
+            if (PointNearSegment(b, c, d)) {
+                return true;
+            }
+            return PointNearSegment(c, a, b) || PointNearSegment(d, a, b);
+        }
+
+        static bool SegmentNearPoint(Vector2 a, Vector2 b, Vector2 p, float radius) {
+            float lenSqr = (b - a).sqrMagnitude;
+            if (lenSqr < 0.001f) {
+                return (p - b).sqrMagnitude <= radius * radius;
+            }
+            float t = Mathf.Clamp01(Vector2.Dot(p - a, b - a) / lenSqr);
+            Vector2 closest = a + (b - a) * t;
+            return (p - closest).sqrMagnitude <= radius * radius;
+        }
+
+        static bool PointNearSegment(Vector2 p, Vector2 a, Vector2 b) {
+            float lenSqr = (b - a).sqrMagnitude;
+            if (lenSqr < 0.001f) {
+                return false;
+            }
+            float t = Mathf.Clamp01(Vector2.Dot(p - a, b - a) / lenSqr);
+            if (t <= 0.05f || t >= 0.95f) {
+                return false;
+            }
+            return Vector2.Distance(p, a + (b - a) * t) <= PathResetDistance;
+        }
+
+        static bool CrossesSegment(Vector2 a, Vector2 b, Vector2 c, Vector2 d) {
+            if (SharesOnlyEndpoint(a, b, c, d)) {
+                return false;
+            }
+            float abC = Cross(b - a, c - a);
+            float abD = Cross(b - a, d - a);
+            float cdA = Cross(d - c, a - c);
+            float cdB = Cross(d - c, b - c);
+            if (Mathf.Abs(abC) < 0.001f && Mathf.Abs(abD) < 0.001f) {
+                return OverlapsOnLine(a, b, c, d);
+            }
+            return abC * abD < 0f && cdA * cdB < 0f;
+        }
+
+        static bool SharesOnlyEndpoint(Vector2 a, Vector2 b, Vector2 c, Vector2 d) {
+            return (a - c).sqrMagnitude < 4f || (a - d).sqrMagnitude < 4f
+                || (b - c).sqrMagnitude < 4f || (b - d).sqrMagnitude < 4f;
+        }
+
+        static bool OverlapsOnLine(Vector2 a, Vector2 b, Vector2 c, Vector2 d) {
+            Vector2 axis = (b - a).sqrMagnitude >= (d - c).sqrMagnitude ? b - a : d - c;
+            if (axis.sqrMagnitude < 0.001f) {
+                return false;
+            }
+            float a0 = Vector2.Dot(a, axis);
+            float a1 = Vector2.Dot(b, axis);
+            float c0 = Vector2.Dot(c, axis);
+            float c1 = Vector2.Dot(d, axis);
+            float left = Mathf.Max(Mathf.Min(a0, a1), Mathf.Min(c0, c1));
+            float right = Mathf.Min(Mathf.Max(a0, a1), Mathf.Max(c0, c1));
+            return right - left > PathResetDistance * axis.magnitude;
+        }
+
+        static float Cross(Vector2 a, Vector2 b) {
+            return a.x * b.y - a.y * b.x;
+        }
+
         void OnDisable() {
             drawing = false;
         }
 
         // ── 테스트 지원(입력 경로 우회) ──────────────────────────
         public int NodesTotal => NodeCount;
-        public int VisitedCount => nextIdx;
+        public int VisitedCount => visitedCount;
 
-        // 1→5 순서대로 통과 시뮬 — 실제 통과 판정/선 그리기 경로를 타고 Finish까지
+        // 아무 노드에서 시작해 모든 노드를 통과하는 정상 경로 시뮬
         public bool SimulateSolve() {
             if (state != State.Open) {
                 return false;
             }
-            nextIdx = 1;
-            lastPoint = nodes[0].anchoredPosition;
-            MarkNode(0, true);
-            for (int i = 1; i < NodeCount; i++) {
-                var seg = NewSeg();
-                DrawSeg(seg, lastPoint, nodes[i].anchoredPosition);
-                segs.Add(seg);
-                lastPoint = nodes[i].anchoredPosition;
-                MarkNode(i, true);
-                nextIdx++;
+            ResetPath();
+            drawing = true;
+            lastDragPoint = nodes[0].anchoredPosition;
+            VisitNode(0);
+            for (int i = 1; i < NodeCount && state == State.Open; i++) {
+                Vector2 next = nodes[i].anchoredPosition;
+                DrawStroke(lastDragPoint, next);
+                VisitNodesOnSegment(lastDragPoint, next);
+                lastDragPoint = next;
             }
-            bool success = nextIdx >= NodeCount;
-            drawing = false;
-            Finish(success);
-            return success;
+            return solved;
+        }
+
+        // 테스트 지원 — 기존 경로를 되짚으면 초기화되는지 확인
+        public bool SimulateBacktrackReset() {
+            if (state != State.Open || NodeCount < 2) {
+                return false;
+            }
+            ResetPath();
+            drawing = true;
+            Vector2 a = nodes[0].anchoredPosition;
+            Vector2 b = nodes[1].anchoredPosition;
+            DrawStroke(a, b);
+            bool reset = TouchesOldPath(b, Vector2.Lerp(a, b, 0.5f));
+            if (reset) {
+                ResetPath();
+            }
+            return reset && VisitedCount == 0;
+        }
+
+        // 테스트 지원 — 완성 전 클릭을 놓으면 실패하고 초기화되는지 확인
+        public bool SimulateReleaseBeforeComplete() {
+            if (state != State.Open || NodeCount < 2) {
+                return false;
+            }
+            ResetPath();
+            drawing = true;
+            VisitNode(0);
+            OnPointerUp(new PointerEventData(EventSystem.current));
+            return state == State.Open && VisitedCount == 0;
         }
     }
 }

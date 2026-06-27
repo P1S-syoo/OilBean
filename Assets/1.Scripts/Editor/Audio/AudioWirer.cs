@@ -8,7 +8,7 @@ namespace Game.Editor.Audio {
     public static class AudioWirer {
         const string ClipRoot = "Assets/5.Audio";
 
-        [MenuItem("Tools/한강/오디오 배선")]
+        // [MenuItem("Tools/한강/오디오 배선")]
         public static void Wire() {
             try {
                 var go = GameObject.Find("GameAudio");

@@ -14,6 +14,7 @@ namespace Game.UI {
         [SerializeField] Color clickColor = new(0.18f, 0.9f, 0.85f, 0.8f);
 
         Canvas canvas;
+        Transform overlayRoot;
         RectTransform cursorRt;
         Image cursorImage;
         Sprite cursorSprite;
@@ -77,18 +78,11 @@ namespace Game.UI {
         }
 
         void BuildOverlay() {
-            canvas = GetComponentInParent<Canvas>();
-            if (canvas == null) {
-                canvas = gameObject.AddComponent<Canvas>();
-                canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            }
-            canvas.overrideSorting = true;
-            canvas.sortingOrder = Mathf.Max(canvas.sortingOrder, 500);
-            if (GetComponent<GraphicRaycaster>() == null) {
-                gameObject.AddComponent<GraphicRaycaster>();
-            }
+            canvas = BuildCursorCanvas();
+            overlayRoot = canvas.transform;
+            ClearOldCursorVisuals();
             var cursorGo = new GameObject("HoloCursor", typeof(RectTransform), typeof(Image));
-            cursorGo.transform.SetParent(transform, false);
+            cursorGo.transform.SetParent(overlayRoot, false);
             cursorRt = cursorGo.GetComponent<RectTransform>();
             cursorRt.sizeDelta = cursorSize;
             cursorRt.pivot = new Vector2(0f, 1f);
@@ -97,6 +91,36 @@ namespace Game.UI {
             cursorImage.sprite = MakeCursorSprite();
             cursorImage.color = cursorTint;
             cursorImage.preserveAspect = true;
+        }
+
+        // 커서만 별도 오버레이 Canvas에 올려 게임 UI 정렬을 건드리지 않는다
+        Canvas BuildCursorCanvas() {
+            var found = transform.Find("CustomCursorOverlay");
+            var root = found != null ? found.gameObject : new GameObject("CustomCursorOverlay", typeof(RectTransform));
+            root.transform.SetParent(transform, false);
+            var rt = root.GetComponent<RectTransform>();
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+            var c = root.GetComponent<Canvas>();
+            if (c == null) {
+                c = root.AddComponent<Canvas>();
+            }
+            c.renderMode = RenderMode.ScreenSpaceOverlay;
+            c.overrideSorting = true;
+            c.sortingOrder = 2000;
+            return c;
+        }
+
+        // 이전 버전이 GameCanvas 바로 아래에 만든 커서 잔재를 정리한다
+        void ClearOldCursorVisuals() {
+            for (int i = transform.childCount - 1; i >= 0; i--) {
+                var child = transform.GetChild(i);
+                if (child.name == "HoloCursor" || child.name == "CursorClickPulse") {
+                    Destroy(child.gameObject);
+                }
+            }
         }
 
         Sprite MakeCursorSprite() {
@@ -146,7 +170,7 @@ namespace Game.UI {
 
         IEnumerator ClickPulse(Vector2 screenPos) {
             var go = new GameObject("CursorClickPulse", typeof(RectTransform), typeof(Image));
-            go.transform.SetParent(transform, false);
+            go.transform.SetParent(overlayRoot != null ? overlayRoot : transform, false);
             var rt = go.GetComponent<RectTransform>();
             rt.position = screenPos;
             rt.sizeDelta = Vector2.one * 18f;

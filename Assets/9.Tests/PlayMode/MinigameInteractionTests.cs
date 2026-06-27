@@ -61,9 +61,9 @@ namespace Game.Tests {
             int total = game.NodesTotal;
             Assert.Greater(total, 0, "Open 후 노드가 생성되어야 함");
 
-            // 실제 통과 판정 경로로 1→5 순서대로 통과
+            // 실제 통과 판정 경로로 5개 노드 모두 통과
             bool allConnected = game.SimulateSolve();
-            Assert.IsTrue(allConnected, "모든 노드가 순서대로 통과됨");
+            Assert.IsTrue(allConnected, "모든 노드를 통과하면 성공");
             Assert.AreEqual(total, game.VisitedCount, "통과 카운트 == 노드 수");
 
             // OnPuzzleSolved DOTween 시퀀스는 SetUpdate(true) — unscaled 실시간 기준
@@ -85,6 +85,32 @@ namespace Game.Tests {
             // 시뮬 호출 없이 일부만 검증 — onSolved는 발화하지 않아야 함
             Assert.AreEqual(0, game.VisitedCount, "연결 전에는 방문 0");
             Assert.IsFalse(solved, "연결 미완료 시 onSolved 미발화");
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator Research_backtrack_over_old_path_resets_path() {
+            MakePopup("ResearchPopup");
+            var game = popupGo.AddComponent<ResearchMinigame>();
+
+            game.Open(1, () => { });
+            yield return null;
+
+            Assert.IsTrue(game.SimulateBacktrackReset(), "이미 그린 경로를 되짚으면 경로가 초기화됨");
+            Assert.AreEqual(0, game.VisitedCount, "초기화 후 방문 카운트 0");
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator Research_release_before_complete_resets_path() {
+            MakePopup("ResearchPopup");
+            var game = popupGo.AddComponent<ResearchMinigame>();
+
+            game.Open(1, () => { });
+            yield return null;
+
+            Assert.IsTrue(game.SimulateReleaseBeforeComplete(), "완성 전 클릭을 놓으면 실패 리셋");
+            Assert.AreEqual(0, game.VisitedCount, "놓기 실패 후 방문 카운트 0");
             yield return null;
         }
 

@@ -9,7 +9,7 @@ namespace Game.Editor.Data {
     public static class CollectibleStreamerWirer {
         const string TablePath = "Assets/3.Data/ItemDataTable.asset";
 
-        [MenuItem("Tools/한강/데이터/수집물 스트리머 배선")]
+        // [MenuItem("Tools/한강/데이터/수집물 스트리머 배선")]
         public static void Wire() {
             try {
                 var existing = UnityEngine.Object.FindFirstObjectByType<CollectibleStreamer>();

@@ -17,10 +17,10 @@ namespace Game.Core {
         [Header("스폰 기본")]
         [FormerlySerializedAs("셀폭")]
         [FormerlySerializedAs("스폰셀폭")]
-        public float 수집물생성간격 = 6f;       // 수집물 생성 간격(u)
+        public float 수집물생성간격 = 5f;       // 수집물 생성 간격(u)
         [FormerlySerializedAs("로드반경")]
         [FormerlySerializedAs("스폰로드반경")]
-        public int 수집물로드반경 = 6;          // 플레이어 주변 수집물 로드 반경(칸)
+        public int 수집물로드반경 = 10;         // 플레이어 주변 수집물 로드 반경(칸)
         [FormerlySerializedAs("깊이분산")]
         [FormerlySerializedAs("수집물깊이분산")]
         public float 수집물앞뒤흩어짐 = 3f;     // 수집물 앞뒤 시각 분산 폭
@@ -29,18 +29,18 @@ namespace Game.Core {
         public float 군집간격 = 60f;        // 난파 군집 주기(u)
         public float 군집반경 = 13f;        // 군집 밀집 반경(u)
         [FormerlySerializedAs("군집슬롯")]
-        public int 군집수집물칸수 = 5;      // 군집 한 칸에 놓을 수집물 후보 수
+        public int 군집수집물칸수 = 8;      // 군집 한 칸에 놓을 수집물 후보 수
         [FormerlySerializedAs("군집밀도")]
-        public int 군집생성확률 = 90;       // 군집 수집물 생성 확률(%)
+        public int 군집생성확률 = 96;       // 군집 수집물 생성 확률(%)
         [FormerlySerializedAs("다리기준")]
         [FormerlySerializedAs("양화대교기준X")]
         public float 정화구역중심X = 38f;        // 정화구역 중심 X 좌표(BridgePlacer와 동일해야 함)
 
         [Header("개방 수역")]
         [FormerlySerializedAs("개방슬롯")]
-        public int 일반수집물칸수 = 1;      // 일반 수역 한 칸에 놓을 수집물 후보 수
+        public int 일반수집물칸수 = 4;      // 일반 수역 한 칸에 놓을 수집물 후보 수
         [FormerlySerializedAs("개방밀도")]
-        public int 일반생성확률 = 26;       // 일반 수역 수집물 생성 확률(%)
+        public int 일반생성확률 = 74;       // 일반 수역 수집물 생성 확률(%)
 
         [Header("적재")]
         public float 최대적재 = 70f;        // 최대 적재 무게(kg)

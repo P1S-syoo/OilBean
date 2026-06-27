@@ -10,5 +10,20 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6656433ae472b42a4825b16f54e2025c, type: 3}
-  m_Name: 수집설정
-  m_EditorClassIdentifier: Game::Game.Core.수집설정
+  m_Name: "\uC218\uC9D1\uC124\uC815"
+  m_EditorClassIdentifier: "Game::Game.Core.\uC218\uC9D1\uC124\uC815"
+  "\uC218\uC9D1\uBC18\uACBD": 1.5
+  "\uD2B8\uB9AC\uAC70\uBC18\uACBD": 1
+  "\uC218\uC9D1\uBB3C\uC0DD\uC131\uAC04\uACA9": 5
+  "\uC218\uC9D1\uBB3C\uB85C\uB4DC\uBC18\uACBD": 10
+  "\uC218\uC9D1\uBB3C\uC55E\uB4A4\uD769\uC5B4\uC9D0": 3
+  "\uAD70\uC9D1\uAC04\uACA9": 60
+  "\uAD70\uC9D1\uBC18\uACBD": 13
+  "\uAD70\uC9D1\uC218\uC9D1\uBB3C\uCE78\uC218": 8
+  "\uAD70\uC9D1\uC0DD\uC131\uD655\uB960": 96
+  "\uC815\uD654\uAD6C\uC5ED\uC911\uC2ECX": 38
+  "\uC77C\uBC18\uC218\uC9D1\uBB3C\uCE78\uC218": 4
+  "\uC77C\uBC18\uC0DD\uC131\uD655\uB960": 74
+  "\uCD5C\uB300\uC801\uC7AC": 70
+  "\uCD5C\uC18C\uC218\uC9D1\uBB34\uAC8C": 5
+  "\uC190\uC2E4\uBE44\uC728": 0.35

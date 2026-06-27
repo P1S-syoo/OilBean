@@ -14,11 +14,12 @@ namespace Game.Editor.Stage {
     public static class StageWiringBuilder {
         const string RunDataPath = "Assets/6.Data/Run_Default.asset";
         const string PurifierModelDir = "Assets/4.Art/Varco/PurifierModels";
+        const string PurifyIconPath = "Assets/4.Art/UI/icons/icon_purify.png";
         const float SpotX = 38f;    // 양화대교 잔해 X — 정화 지점을 랜드마크에 정렬
         const float SpotY = 21f;    // 얕은 수심(≈9m) — 모든 부유체 단계에서 도달 가능
         const float SpotRadius = 3.2f;
 
-        [MenuItem("Tools/한강/정화·클리어 생성")]
+        // [MenuItem("Tools/한강/정화·클리어 생성")]
         public static void Build() {
             try {
                 var game = Object.FindFirstObjectByType<GameBootstrap>();
@@ -131,21 +132,18 @@ namespace Game.Editor.Stage {
             AssignRef(vso, "installer", spot);
             AssignStagePrefabs(vso);
 
-            // 청록 마커(빌보드 쿼드) — 플레이어가 정화 지점을 찾도록
-            var marker = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            // 설치 위치 마커 — 큰 판때기 대신 작은 정화 아이콘으로 표시
+            var marker = new GameObject("Marker");
             marker.name = "Marker";
             marker.transform.SetParent(go.transform, false);
-            marker.transform.localScale = new Vector3(SpotRadius * 2f, SpotRadius * 2f, 1f);
-            var mc = marker.GetComponent<Collider>();
-            if (mc != null) {
-                Object.DestroyImmediate(mc);
-            }
-            var shader = Shader.Find("Universal Render Pipeline/Unlit");
-            if (shader != null) {
-                var mat = new Material(shader);
-                mat.SetColor("_BaseColor", new Color(0.18f, 0.77f, 0.71f, 0.5f));
-                mat.SetFloat("_Surface", 1f);   // 투명
-                marker.GetComponent<MeshRenderer>().sharedMaterial = mat;
+            marker.transform.localPosition = Vector3.zero;
+            marker.transform.localScale = Vector3.one * 1.9f;
+            var sr = marker.AddComponent<SpriteRenderer>();
+            sr.sprite = AssetDatabase.LoadAssetAtPath<Sprite>(PurifyIconPath);
+            sr.color = new Color(0.25f, 0.95f, 1f, 0.78f);
+            sr.sortingOrder = 35;
+            if (sr.sprite == null) {
+                Debug.LogWarning($"[StageWiringBuilder] 정화 아이콘 없음: {PurifyIconPath}");
             }
             return spot;
         }

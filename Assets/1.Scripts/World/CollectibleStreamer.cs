@@ -33,6 +33,7 @@ namespace Game.World {
         readonly List<ItemDef> candidates = new();   // PickByDepth 무할당 재사용
         readonly List<int> removeBuf = new();         // Reconcile 무할당 재사용
         int lastCenter = int.MinValue;
+        bool warnedTarget;
 
         void Awake() {
             try {
@@ -54,8 +55,13 @@ namespace Game.World {
             }
         }
 
+        void OnEnable() {
+            lastCenter = int.MinValue;   // 잠수 재진입 때 주변 셀을 즉시 다시 맞춤
+        }
+
         void LateUpdate() {
             if (target == null || table == null || table.items == null) {
+                WarnMissingTargetOnce();
                 return;
             }
             int center = Mathf.FloorToInt(target.position.x / cellWidth);
@@ -64,6 +70,14 @@ namespace Game.World {
             }
             lastCenter = center;
             Reconcile(center);
+        }
+
+        void WarnMissingTargetOnce() {
+            if (warnedTarget || target != null) {
+                return;
+            }
+            warnedTarget = true;
+            Debug.LogWarning("[CollectibleStreamer] target 미연결 — 수집물 스트리밍 대기");
         }
 
         // 범위 밖 셀 해제 + 범위 안 빈 셀 채움

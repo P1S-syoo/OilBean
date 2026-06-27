@@ -15,7 +15,7 @@ namespace Game.Editor.Juice {
     public static class JuiceBuilder {
         static readonly Color Teal = new Color(0.37f, 0.85f, 0.80f);
 
-        [MenuItem("Tools/한강/연출(Juice) 생성")]
+        // [MenuItem("Tools/한강/연출(Juice) 생성")]
         public static void Build() {
             try {
                 var flash = BuildScreenFlash();

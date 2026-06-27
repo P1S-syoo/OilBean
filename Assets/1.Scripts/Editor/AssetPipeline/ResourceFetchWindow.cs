@@ -10,7 +10,7 @@ namespace Game.Editor {
         string fsQuery = "underwater ambience";   // Freesound 검색어
         int fsCount = 3;
 
-        [MenuItem("Game/리소스 조달 파이프라인")]
+        // [MenuItem("Game/리소스 조달 파이프라인")]
         static void Open() {
             GetWindow<ResourceFetchWindow>("리소스 조달").Show();
         }

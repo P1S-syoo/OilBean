@@ -13,7 +13,7 @@ namespace Game.EditorTools {
     public static class ScoreHudBuilder {
         const string SCORE_GO = "Game";   // ScoreSystem을 붙일 코디네이터 GO
 
-        [MenuItem("Tools/한강/UI/스코어·E6E7 배선")]
+        // [MenuItem("Tools/한강/UI/스코어·E6E7 배선")]
         public static void Build() {
             try {
                 BuildScoreSystem();
@@ -73,14 +73,14 @@ namespace Game.EditorTools {
             // 팝업 루트를 황금비(가로 긴 변)로 — 780 길이 기준 짧은 변 자동 산출
             rt.sizeDelta = UITheme.GoldenSize(780f, true);
 
-            // 포커스 모달 — 자체 Canvas(overrideSorting, sort 300)로 GameCanvas(sort 10)보다 항상 위에 렌더·레이캐스트
+            // 포커스 모달 — 자체 Canvas(sort 1500)로 GameCanvas와 패널보다 항상 위에 렌더·레이캐스트
             // (빌더 순서로 연구/제작 패널 뒤에 깔려 클릭이 막히던 버그 차단). 멱등 — 이미 있으면 값만 재설정
             var popupCanvas = go.GetComponent<Canvas>();
             if (popupCanvas == null) {
                 popupCanvas = go.AddComponent<Canvas>();
             }
             popupCanvas.overrideSorting = true;
-            popupCanvas.sortingOrder = 300;
+            popupCanvas.sortingOrder = 1500;
             if (go.GetComponent<GraphicRaycaster>() == null) {
                 go.AddComponent<GraphicRaycaster>();
             }

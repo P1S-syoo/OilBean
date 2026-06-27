@@ -18,7 +18,7 @@ namespace Game.Editor.Surface {
         const string CharMatPath = "Assets/4.Art/Characters/MainCharacterMat.mat";   // 덱 캐릭터도 수중과 동일 머티리얼 적용(FBX 기본 머티리얼 = 텍스처 없음)
         const string SurfaceConfigPath = "Assets/3.Data/Config/수면위설정.asset";
 
-        [MenuItem("Tools/한강/수상 리그 생성")]
+        // [MenuItem("Tools/한강/수상 리그 생성")]
         public static void Build() {
             try {
                 var config = LoadSurfaceConfig();
@@ -100,7 +100,7 @@ namespace Game.Editor.Surface {
             face.transform.localScale = new Vector3(config.모니터폭, config.모니터높이, 1f);
             var mr = face.GetComponent<MeshRenderer>();
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            mr.sharedMaterial = MakeHoloMaterial(tex);
+            mr.sharedMaterial = MakeHoloMaterial(tex, config.모니터색);
         }
 
         static Vector2 PlatformCenter(Vector2 deckHalf, 수면위설정 config) {
@@ -108,12 +108,12 @@ namespace Game.Editor.Surface {
         }
 
         // URP Unlit 투명 머티리얼 — 홀로그램 스크린용(알파 블렌드)
-        static Material MakeHoloMaterial(Texture tex) {
+        static Material MakeHoloMaterial(Texture tex, Color color) {
             var mat = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
             if (tex != null) {
                 mat.SetTexture("_BaseMap", tex);
             }
-            mat.SetColor("_BaseColor", new Color(1f, 1f, 1f, 0.88f));
+            mat.SetColor("_BaseColor", color);
             mat.SetFloat("_Surface", 1f);   // Transparent
             mat.SetFloat("_Blend", 0f);     // Alpha
             mat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
@@ -378,8 +378,8 @@ namespace Game.Editor.Surface {
             pad.transform.localPosition = new Vector3(center.x, topY + 0.015f, center.y);
             pad.transform.localScale = new Vector3(config.발판폭, config.발판표시두께, config.발판길이);
             var mr = pad.GetComponent<MeshRenderer>();
-            var mat = GetOrCreateMat("WalkPlatformCyan", new Color(0.05f, 0.9f, 1f, 0.42f));
-            ConfigureTransparent(mat, new Color(0.05f, 0.9f, 1f, 0.42f));
+            var mat = GetOrCreateMat("WalkPlatformCyan", config.발판색);
+            ConfigureTransparent(mat, config.발판색);
             mr.sharedMaterial = mat;
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         }
@@ -688,7 +688,7 @@ namespace Game.Editor.Surface {
             water.GetComponent<MeshFilter>().sharedMesh = GetOrCreateWaterGrid(600f, 300f, 150, 40);
             water.GetComponent<MeshRenderer>().sharedMaterial = waterMat;
 
-            // 강변 스카이라인은 그레이박스 대신 LandmarkPlacer(Tools/한강/명소 배치)가 실물 3D로 채운다
+            // 강변 스카이라인은 스트리머가 실물 3D 에셋으로 채운다
 
             // 부유 쓰레기/잔해 — 강 위에 해시 산포
             var trash = new GameObject("FloatingDebris");

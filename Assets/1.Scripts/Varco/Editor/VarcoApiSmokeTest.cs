@@ -9,7 +9,7 @@ namespace Varco.Editor {
         private const string OutputDir = "Assets/9.Tests/Varco";
 
         // 저비용 호출(번역 + 화자 목록 + 짧은 TTS)을 한 번에 검증
-        [MenuItem("Varco/Smoke Test/Run All (translate + voices + tts)")]
+        // [MenuItem("Varco/Smoke Test/Run All (translate + voices + tts)")]
         private static async void RunAll() {
             if (!VarcoSecrets.LoadApiKey()) {
                 return;
@@ -38,7 +38,7 @@ namespace Varco.Editor {
         }
 
         // 효과음 생성 테스트 (크레딧 소모가 있어 별도 메뉴로 분리)
-        [MenuItem("Varco/Smoke Test/Text2Sound (크레딧 소모 주의)")]
+        // [MenuItem("Varco/Smoke Test/Text2Sound (크레딧 소모 주의)")]
         private static async void TestText2Sound() {
             if (!VarcoSecrets.LoadApiKey()) {
                 return;

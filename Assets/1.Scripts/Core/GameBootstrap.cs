@@ -25,6 +25,7 @@ namespace Game.Core {
         [SerializeField] bool autoStartDive;      // 3D 씬: 시작 시 바로 탐사 진입
         [SerializeField] bool startOnSurface;     // 수상 항해(Surface)로 시작 — 잠수 전까지 탐사 루프 잠금
         [SerializeField] 수집설정 config;       // 수집 설정 — 연결 시 손실 비율·적재 한계 적용(미연결 시 SO 기본값)
+        [SerializeField] 디버그설정 debugConfig; // 디버그 설정 — 초기 재료 지급 등 플레이테스트 보정
 
         GameFsm fsm;
         Vector3 dockPos;
@@ -59,6 +60,7 @@ namespace Game.Core {
                 } else {
                     run.ResetRun();   // 세션 시작 시 초기화(자산 persist 잔재 제거)
                     run.SetMaxWeightBase(cfg.최대적재);   // 적재 한계 통합 설정(ResetRun 후 덮어씀)
+                    ApplyDebugStartResources();
                 }
                 // 컴포넌트 래치도 세션 초기화(재시작 시 클리어/정화 재현 가능)
                 if (clearView != null) clearView.ResetState();
@@ -116,6 +118,32 @@ namespace Game.Core {
         // 기본값은 수집설정.손실비율 (Awake에서 적용)
         [SerializeField] float forfeitRatio;
         bool forcedReturn;   // 직전 복귀가 강제(방전·충돌)였는지
+
+        void ApplyDebugStartResources() {
+            var dbg = debugConfig != null ? debugConfig : 디버그설정.기본;
+            if (run == null || !dbg.초기재료지급) {
+                return;
+            }
+            run.AddSteel(0, dbg.일반강재);
+            run.AddSteel(1, dbg.합금강재);
+            run.AddSteel(2, dbg.특수강재);
+            AddDebugSamples(1, dbg.저농도샘플);
+            AddDebugSamples(2, dbg.중농도샘플);
+            AddDebugSamples(3, dbg.고농도샘플);
+            if (dbg.약품전체해금) {
+                run.Unlock("agent_mild");
+                run.Unlock("agent_mid");
+                run.Unlock("agent_strong");
+            }
+            run.CommitDive();   // 디버그 시작 자원은 거점 기본 지급분으로 확정(강제복귀 손실 대상 아님)
+            Debug.Log("[GameBootstrap] 디버그 초기 재료 지급 완료");
+        }
+
+        void AddDebugSamples(int level, int count) {
+            for (int i = 0; i < Mathf.Max(0, count); i++) {
+                run.AddSampleAt(level);
+            }
+        }
 
         void Start() {
             // 3D 씬: 거점 UI 없이 시작 즉시 탐사 진입 (수상 시작이면 잠수 전까지 보류)
@@ -244,7 +272,7 @@ namespace Game.Core {
         void OnPurified() {
             if (run != null && run.BuoyStage < 3) {
                 if (toast != null) {
-                    toast.Show($"구역 정화 — 부유체 {run.BuoyStage}단계. 더 깊은 곳으로");
+                    toast.Show($"부유 정화체 {run.BuoyStage}단계 가동 — 수면 위 정화가 시작됐습니다");
                 }
                 // 다음 단계 부유체를 같은 스팟에 재설치할 수 있도록 재무장(done 래치만 해제) — 미수정 시 클리어 도달 불가
                 if (purify != null) {

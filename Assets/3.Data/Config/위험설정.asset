@@ -10,5 +10,16 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3024ddf9f62ba4d10b5c7bb2f563c13a, type: 3}
-  m_Name: 위험설정
-  m_EditorClassIdentifier: Game::Game.Core.위험설정
+  m_Name: "\uC704\uD5D8\uC124\uC815"
+  m_EditorClassIdentifier: "Game::Game.Core.\uC704\uD5D8\uC124\uC815"
+  "\uACBD\uACE0\uC2DC\uAC04": 0.8
+  "\uB3CC\uC9C4\uC18D\uB3C4": 14
+  "\uACF5\uACA9\uAC04\uACA9": 2.2
+  "\uD53C\uACA9\uD6C4\uBB34\uC801\uC2DC\uAC04": 1.4
+  "\uD654\uBA74\uBC16\uB4F1\uC7A5\uAC70\uB9AC": 3
+  "\uACF5\uACA9\uB77C\uC778\uC0C1\uB2E8\uC5EC\uBC31": 1.5
+  "\uACF5\uACA9\uB77C\uC778\uD558\uB2E8\uC5EC\uBC31": 1.5
+  "\uACBD\uACE0\uC544\uC774\uCF58\uC548\uCABD\uC5EC\uBC31": 1.4
+  "\uC624\uC5FC\uC6D0\uBCF8\uCCB4\uD06C\uAE30": 1.4
+  "\uACBD\uACE0\uC544\uC774\uCF58\uD654\uBA74\uB192\uC774\uBE44\uC728": 0.085
+  "\uC624\uC5FC\uC6D0\uD53C\uACA9\uBC94\uC704": {x: 0.88, y: 0.48}

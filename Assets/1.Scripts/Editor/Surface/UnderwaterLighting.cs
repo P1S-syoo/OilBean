@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Game.Editor.Surface {
     // 수중 가시성 보강 — 디렉셔널 광량·환경광을 살짝 올려 수집물·지형이 또렷하게(수중 분위기는 유지)
     public static class UnderwaterLighting {
-        [MenuItem("Tools/한강/환경/수중 라이팅 조정")]
+        // [MenuItem("Tools/한강/환경/수중 라이팅 조정")]
         public static void Apply() {
             try {
                 var dir = FindDirectional();

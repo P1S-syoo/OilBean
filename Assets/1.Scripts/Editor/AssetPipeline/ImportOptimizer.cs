@@ -31,7 +31,7 @@ namespace Game.Editor {
             "Assets/4.Art/Characters/CharTextures/normal.png"
         };
 
-        [MenuItem("Tools/한강/최적화/임포트 설정 적용")]
+        // [MenuItem("Tools/한강/최적화/임포트 설정 적용")]
         public static void ApplyImportSettings() {
             var log = new List<string>();
             ApplyAudioSettings(log);
@@ -41,7 +41,7 @@ namespace Game.Editor {
             Debug.Log($"[ImportOptimizer] 임포트 설정 적용 완료 ({log.Count}건)\n" + string.Join("\n", log));
         }
 
-        [MenuItem("Tools/한강/최적화/빌드 씬 교정")]
+        // [MenuItem("Tools/한강/최적화/빌드 씬 교정")]
         public static void FixBuildScenes() {
             try {
                 if (!File.Exists(MainScenePath)) {
@@ -58,7 +58,7 @@ namespace Game.Editor {
             }
         }
 
-        [MenuItem("Tools/한강/최적화/전체 적용 (임포트+빌드씬)")]
+        // [MenuItem("Tools/한강/최적화/전체 적용 (임포트+빌드씬)")]
         public static void ApplyAll() {
             ApplyImportSettings();
             FixBuildScenes();

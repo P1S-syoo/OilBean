@@ -4,7 +4,7 @@ using UnityEditor;
 namespace Game.EditorTools {
     // E4 부유입자 — 카메라를 따라다니는 저속·저알파 수중 부유물(먼지/플랑크톤) 상시 연출
     public static class AmbientParticlesBuilder {
-        [MenuItem("Tools/한강/연출/부유입자 생성")]
+        // [MenuItem("Tools/한강/연출/부유입자 생성")]
         public static void Build() {
             try {
                 var cam = Camera.main;

@@ -8,12 +8,12 @@ using UnityEngine;
 using Game.Core;
 
 namespace Game.Editor.Build {
-    // 빌드 프리프로세서 — 9개 카테고리 설정 .asset 중 하나라도 없으면 빌드를 중단시킨다(완료 게이트 C2)
+    // 빌드 프리프로세서 — 10개 카테고리 설정 .asset 중 하나라도 없으면 빌드를 중단시킨다(완료 게이트 C2)
     // 누락 자산이 빌드에 섞여 폴백 기본값으로 출시되는 사고를 방지
     public class ConfigBuildCheck : IPreprocessBuildWithReport {
         const string ConfigDir = "Assets/3.Data/Config";
 
-        // 검사 대상 9개 카테고리 타입 (게임설정도구.CategoryTypes와 동일해야 함)
+        // 검사 대상 10개 카테고리 타입 (게임설정도구.CategoryTypes와 동일해야 함)
         static readonly Type[] CategoryTypes = {
             typeof(수면위설정),
             typeof(잠수설정),
@@ -24,6 +24,7 @@ namespace Game.Editor.Build {
             typeof(제작설정),
             typeof(점수설정),
             typeof(연출설정),
+            typeof(디버그설정),
         };
 
         public int callbackOrder => 0;

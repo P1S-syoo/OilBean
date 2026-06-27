@@ -40,8 +40,8 @@ namespace Game.Editor.UI {
         }
 
         // ── 진입점 ────────────────────────────────────────────────────────────
-        [MenuItem("Tools/한강/UI/HUD·패널 생성")]
-        static void Build() {
+        // [MenuItem("Tools/한강/UI/HUD·패널 생성")]
+        public static void Build() {
             try {
                 // 라운드 코너 스프라이트 + 한글 폰트 주입 — 전 패널 공통(한글 □ 깨짐 방지)
                 UITheme.RoundSprite = EnsureRoundedSprite();
@@ -94,6 +94,11 @@ namespace Game.Editor.UI {
         static GameObject GetOrCreateCanvas() {
             var existing = GameObject.Find(CANVAS_NAME);
             if (existing != null) {
+                var existingCanvas = existing.GetComponent<Canvas>();
+                if (existingCanvas != null) {
+                    existingCanvas.overrideSorting = false;
+                    existingCanvas.sortingOrder = 10;
+                }
                 return existing;
             }
             var go = new GameObject(CANVAS_NAME);
@@ -692,9 +697,9 @@ namespace Game.Editor.UI {
             agentRt.offsetMax = new Vector2(-UITheme.SpaceSM, 0f);
             agentTxt.enableWordWrapping = true;
 
-            // ── 중앙: 레시피 목록 (40%) ──────────────────────────────────────
+            // ── 중앙: 레시피 목록 — 긴 부유체 이름/재료가 겹치지 않도록 폭 확보
             var midCol = UITheme.MakePanel("MidCol", content.transform,
-                new Vector2(0.3f, 0f), new Vector2(0.65f, 1f),
+                new Vector2(0.3f, 0f), new Vector2(0.68f, 1f),
                 new Vector2(UITheme.SpaceSM, 0f), new Vector2(-UITheme.SpaceSM, 0f),
                 UITheme.BgPanel);
             ApplyColumnGlass(midCol);
@@ -721,9 +726,9 @@ namespace Game.Editor.UI {
                     recipeLabels[i], recipeReqs[i], i);
             }
 
-            // ── 우측: 선택 상세 + 제작 버튼 (35%) ───────────────────────────
+            // ── 우측: 선택 상세 + 제작 버튼 — 상세 텍스트는 줄바꿈 전제로 배치
             var rightCol = UITheme.MakePanel("RightCol", content.transform,
-                new Vector2(0.65f, 0f), new Vector2(1f, 1f),
+                new Vector2(0.68f, 0f), new Vector2(1f, 1f),
                 new Vector2(UITheme.SpaceSM, 0f), new Vector2(0f, 0f),
                 UITheme.BgPanel);
             ApplyColumnGlass(rightCol);
@@ -731,18 +736,21 @@ namespace Game.Editor.UI {
             MakeColTitle(rightCol.transform, "제작 상세");
 
             var detailName = UITheme.MakeText("DetailName", rightCol.transform,
-                "항목을 선택하세요", UITheme.FontHeading, UITheme.Accent, TextAlignmentOptions.Center);
+                "항목을 선택하세요", UITheme.FontBody + 2f, UITheme.Accent, TextAlignmentOptions.Center);
             var detailNameRt = detailName.GetComponent<RectTransform>();
-            detailNameRt.anchorMin = new Vector2(0f, 0.7f);
-            detailNameRt.anchorMax = new Vector2(1f, 0.85f);
+            detailNameRt.anchorMin = new Vector2(0f, 0.68f);
+            detailNameRt.anchorMax = new Vector2(1f, 0.84f);
             detailNameRt.offsetMin = new Vector2(UITheme.SpaceMD, 0f);
             detailNameRt.offsetMax = new Vector2(-UITheme.SpaceMD, 0f);
+            detailName.enableWordWrapping = true;
+            detailName.overflowMode = TextOverflowModes.Overflow;
+            detailName.fontStyle = FontStyles.Bold;
 
             var detailReq = UITheme.MakeText("DetailReq", rightCol.transform,
-                "", UITheme.FontHeading, UITheme.TextPrimary, TextAlignmentOptions.Center);
+                "", UITheme.FontBody, UITheme.TextPrimary, TextAlignmentOptions.Center);
             var detailReqRt = detailReq.GetComponent<RectTransform>();
-            detailReqRt.anchorMin = new Vector2(0f, 0.55f);
-            detailReqRt.anchorMax = new Vector2(1f, 0.7f);
+            detailReqRt.anchorMin = new Vector2(0f, 0.50f);
+            detailReqRt.anchorMax = new Vector2(1f, 0.68f);
             detailReqRt.offsetMin = new Vector2(UITheme.SpaceMD, 0f);
             detailReqRt.offsetMax = new Vector2(-UITheme.SpaceMD, 0f);
             detailReq.enableWordWrapping = true;
@@ -751,8 +759,8 @@ namespace Game.Editor.UI {
             var detailStatus = UITheme.MakeText("DetailStatus", rightCol.transform,
                 "", UITheme.FontBody, UITheme.TextSecondary, TextAlignmentOptions.Center);
             var detailStatusRt = detailStatus.GetComponent<RectTransform>();
-            detailStatusRt.anchorMin = new Vector2(0f, 0.45f);
-            detailStatusRt.anchorMax = new Vector2(1f, 0.55f);
+            detailStatusRt.anchorMin = new Vector2(0f, 0.38f);
+            detailStatusRt.anchorMax = new Vector2(1f, 0.50f);
             detailStatusRt.offsetMin = new Vector2(UITheme.SpaceMD, 0f);
             detailStatusRt.offsetMax = new Vector2(-UITheme.SpaceMD, 0f);
             detailStatus.overflowMode = TextOverflowModes.Overflow;
@@ -765,7 +773,7 @@ namespace Game.Editor.UI {
             AddButtonIcon(craftExecBtn, "icon_craft", 24f, UITheme.SpaceLG + 12f);
             UITheme.AddScaleFeedback(craftExecBtn);
             // 제작 버튼 — 황금비 기반 비율(폭 = 높이 × φ³)로 하단 중앙 고정(요구: 제작 버튼도 황금비)
-            float crH = 60f;
+            float crH = 56f;
             float crW = Mathf.Round(crH * UITheme.Golden * UITheme.Golden * UITheme.Golden);   // ≈ 254
             var crRt = craftExecBtn.GetComponent<RectTransform>();
             crRt.anchorMin = new Vector2(0.5f, 0.08f);
@@ -1176,8 +1184,8 @@ namespace Game.Editor.UI {
                 UITheme.BgBorder, UITheme.TextPrimary);
             // 레이아웃 그룹이 크기를 제어하므로 LayoutElement로 선호 높이만 지정
             var le = btn.gameObject.AddComponent<LayoutElement>();
-            le.minHeight = 72f;
-            le.preferredHeight = 72f;
+            le.minHeight = 82f;
+            le.preferredHeight = 82f;
             UITheme.AddShadow(btn.gameObject, 0.35f, 0f, -2f);
             UITheme.AddScaleFeedback(btn);
 
@@ -1198,23 +1206,23 @@ namespace Game.Editor.UI {
             if (lbl != null) {
                 lbl.text = name;
                 lbl.alignment = TextAlignmentOptions.Left;
-                lbl.fontSize = UITheme.FontHeading;
+                lbl.fontSize = UITheme.FontBody + 1f;
                 lbl.fontStyle = FontStyles.Bold;
                 lbl.overflowMode = TextOverflowModes.Overflow;
                 var lrt = lbl.GetComponent<RectTransform>();
-                lrt.anchorMin = new Vector2(0f, 0f);
-                lrt.anchorMax = new Vector2(0.42f, 1f);
-                lrt.offsetMin = new Vector2(UITheme.SpaceMD + 6f, lrt.offsetMin.y);
-                lrt.offsetMax = new Vector2(-UITheme.SpaceSM, lrt.offsetMax.y);
+                lrt.anchorMin = new Vector2(0f, 0.48f);
+                lrt.anchorMax = new Vector2(1f, 1f);
+                lrt.offsetMin = new Vector2(UITheme.SpaceMD + 10f, -UITheme.SpaceXS);
+                lrt.offsetMax = new Vector2(-UITheme.SpaceSM, -UITheme.SpaceXS);
             }
 
-            // 소재 요구 텍스트
+            // 소재 요구 텍스트 — 이름 아래 한 줄로 분리해 글자 겹침 방지
             var reqTxt = UITheme.MakeText("Req", btn.transform,
-                req, UITheme.FontBody, UITheme.TextSecondary, TextAlignmentOptions.Right);
+                req, UITheme.FontCaption, UITheme.TextSecondary, TextAlignmentOptions.Left);
             var reqRt = reqTxt.GetComponent<RectTransform>();
-            reqRt.anchorMin = new Vector2(0.38f, 0f);
-            reqRt.anchorMax = new Vector2(1f, 1f);
-            reqRt.offsetMin = new Vector2(0f, UITheme.SpaceXS);
+            reqRt.anchorMin = new Vector2(0f, 0f);
+            reqRt.anchorMax = new Vector2(1f, 0.48f);
+            reqRt.offsetMin = new Vector2(UITheme.SpaceMD + 10f, UITheme.SpaceXS);
             reqRt.offsetMax = new Vector2(-UITheme.SpaceSM, -UITheme.SpaceXS);
             reqTxt.enableWordWrapping = true;
             reqTxt.overflowMode = TextOverflowModes.Overflow;

@@ -12,7 +12,7 @@ namespace Game.Editor.Surface {
         const string DiveFbx = "Assets/4.Art/Characters/RunToDive.fbx";
         const string IdleFbx = "Assets/4.Art/Characters/IdleStand.fbx";
 
-        [MenuItem("Tools/한강/캐릭터 애니 갱신")]
+        // [MenuItem("Tools/한강/캐릭터 애니 갱신")]
         public static void Build() {
             try {
                 ConfigureImport(WalkFbx, true);

@@ -47,7 +47,7 @@ namespace Game.Editor.Data {
             new("sample_oil_clump",    ResourceKind.Sample, "중질유 덩어리",       2, 10,-50, -40, 3, "sample/sample_oil.fbx"),
         };
 
-        [MenuItem("Tools/한강/데이터/아이템 테이블 생성")]
+        // [MenuItem("Tools/한강/데이터/아이템 테이블 생성")]
         public static void Build() {
             try {
                 NormalizeImports();   // FBX 임포트 표준화(스케일·읽기·머티리얼)

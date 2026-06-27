@@ -11,7 +11,7 @@ namespace Game.EditorTools {
         const string HAZARD_PREFAB = "Assets/3.Prefabs/Main3D/HazardUnit.prefab";
         const string WARN_SPRITE = "Assets/4.Art/UI/icons/icon_warning_cutout.png";
 
-        [MenuItem("Tools/한강/World/E5·E6 배선")]
+        // [MenuItem("Tools/한강/World/E5·E6 배선")]
         public static void Build() {
             try {
                 var prefab = EnsureHazardPrefab();

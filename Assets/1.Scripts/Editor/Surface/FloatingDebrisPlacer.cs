@@ -28,7 +28,7 @@ namespace Game.Editor.Surface {
             ("Assets/NCAI_Asset/sample/sample_algae.fbx", 0.9f),
         };
 
-        [MenuItem("Tools/한강/부유 잔해 배치")]
+        // [MenuItem("Tools/한강/부유 잔해 배치")]
         public static void Place() {
             try {
                 var rig = GameObject.Find("SurfaceRig");

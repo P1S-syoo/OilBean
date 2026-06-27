@@ -39,7 +39,7 @@ namespace Game.Editor.Surface {
             },
         };
 
-        [MenuItem("Tools/한강/명소 배치")]
+        // [MenuItem("Tools/한강/명소 배치")]
         public static void Place() {
             try {
                 var rig = GameObject.Find("SurfaceRig");

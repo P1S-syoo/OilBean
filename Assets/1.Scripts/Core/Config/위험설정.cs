@@ -14,6 +14,7 @@ namespace Game.Core {
         public float 경고시간 = 0.8f;       // 돌진 전 경고(텔레그래프) 시간(초)
         public float 돌진속도 = 14f;        // 돌진 속도(u/s)
         public float 공격간격 = 2.2f;       // 돌진 공격 발생 간격(초)
+        public float 피격후무적시간 = 1.4f; // 피격 직후 추가 충돌을 무시하는 시간(초)
 
         [Header("스폰")]
         [FormerlySerializedAs("화면여유")]

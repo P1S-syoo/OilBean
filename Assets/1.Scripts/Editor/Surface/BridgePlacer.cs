@@ -14,7 +14,7 @@ namespace Game.Editor.Surface {
         const float SinkBelowDeck = 0.6f; // 상판을 수면 위로 띄우는 높이(나머지 구조는 수중 잔해)
         const float TiltDeg = 11f;        // 붕괴 기울기 — 무너져 한쪽으로 기운 잔해
 
-        [MenuItem("Tools/한강/양화대교 잔해 배치")]
+        // [MenuItem("Tools/한강/양화대교 잔해 배치")]
         public static void Place() {
             try {
                 var rig = GameObject.Find("SurfaceRig");

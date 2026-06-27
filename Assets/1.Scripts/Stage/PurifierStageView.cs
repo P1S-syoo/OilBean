@@ -2,18 +2,23 @@ using DG.Tweening;
 using UnityEngine;
 using Game.Core;
 using Game.World;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace Game.Stage {
     // 정화 부유체 수면 연출 — 설치 완료 단계에 맞춰 수면 위 대형 정화체를 표시
     public class PurifierStageView : MonoBehaviour {
+        const string StageModelDir = "Assets/4.Art/Varco/PurifierModels";
+
         [SerializeField] RunData run;
         [SerializeField] PurifyInstaller installer;
         [SerializeField] GameObject[] stagePrefabs = new GameObject[3];
-        [SerializeField] Vector3 surfaceOffset = new(0f, 1.25f, -0.8f);
+        [SerializeField] Vector3 surfaceOffset = new(0f, 2.2f, 0f);
         [SerializeField] Vector3[] stageScales = {
-            new(1.4f, 1.4f, 1.4f),
-            new(1.9f, 1.9f, 1.9f),
-            new(2.35f, 2.35f, 2.35f)
+            new(3.2f, 3.2f, 3.2f),
+            new(4.4f, 4.4f, 4.4f),
+            new(5.8f, 5.8f, 5.8f)
         };
         [SerializeField] float floatBob = 0.18f;
         [SerializeField] float spinDegPerSec = 12f;
@@ -21,6 +26,7 @@ namespace Game.Stage {
         GameObject current;
         Light glow;
         Camera mainCam;
+        GameObject marker;
 
         void Awake() {
             if (installer == null) {
@@ -29,6 +35,8 @@ namespace Game.Stage {
             if (installer != null) {
                 installer.OnPurified += ShowCurrentStage;
             }
+            var mt = transform.Find("Marker");
+            marker = mt != null ? mt.gameObject : null;
             mainCam = Camera.main;
         }
 
@@ -53,6 +61,9 @@ namespace Game.Stage {
             var p = SurfacePosition();
             p.y += Mathf.Sin(Time.time * 1.35f) * floatBob;
             current.transform.position = p;
+            if (glow != null) {
+                glow.transform.position = p + Vector3.up * 1.5f;
+            }
         }
 
         void ShowCurrentStage() {
@@ -70,6 +81,10 @@ namespace Game.Stage {
             current.transform.SetParent(transform, false);
             current.transform.position = SurfacePosition();
             current.transform.localScale = instant ? TargetScale(stage) : Vector3.zero;
+            BuildAura(current.transform, stage);
+            if (marker != null) {
+                marker.SetActive(false);   // 설치 후에는 큰 마커 대신 실제 정화체만 보이게 함
+            }
             EnsureGlow(stage);
             if (!instant) {
                 current.transform.DOScale(TargetScale(stage), 0.85f)
@@ -80,11 +95,46 @@ namespace Game.Stage {
         }
 
         GameObject InstantiateStage(int stage) {
-            var prefab = stagePrefabs != null && stagePrefabs.Length >= stage ? stagePrefabs[stage - 1] : null;
+            var prefab = StagePrefab(stage);
             if (prefab != null) {
                 return Instantiate(prefab);
             }
             return BuildFallback(stage);
+        }
+
+        GameObject StagePrefab(int stage) {
+            var prefab = stagePrefabs != null && stagePrefabs.Length >= stage ? stagePrefabs[stage - 1] : null;
+#if UNITY_EDITOR
+            if (prefab == null) {
+                prefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{StageModelDir}/purifier_stage{stage}.glb");
+            }
+#endif
+            return prefab;
+        }
+
+        void BuildAura(Transform parent, int stage) {
+            var cyan = MakeMat("PurifierAuraCyan", new Color(0.05f, 0.85f, 1f, 0.85f));
+            float r = 1.2f + stage * 0.35f;
+            AddRing(parent, "CleanseRingOuter", r * 1.5f, 0f, stage);
+            AddRing(parent, "CleanseRingInner", r, 0.18f, stage);
+            AddPart(parent, PrimitiveType.Cylinder, "CleanseBeam", new Vector3(0f, 0.75f, 0f),
+                new Vector3(0.18f + stage * 0.06f, 1.2f + stage * 0.35f, 0.18f + stage * 0.06f), cyan);
+        }
+
+        void AddRing(Transform parent, string name, float radius, float y, int stage) {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = new Vector3(0f, y, 0f);
+            var line = go.AddComponent<LineRenderer>();
+            line.loop = true;
+            line.useWorldSpace = false;
+            line.positionCount = 48;
+            line.widthMultiplier = 0.035f + stage * 0.012f;
+            line.material = MakeLineMat(name + "Mat", new Color(0.18f, 0.92f, 1f, 0.95f));
+            for (int i = 0; i < line.positionCount; i++) {
+                float a = i / (float)line.positionCount * Mathf.PI * 2f;
+                line.SetPosition(i, new Vector3(Mathf.Cos(a) * radius, 0f, Mathf.Sin(a) * radius));
+            }
         }
 
         GameObject BuildFallback(int stage) {
@@ -111,7 +161,7 @@ namespace Game.Stage {
             go.transform.localScale = scale;
             var col = go.GetComponent<Collider>();
             if (col != null) {
-                Destroy(col);
+                DestroyRuntimeSafe(col);
             }
             var renderer = go.GetComponent<Renderer>();
             if (renderer != null) {
@@ -120,8 +170,26 @@ namespace Game.Stage {
             return go;
         }
 
+        static void DestroyRuntimeSafe(Object obj) {
+            if (obj == null) {
+                return;
+            }
+            if (Application.isPlaying) {
+                Destroy(obj);
+            } else {
+                DestroyImmediate(obj);
+            }
+        }
+
         Material MakeMat(string name, Color color) {
             var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            var mat = new Material(shader) { name = name };
+            mat.color = color;
+            return mat;
+        }
+
+        Material MakeLineMat(string name, Color color) {
+            var shader = Shader.Find("Sprites/Default") ?? Shader.Find("Universal Render Pipeline/Unlit");
             var mat = new Material(shader) { name = name };
             mat.color = color;
             return mat;
@@ -145,9 +213,9 @@ namespace Game.Stage {
                 glow.color = new Color(0.3f, 0.95f, 1f);
                 glow.shadows = LightShadows.None;
             }
-            glow.transform.position = SurfacePosition();
-            glow.range = 8f + stage * 3f;
-            glow.intensity = 1.4f + stage * 0.7f;
+            glow.transform.position = SurfacePosition() + Vector3.up * 1.5f;
+            glow.range = 12f + stage * 4f;
+            glow.intensity = 2.2f + stage * 1.1f;
         }
 
         void PlayCleanseBeat(int stage) {

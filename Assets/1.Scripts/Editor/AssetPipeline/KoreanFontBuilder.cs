@@ -11,7 +11,7 @@ namespace Game.EditorTools {
         const string TTF_PATH = "Assets/4.Art/Fonts/IyagiGGC.ttf";
         const string SDF_PATH = "Assets/4.Art/Fonts/IyagiGGC SDF.asset";
 
-        [MenuItem("Tools/한강/폰트/IyagiGGC TMP 생성·기본지정")]
+        // [MenuItem("Tools/한강/폰트/IyagiGGC TMP 생성·기본지정")]
         public static void Build() {
             try {
                 var font = AssetDatabase.LoadAssetAtPath<Font>(TTF_PATH);

@@ -19,7 +19,7 @@ namespace Game.Editor.Surface {
             ("Assets/VARCO3DImports/Ruins/ruin_office.glb", 40f),
         };
 
-        [MenuItem("Tools/한강/폐허 스카이라인 배치")]
+        // [MenuItem("Tools/한강/폐허 스카이라인 배치")]
         public static void Place() {
             try {
                 var rig = GameObject.Find("SurfaceRig");

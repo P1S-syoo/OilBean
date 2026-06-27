@@ -61,12 +61,14 @@ namespace Game.Core {
         public float 발판길이 = 2.4f;        // 캐릭터가 걸을 수 있는 발판 길이
         public float 발판앞뒤위치비율 = -0.22f; // 잠수함 길이 대비 발판 앞뒤 위치(-1 뒤, 1 앞)
         public float 발판표시두께 = 0.035f;  // 투명 발판 비주얼 두께
+        public Color 발판색 = new(0.05f, 0.9f, 1f, 0.42f); // 발판 표시 머티리얼 색·투명도
 
         [Header("덱 모니터")]
         public float 모니터바닥높이 = 1.55f;       // 발판 위 모니터 중심 높이
         public float 모니터앞위치비율 = 0.58f;     // 발판 길이 대비 모니터 앞쪽 위치
         public float 모니터폭 = 3f;                // 모니터 화면 폭
         public float 모니터높이 = 1.8f;            // 모니터 화면 높이
+        public Color 모니터색 = new(1f, 1f, 1f, 0.88f); // 홀로그램 모니터 색·투명도
 
         [Header("인트로 컷신")]
         public float 인트로시간 = 8f;        // 인트로 카메라 이동 시간(초)

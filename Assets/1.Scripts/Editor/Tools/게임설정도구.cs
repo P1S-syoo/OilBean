@@ -5,12 +5,12 @@ using UnityEngine;
 using Game.Core;
 
 namespace Game.Editor.Tools {
-    // 게임 설정 도구 — 9개 카테고리 설정 .asset 생성 + 씬 컴포넌트의 config 필드를 타입별로 자동 배선
+    // 게임 설정 도구 — 10개 카테고리 설정 .asset 생성 + 씬 컴포넌트의 config 필드를 타입별로 자동 배선
     // (옛 통합 설정 창의 씬 배선 패턴 계승 — 단일 통합 자산 대신 카테고리별 자산 주입)
     public class 게임설정도구 : EditorWindow {
         const string ConfigDir = "Assets/3.Data/Config";
 
-        // 생성·배선 대상 9개 카테고리 타입
+        // 생성·배선 대상 10개 카테고리 타입
         static readonly Type[] CategoryTypes = {
             typeof(수면위설정),
             typeof(잠수설정),
@@ -21,6 +21,7 @@ namespace Game.Editor.Tools {
             typeof(제작설정),
             typeof(점수설정),
             typeof(연출설정),
+            typeof(디버그설정),
         };
 
         [MenuItem("게임설정/설정 생성 및 배선")]
@@ -29,10 +30,14 @@ namespace Game.Editor.Tools {
             win.minSize = new Vector2(360f, 200f);
         }
 
+        public static void ApplyWiring() {
+            CreateAndWire();
+        }
+
         void OnGUI() {
             EditorGUILayout.Space(6f);
             EditorGUILayout.LabelField("게임 설정 도구", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox("9개 카테고리 설정 자산을 생성하고, 씬의 컴포넌트 config 필드를 타입에 맞는 자산으로 자동 배선합니다.", MessageType.Info);
+            EditorGUILayout.HelpBox("10개 카테고리 설정 자산을 생성하고, 씬의 컴포넌트 config 필드를 타입에 맞는 자산으로 자동 배선합니다.", MessageType.Info);
             EditorGUILayout.Space(6f);
             if (GUILayout.Button("설정 생성 및 배선", GUILayout.Height(32f))) {
                 CreateAndWire();
@@ -101,7 +106,7 @@ namespace Game.Editor.Tools {
             return true;
         }
 
-        // 9개 카테고리 .asset 생성(없을 때만) — 타입→자산 매핑 반환
+        // 10개 카테고리 .asset 생성(없을 때만) — 타입→자산 매핑 반환
         static Dictionary<Type, ScriptableObject> CreateConfigAssets(out int created) {
             created = 0;
             var map = new Dictionary<Type, ScriptableObject>();
