@@ -1,6 +1,8 @@
 using DG.Tweening;
 using UnityEngine;
+using UnityEngine.Splines;
 using Game.Core;
+using Game.Surface;
 using Game.World;
 #if UNITY_EDITOR
 using UnityEditor;
@@ -22,13 +24,17 @@ namespace Game.Stage {
         };
         [SerializeField] float floatBob = 0.18f;
         [SerializeField] float spinDegPerSec = 12f;
+        [SerializeField] SubNavigator navigator;
+        [SerializeField] SplineContainer river;
+        [SerializeField] float cleanRiverWidth = 44f;
+        [SerializeField] int cleanSegmentCount = 28;
 
         GameObject current;
         Light glow;
         Camera mainCam;
         GameObject marker;
-        GameObject clearPatch;
-        GameObject clearColumn;
+        GameObject cleanRiverRoot;
+        int activeStage = 1;
 
         void Awake() {
             if (installer == null) {
@@ -40,6 +46,7 @@ namespace Game.Stage {
             var mt = transform.Find("Marker");
             marker = mt != null ? mt.gameObject : null;
             mainCam = Camera.main;
+            ResolveRiverRefs();
         }
 
         void Start() {
@@ -60,7 +67,7 @@ namespace Game.Stage {
                 return;
             }
             current.transform.Rotate(Vector3.up, spinDegPerSec * Time.deltaTime, Space.World);
-            var p = SurfacePosition();
+            var p = StagePosition(activeStage);
             p.y += Mathf.Sin(Time.time * 1.35f) * floatBob;
             current.transform.position = p;
             if (glow != null) {
@@ -75,13 +82,14 @@ namespace Game.Stage {
 
         public void ShowStage(int stage, bool instant = false) {
             stage = Mathf.Clamp(stage, 1, 3);
+            activeStage = stage;
             if (current != null) {
                 Destroy(current);
             }
             current = InstantiateStage(stage);
             current.name = $"FloatingPurifierStage{stage}";
             current.transform.SetParent(transform, false);
-            current.transform.position = SurfacePosition();
+            current.transform.position = StagePosition(stage);
             current.transform.localScale = instant ? TargetScale(stage) : Vector3.zero;
             BuildAura(current.transform, stage);
             if (marker != null) {
@@ -229,6 +237,16 @@ namespace Game.Stage {
             return new Vector3(transform.position.x, WorldGen.WaterY, transform.position.z) + surfaceOffset;
         }
 
+        Vector3 StagePosition(int stage) {
+            if (stage <= 1) {
+                return new Vector3(transform.position.x, WorldGen.WaterY - 2.6f, transform.position.z);
+            }
+            if (stage == 2) {
+                return new Vector3(transform.position.x, WorldGen.WaterY - 1.4f, transform.position.z);
+            }
+            return SurfacePosition();
+        }
+
         Vector3 TargetScale(int stage) {
             int i = Mathf.Clamp(stage - 1, 0, stageScales.Length - 1);
             return stageScales[i];
@@ -243,17 +261,13 @@ namespace Game.Stage {
                 glow.color = new Color(0.3f, 0.95f, 1f);
                 glow.shadows = LightShadows.None;
             }
-            glow.transform.position = SurfacePosition() + Vector3.up * 1.5f;
+            glow.transform.position = StagePosition(stage) + Vector3.up * 1.5f;
             glow.range = 12f + stage * 4f;
             glow.intensity = 2.2f + stage * 1.1f;
         }
 
         void PlayCleanseBeat(int stage) {
-            DOTween.To(() => RenderSettings.ambientSkyColor,
-                    c => RenderSettings.ambientSkyColor = c,
-                    stage >= 3 ? new Color(0.58f, 0.78f, 0.9f) : new Color(0.44f, 0.66f, 0.74f),
-                    1.2f)
-                .SetTarget(this);
+            ApplyCleanAtmosphere(stage);
             if (stage >= 3) {
                 PlayFinalCleansePulse();
             }
@@ -265,59 +279,163 @@ namespace Game.Stage {
             }
         }
 
-        // 정화 구역만 맑은 물 패치와 빛 기둥으로 표시 — 강 전체 탁도는 유지해 섹션이 나뉘어 보임
+        // 현재 정화 목표까지의 스플라인 구간 전체를 맑은 물/하늘 패치로 표시
         void ShowCleanSection(int stage, bool instant) {
-            float radius = 13f + stage * 6f;
-            EnsureCleanPatch(radius);
-            EnsureCleanColumn(radius, stage);
-            clearPatch.transform.localScale = new Vector3(radius, 0.018f, radius);
-            clearColumn.transform.localScale = new Vector3(radius * 0.55f, 10f + stage * 3f, radius * 0.55f);
-            if (instant) {
+            ResolveRiverRefs();
+            float fromT = navigator != null ? navigator.PreviousTargetT : 0f;
+            float toT = navigator != null ? navigator.CurrentTargetT : 0.5f;
+            if (river == null || toT <= fromT + 0.001f) {
+                BuildLocalCleanFallback(stage, instant);
                 return;
             }
-            clearPatch.transform.localScale = Vector3.zero;
-            clearColumn.transform.localScale = Vector3.zero;
-            clearPatch.transform.DOScale(new Vector3(radius, 0.018f, radius), 1.4f)
-                .SetEase(Ease.OutCubic)
-                .SetTarget(this);
-            clearColumn.transform.DOScale(new Vector3(radius * 0.55f, 10f + stage * 3f, radius * 0.55f), 1.1f)
-                .SetEase(Ease.OutCubic)
-                .SetTarget(this);
+            BuildCleanRiverSection(fromT, toT, stage, instant);
+            HideFloatingDebris(fromT, toT);
         }
 
-        void EnsureCleanPatch(float radius) {
-            if (clearPatch != null) {
-                clearPatch.transform.position = SurfacePosition() + Vector3.up * 0.04f;
-                return;
+        void ResolveRiverRefs() {
+            if (navigator == null) {
+                navigator = FindFirstObjectByType<SubNavigator>(FindObjectsInactive.Include);
             }
-            clearPatch = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            clearPatch.name = "CleanWaterSection";
-            clearPatch.transform.SetParent(transform, false);
-            clearPatch.transform.position = SurfacePosition() + Vector3.up * 0.04f;
-            DestroyRuntimeSafe(clearPatch.GetComponent<Collider>());
-            var renderer = clearPatch.GetComponent<Renderer>();
-            renderer.sharedMaterial = MakeMat("CleanWaterSectionMat", new Color(0.20f, 0.88f, 1f, 0.42f));
+            if (river == null && navigator != null) {
+                river = navigator.River;
+            }
+        }
+
+        void BuildCleanRiverSection(float fromT, float toT, int stage, bool instant) {
+            if (cleanRiverRoot != null) {
+                DestroyRuntimeSafe(cleanRiverRoot);
+            }
+            cleanRiverRoot = new GameObject("CleanRiverSection");
+            cleanRiverRoot.transform.SetParent(transform, false);
+            int count = Mathf.Clamp(cleanSegmentCount, 4, 64);
+            for (int i = 0; i < count; i++) {
+                float a = Mathf.Lerp(fromT, toT, i / (float)count);
+                float b = Mathf.Lerp(fromT, toT, (i + 1f) / count);
+                AddCleanSegment(i, a, b, stage);
+            }
+            AddLocalCleanHighlight(stage);
+            if (!instant) {
+                cleanRiverRoot.transform.localScale = Vector3.zero;
+                cleanRiverRoot.transform.DOScale(Vector3.one, 1.3f)
+                    .SetEase(Ease.OutCubic)
+                    .SetTarget(this);
+            }
+        }
+
+        void AddCleanSegment(int index, float fromT, float toT, int stage) {
+            Vector3 a = RiverPoint(fromT);
+            Vector3 b = RiverPoint(toT);
+            Vector3 mid = (a + b) * 0.5f;
+            Vector3 forward = b - a;
+            float len = Mathf.Max(forward.magnitude + 1.5f, 1f);
+            Quaternion rot = forward.sqrMagnitude > 0.001f ? Quaternion.LookRotation(forward.normalized) : Quaternion.identity;
+            AddCleanBox($"CleanWater_{index:00}", mid + Vector3.up * 0.64f, rot,
+                new Vector3(cleanRiverWidth, 0.02f, len),
+                CleanWaterColor(stage));
+        }
+
+        void AddCleanBox(string name, Vector3 pos, Quaternion rot, Vector3 scale, Color color) {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = name;
+            go.transform.SetParent(cleanRiverRoot.transform, false);
+            go.transform.position = pos;
+            go.transform.rotation = rot;
+            go.transform.localScale = scale;
+            DestroyRuntimeSafe(go.GetComponent<Collider>());
+            var renderer = go.GetComponent<Renderer>();
+            renderer.sharedMaterial = MakeMat(name + "Mat", color);
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         }
 
-        void EnsureCleanColumn(float radius, int stage) {
-            if (clearColumn != null) {
-                clearColumn.transform.position = SurfacePosition() + Vector3.up * (5f + stage);
+        void BuildLocalCleanFallback(int stage, bool instant) {
+            if (cleanRiverRoot != null) {
+                DestroyRuntimeSafe(cleanRiverRoot);
+            }
+            cleanRiverRoot = new GameObject("CleanRiverSectionFallback");
+            cleanRiverRoot.transform.SetParent(transform, false);
+            AddLocalCleanHighlight(stage);
+            if (!instant) {
+                cleanRiverRoot.transform.localScale = Vector3.zero;
+                cleanRiverRoot.transform.DOScale(Vector3.one, 1.2f).SetEase(Ease.OutCubic).SetTarget(this);
+            }
+        }
+
+        void AddLocalCleanHighlight(int stage) {
+            float radius = 18f + stage * 6f;
+            AddCleanBox("CleanLocalWaterHalo", SurfacePosition() + Vector3.up * 0.68f, Quaternion.identity,
+                new Vector3(radius, 0.018f, radius), CleanLocalColor(stage));
+        }
+
+        Color CleanWaterColor(int stage) {
+            return stage switch {
+                1 => new Color(0.18f, 0.76f, 0.92f, 0.26f),
+                2 => new Color(0.20f, 0.86f, 0.98f, 0.40f),
+                _ => new Color(0.42f, 0.96f, 1f, 0.62f)
+            };
+        }
+
+        Color CleanLocalColor(int stage) {
+            return stage switch {
+                1 => new Color(0.20f, 0.88f, 1f, 0.28f),
+                2 => new Color(0.24f, 0.94f, 1f, 0.38f),
+                _ => new Color(0.58f, 1f, 0.96f, 0.52f)
+            };
+        }
+
+        void ApplyCleanAtmosphere(int stage) {
+            Color sky = stage >= 3 ? new Color(0.68f, 0.88f, 1f) : new Color(0.48f, 0.70f, 0.80f);
+            Color equator = stage >= 3 ? new Color(0.50f, 0.82f, 0.92f) : new Color(0.36f, 0.62f, 0.70f);
+            Color ground = stage >= 3 ? new Color(0.26f, 0.52f, 0.58f) : new Color(0.22f, 0.40f, 0.46f);
+            DOTween.To(() => RenderSettings.ambientSkyColor, c => RenderSettings.ambientSkyColor = c, sky, 1.4f).SetTarget(this);
+            DOTween.To(() => RenderSettings.ambientEquatorColor, c => RenderSettings.ambientEquatorColor = c, equator, 1.4f).SetTarget(this);
+            DOTween.To(() => RenderSettings.ambientGroundColor, c => RenderSettings.ambientGroundColor = c, ground, 1.4f).SetTarget(this);
+            RenderSettings.fog = true;
+            DOTween.To(() => RenderSettings.fogColor, c => RenderSettings.fogColor = c,
+                stage >= 3 ? new Color(0.64f, 0.86f, 0.94f) : new Color(0.36f, 0.58f, 0.66f), 1.4f).SetTarget(this);
+            DOTween.To(() => RenderSettings.fogDensity, v => RenderSettings.fogDensity = v,
+                stage >= 3 ? 0.006f : 0.012f, 1.4f).SetTarget(this);
+        }
+
+        Vector3 RiverPoint(float t) {
+            if (river == null) {
+                return SurfacePosition();
+            }
+            Vector3 p = (Vector3)river.EvaluatePosition(Mathf.Clamp01(t));
+            p.y = WorldGen.WaterY;
+            return p;
+        }
+
+        void HideFloatingDebris(float fromT, float toT) {
+            var debrisRoot = GameObject.Find("FloatingDebris");
+            if (debrisRoot == null || river == null) {
                 return;
             }
-            clearColumn = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            clearColumn.name = "CleanSkySection";
-            clearColumn.transform.SetParent(transform, false);
-            clearColumn.transform.position = SurfacePosition() + Vector3.up * (5f + stage);
-            DestroyRuntimeSafe(clearColumn.GetComponent<Collider>());
-            var renderer = clearColumn.GetComponent<Renderer>();
-            renderer.sharedMaterial = MakeMat("CleanSkySectionMat", new Color(0.68f, 0.95f, 1f, 0.20f));
-            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            foreach (Transform child in debrisRoot.transform) {
+                float t = NearestRiverT(child.position);
+                if (t >= fromT - 0.02f && t <= toT + 0.02f) {
+                    child.gameObject.SetActive(false);
+                }
+            }
+        }
+
+        float NearestRiverT(Vector3 pos) {
+            float bestT = 0f;
+            float best = float.MaxValue;
+            const int samples = 48;
+            for (int i = 0; i <= samples; i++) {
+                float t = i / (float)samples;
+                float d = ((Vector3)river.EvaluatePosition(t) - pos).sqrMagnitude;
+                if (d < best) {
+                    best = d;
+                    bestT = t;
+                }
+            }
+            return bestT;
         }
 
         // 3단계는 구역 패치를 한 번 더 밝게 펄스해 최종 정화를 강조
         void PlayFinalCleansePulse() {
-            if (clearPatch == null || glow == null) {
+            if (cleanRiverRoot == null || glow == null) {
                 return;
             }
             DOTween.To(() => glow.intensity, v => glow.intensity = v, glow.intensity + 5f, 0.45f)

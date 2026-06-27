@@ -15,7 +15,6 @@ namespace Game.Narrative {
 
         // ── 재생 가드 ────────────────────────────────────────────────
         bool introPlayed;
-        bool clearPlayed;
 
         // ── 대사 출처 ────────────────────────────────────────────────
         // 대사 정본(SSOT)은 연출설정.인트로대사/클리어대사 — 미연결 시 SO 기본값 인스턴스에서 가져옴(하드코딩 중복 제거)
@@ -74,10 +73,13 @@ namespace Game.Narrative {
                     PlayNarration(IntroSource, true);
                     return;
                 }
-                // Clear 진입 — 클리어 재생(1회)
-                if (to == GameState.Clear && !clearPlayed) {
-                    clearPlayed = true;
-                    PlayNarration(ClearSource);
+                // Clear 진입 — 구역 정화마다 대사를 끝까지 넘긴 뒤 다음 구역으로 이동
+                if (to == GameState.Clear) {
+                    PlayNarration(ClearSource, false, () => {
+                        if (bootstrap != null) {
+                            bootstrap.CompleteClearNarration();
+                        }
+                    });
                 }
             } catch (Exception e) {
                 Debug.LogError($"[NarrationController] 상태 변화 처리 실패 (from={from} to={to}): {e.Message}");
@@ -85,8 +87,9 @@ namespace Game.Narrative {
         }
 
         // NarrationView에 재생 위임 — view가 없으면 조용히 건너뜀
-        void PlayNarration(string[] lines, bool pauseSurface = false) {
+        void PlayNarration(string[] lines, bool pauseSurface = false, Action onDone = null) {
             if (view == null) {
+                onDone?.Invoke();
                 return;
             }
             bool paused = false;
@@ -99,12 +102,14 @@ namespace Game.Narrative {
                     if (pauseSurface && navigator != null) {
                         navigator.ContinueCurrent();
                     }
+                    onDone?.Invoke();
                 });
             } catch (Exception e) {
                 Debug.LogError($"[NarrationController] 내레이션 재생 실패: {e.Message}");
                 if (paused && navigator != null) {
                     navigator.ContinueCurrent();
                 }
+                onDone?.Invoke();
             }
         }
     }

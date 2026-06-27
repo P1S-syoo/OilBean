@@ -31,6 +31,8 @@ namespace Game.UI {
         bool firstCollectDone;
         float nextResolveTime;
 
+        public bool IsNotice => sticky;
+
         void Awake() {
             cg = GetComponent<CanvasGroup>();
             cg.alpha = 0f;

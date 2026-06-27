@@ -19,6 +19,12 @@ namespace Game.Stage {
         bool done;
         float t;           // 설치 누적 시간(홀드 중단 시 보존 — 부분진행 유지)
         bool holdOverride; // 키보드 없는 환경(PlayMode 테스트)에서 홀드를 대체
+        GameObject holdFxRoot;
+        LineRenderer holdRing;
+        LineRenderer holdArc;
+        GameObject beaconFxRoot;
+        LineRenderer beaconRing;
+        LineRenderer beaconPulse;
 
         // 정화 완료 — 코디네이터가 클리어 전환에 사용
         public event Action OnPurified;
@@ -30,6 +36,8 @@ namespace Game.Stage {
                 var cfg = config != null ? config : 제작설정.기본;
                 installTime = cfg.설치시간;
                 GetComponent<Collider2D>().isTrigger = true;
+                EnsureBeaconFx();
+                EnsureHoldFx();
             } catch (Exception e) {
                 Debug.LogError($"[PurifyInstaller] 설정 적용 실패: {e.Message}");
             }
@@ -51,27 +59,131 @@ namespace Game.Stage {
         void Update() {
             if (done || run == null || !armed) {
                 ShowPrompt(false);
+                ShowHoldFx(false, 0f, false);
+                ShowBeaconFx(false);
                 return;
             }
             bool ready = CanShowInstallNotice;
+            ShowBeaconFx(true);
             // F 홀드 중에만 진행(능동감) — 수집(E)과 키 충돌 회피. 중단해도 t 보존(부분진행 유지)
             bool keyHeld = Keyboard.current != null && Keyboard.current.fKey.isPressed;
             bool holding = ready && (keyHeld || holdOverride);
             ShowPrompt(ready && !holding);   // 준비됐는데 아직 안 누르면 'F 홀드' 안내
+            ShowHoldFx(ready, InstallProgress(), holding);
             if (!holding) {
                 return;
             }
             t += Time.deltaTime;
-            float p = Mathf.Clamp01(t / installTime);
+            float p = InstallProgress();
             run.SetPurify(p);   // HUD 게이지
             UpdateFill(p);      // 월드 게이지
+            ShowHoldFx(true, p, true);
             if (t >= installTime) {
                 done = true;
                 int installed = run.InstallPendingBuoy();   // 설치 완료 후에만 수심 게이트 단계 상승
                 run.SetBuoyReady(false);   // 부유체 소비
                 ShowPrompt(false);
+                ShowHoldFx(false, 0f, false);
                 OnPurified?.Invoke();
                 Debug.Log($"[PurifyInstaller] 정화 부유체 {installed}단계 설치 완료");
+            }
+        }
+
+        float InstallProgress() {
+            return Mathf.Clamp01(t / Mathf.Max(installTime, 0.001f));
+        }
+
+        void EnsureHoldFx() {
+            if (holdFxRoot != null) {
+                return;
+            }
+            holdFxRoot = new GameObject("HoldInstallFx");
+            holdFxRoot.transform.SetParent(transform, false);
+            holdFxRoot.transform.localPosition = new Vector3(0f, 1.25f, 0f);
+            holdRing = CreateLine(holdFxRoot.transform, "HoldRing", 0.04f, new Color(0.15f, 0.95f, 1f, 0.35f));
+            holdArc = CreateLine(holdFxRoot.transform, "HoldArc", 0.08f, new Color(0.45f, 1f, 0.95f, 0.95f));
+            DrawCircle(holdRing, 0.9f);
+            DrawArc(holdArc, 0f, 0.92f);
+            holdFxRoot.SetActive(false);
+        }
+
+        LineRenderer CreateLine(Transform parent, string name, float width, Color color) {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            var line = go.AddComponent<LineRenderer>();
+            line.useWorldSpace = false;
+            line.loop = false;
+            line.widthMultiplier = width;
+            line.numCapVertices = 6;
+            line.numCornerVertices = 6;
+            line.sortingOrder = 30;
+            line.material = MakeLineMaterial(name + "Mat", color);
+            return line;
+        }
+
+        void EnsureBeaconFx() {
+            if (beaconFxRoot != null) {
+                return;
+            }
+            beaconFxRoot = new GameObject("PurifyTargetBeacon");
+            beaconFxRoot.transform.SetParent(transform, false);
+            beaconFxRoot.transform.localPosition = Vector3.zero;
+            beaconRing = CreateLine(beaconFxRoot.transform, "TargetRing", 0.055f, new Color(0.18f, 0.95f, 1f, 0.75f));
+            beaconPulse = CreateLine(beaconFxRoot.transform, "TargetPulse", 0.035f, new Color(0.72f, 1f, 0.94f, 0.45f));
+            DrawCircle(beaconRing, 1.55f);
+            DrawCircle(beaconPulse, 2.2f);
+            beaconFxRoot.SetActive(false);
+        }
+
+        Material MakeLineMaterial(string name, Color color) {
+            var shader = Shader.Find("Sprites/Default") ?? Shader.Find("Universal Render Pipeline/Unlit");
+            var mat = new Material(shader) { name = name, color = color };
+            return mat;
+        }
+
+        void ShowHoldFx(bool show, float progress, bool holding) {
+            EnsureHoldFx();
+            if (holdFxRoot.activeSelf != show) {
+                holdFxRoot.SetActive(show);
+            }
+            if (!show) {
+                return;
+            }
+            float pulse = holding ? 1f + Mathf.Sin(Time.time * 12f) * 0.06f : 1f;
+            holdFxRoot.transform.localScale = Vector3.one * pulse;
+            holdFxRoot.transform.Rotate(Vector3.forward, (holding ? -110f : -28f) * Time.deltaTime, Space.Self);
+            DrawArc(holdArc, Mathf.Clamp01(progress), 0.92f);
+        }
+
+        void ShowBeaconFx(bool show) {
+            EnsureBeaconFx();
+            if (beaconFxRoot.activeSelf != show) {
+                beaconFxRoot.SetActive(show);
+            }
+            if (!show) {
+                return;
+            }
+            float pulse = 1f + Mathf.Sin(Time.time * 3.5f) * 0.08f;
+            beaconFxRoot.transform.localScale = Vector3.one * pulse;
+            beaconFxRoot.transform.Rotate(Vector3.forward, 18f * Time.deltaTime, Space.Self);
+        }
+
+        void DrawCircle(LineRenderer line, float radius) {
+            const int count = 64;
+            line.positionCount = count + 1;
+            for (int i = 0; i <= count; i++) {
+                float a = i / (float)count * Mathf.PI * 2f;
+                line.SetPosition(i, new Vector3(Mathf.Cos(a) * radius, Mathf.Sin(a) * radius, 0f));
+            }
+        }
+
+        void DrawArc(LineRenderer line, float progress, float radius) {
+            const int count = 64;
+            int visible = Mathf.Clamp(Mathf.CeilToInt(count * progress), 1, count);
+            line.positionCount = visible + 1;
+            for (int i = 0; i <= visible; i++) {
+                float a = (i / (float)count) * Mathf.PI * 2f + Mathf.PI * 0.5f;
+                line.SetPosition(i, new Vector3(Mathf.Cos(a) * radius, Mathf.Sin(a) * radius, 0f));
             }
         }
 

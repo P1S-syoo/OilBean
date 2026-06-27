@@ -13,6 +13,7 @@ namespace Game.UI {
         [SerializeField] Crafting crafting;
         [SerializeField] GameBootstrap bootstrap;
         [SerializeField] Game.Surface.SurfaceBootstrap surface;   // 수상에서 잠수 트리거(미연결 시 자동 탐색)
+        [SerializeField] Toast toast;   // 설치 안내 notice/toast 표시
 
         [SerializeField] TMP_Text resourceBarText;   // 상단 자원 바 텍스트
         [SerializeField] TMP_Text goalBodyText;       // 우측 현재 목표 카드 본문
@@ -33,6 +34,9 @@ namespace Game.UI {
             // 미연결 참조 자동 탐색 — 수상 잠수 트리거용
             if (surface == null) {
                 surface = FindFirstObjectByType<Game.Surface.SurfaceBootstrap>();
+            }
+            if (toast == null) {
+                toast = FindNoticeToast();
             }
         }
 
@@ -199,7 +203,7 @@ namespace Game.UI {
                 craftBtn.interactable = true;
             }
             if (purifyBtn != null) {
-                purifyBtn.interactable = run != null && run.BuoyReady;
+                purifyBtn.interactable = true;
             }
         }
 
@@ -234,9 +238,27 @@ namespace Game.UI {
         }
 
         void OnPurify() {
-            if (bootstrap != null) {
-                bootstrap.GoPurify();
+            if (toast == null) {
+                toast = FindNoticeToast();
             }
+            if (toast == null) {
+                return;
+            }
+            if (run != null && run.BuoyReady) {
+                toast.Show("잠수 후 설치 구역 이동");
+            } else {
+                toast.Show("[제작]에서 부유체 준비");
+            }
+        }
+
+        Toast FindNoticeToast() {
+            var all = FindObjectsByType<Toast>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            foreach (var item in all) {
+                if (item != null && item.IsNotice) {
+                    return item;
+                }
+            }
+            return all.Length > 0 ? all[0] : null;
         }
 
         // 닫기 — 수상에선 콘솔 접고 배 조작 복귀, 그 외 상태는 무시

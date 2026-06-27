@@ -14,6 +14,7 @@ using Game.Core;
 using Game.Player;
 using Game.Items;
 using Game.Craft;
+using Game.Surface;
 
 namespace Game.Editor.UI {
     // UI 4종 + Canvas를 씬에 코드로 생성하고 컴포넌트 참조를 자동 배선하는 에디터 도구
@@ -62,6 +63,7 @@ namespace Game.Editor.UI {
 
                 // ── 패널 4종 생성 ──────────────────────────────────────────────
                 BuildDockConsole(canvasTr, run, research, crafting, bootstrap);
+                BuildSurfaceRoutePanel(canvasTr);
                 BuildHudPanel(canvasTr, run, battery, collector, diveConfig, collectConfig);
                 BuildResearchPanel(canvasTr, run, research, collector);
                 BuildCraftPanel(canvasTr, run, research, crafting, collector);
@@ -326,6 +328,78 @@ namespace Game.Editor.UI {
                 float clear = xPos + size * 0.5f + UITheme.SpaceSM;   // 아이콘 우측 끝 + 여백
                 label.offsetMin = new Vector2(clear, label.offsetMin.y);
             }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // 1.5 수면 항로 HUD — Surface 항해 중 현재 섹션 진행도를 아래→위로 표시
+        // ═══════════════════════════════════════════════════════════════════════
+        static void BuildSurfaceRoutePanel(Transform canvas) {
+            DestroyExisting(canvas, "SurfaceRoutePanel");
+            var root = UITheme.MakeGlassPanel("SurfaceRoutePanel", canvas,
+                new Vector2(1f, 0.22f), new Vector2(1f, 0.82f),
+                new Vector2(-HUD_SAFE - 138f, 0f),
+                new Vector2(-HUD_SAFE, 0f));
+            root.SetActive(false);
+            UITheme.AddShadow(root, 0.45f, 0f, -2f);
+
+            var title = UITheme.MakeText("RouteTitle", root.transform,
+                "한강 정화 항로", UITheme.FontCaption, UITheme.TextSecondary, TextAlignmentOptions.Center);
+            title.fontStyle = FontStyles.Bold;
+            var titleRt = title.GetComponent<RectTransform>();
+            titleRt.anchorMin = new Vector2(0f, 1f);
+            titleRt.anchorMax = new Vector2(1f, 1f);
+            titleRt.offsetMin = new Vector2(UITheme.SpaceSM, -34f);
+            titleRt.offsetMax = new Vector2(-UITheme.SpaceSM, -UITheme.SpaceXS);
+
+            var bar = UITheme.MakePanel("RouteBar", root.transform,
+                new Vector2(0.5f, 0f), new Vector2(0.5f, 1f),
+                new Vector2(-18f, 52f), new Vector2(18f, -54f),
+                new Color(UITheme.BgDeep.r, UITheme.BgDeep.g, UITheme.BgDeep.b, 0.72f));
+            UITheme.ApplyRound(bar.GetComponent<Image>(), 10f);
+
+            var fillGo = UITheme.MakePanel("RouteFill", bar.transform,
+                new Vector2(0f, 0f), new Vector2(1f, 0f),
+                Vector2.zero, Vector2.zero, UITheme.Accent);
+            var fillImg = fillGo.GetComponent<Image>();
+            fillImg.color = new Color(UITheme.Accent.r, UITheme.Accent.g, UITheme.Accent.b, 0.72f);
+            fillImg.raycastTarget = false;
+
+            var marker = new GameObject("RouteMarker");
+            marker.transform.SetParent(bar.transform, false);
+            var markerRt = marker.AddComponent<RectTransform>();
+            markerRt.anchorMin = new Vector2(0f, 0f);
+            markerRt.anchorMax = new Vector2(1f, 0f);
+            markerRt.offsetMin = new Vector2(-12f, -9f);
+            markerRt.offsetMax = new Vector2(12f, 9f);
+            BuildDepthMarkerGlow(marker.transform);
+
+            var from = UITheme.MakeText("RouteFrom", root.transform,
+                "출발", UITheme.FontCaption, UITheme.TextSecondary, TextAlignmentOptions.Center);
+            var fromRt = from.GetComponent<RectTransform>();
+            fromRt.anchorMin = new Vector2(0f, 0f);
+            fromRt.anchorMax = new Vector2(1f, 0f);
+            fromRt.offsetMin = new Vector2(UITheme.SpaceSM, UITheme.SpaceSM);
+            fromRt.offsetMax = new Vector2(-UITheme.SpaceSM, UITheme.SpaceSM + 24f);
+
+            var to = UITheme.MakeText("RouteTo", root.transform,
+                "세빛섬", UITheme.FontBody, UITheme.Accent, TextAlignmentOptions.Center);
+            to.fontStyle = FontStyles.Bold;
+            var toRt = to.GetComponent<RectTransform>();
+            toRt.anchorMin = new Vector2(0f, 1f);
+            toRt.anchorMax = new Vector2(1f, 1f);
+            toRt.offsetMin = new Vector2(UITheme.SpaceSM, -58f);
+            toRt.offsetMax = new Vector2(-UITheme.SpaceSM, -34f);
+
+            var comp = root.AddComponent<SurfaceRouteUI>();
+            var so = new SerializedObject(comp);
+            AssignRef(so, "navigator", FindComponent<SubNavigator>());
+            AssignRef(so, "fill", fillGo.GetComponent<RectTransform>());
+            AssignRef(so, "marker", markerRt);
+            AssignRef(so, "titleText", title);
+            AssignRef(so, "fromText", from);
+            AssignRef(so, "toText", to);
+            so.ApplyModifiedPropertiesWithoutUndo();
+            Undo.RegisterCreatedObjectUndo(root, "Build Surface Route UI");
         }
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -1548,12 +1622,14 @@ namespace Game.Editor.UI {
                 var hud = FindChild(canvasGo.transform, "HudPanel");
                 var research = FindChild(canvasGo.transform, "ResearchPanel");
                 var craft = FindChild(canvasGo.transform, "CraftPanel");
+                var surfaceRoute = FindChild(canvasGo.transform, "SurfaceRoutePanel");
                 var so = new SerializedObject(router);
                 AssignRef(so, "bootstrap", bootstrap);
                 AssignRef(so, "dockConsole", dock);
                 AssignRef(so, "hudPanel", hud);
                 AssignRef(so, "researchPanel", research);
                 AssignRef(so, "craftPanel", craft);
+                AssignRef(so, "surfaceRoutePanel", surfaceRoute);
                 so.ApplyModifiedPropertiesWithoutUndo();
             } catch (System.Exception e) {
                 Debug.LogError($"[HudUIBuilder] 라우터 배선 오류: {e.Message}");

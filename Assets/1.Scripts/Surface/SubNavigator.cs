@@ -11,6 +11,7 @@ namespace Game.Surface {
         [SerializeField] float minSpeed;         // 감속 중 최저 속도 — 기본값은 수면위설정.항해최저속도
         [SerializeField] float turnSpeed;        // 회전 보간 속도 — 기본값은 수면위설정.항해회전속도
         [SerializeField, Range(0f, 1f)] float[] targets = { 0.5f, 1f };   // 정화 목표(스플라인 정규화 거리)
+        [SerializeField] string[] routeNames = { "세빛섬", "동작대교" }; // 수면 항해 랜드마크(프로토타입 2구역)
         [SerializeField] Game.Core.수면위설정 config;   // 수면위 설정 — 연결 시 항해 수치 적용(미연결 시 SO 기본값)
 
         float distance;     // 스플라인 위 누적 이동 거리(m)
@@ -23,6 +24,12 @@ namespace Game.Surface {
 
         public bool Sailing => sailing;
         public int TargetIndex => targetIdx;
+        public SplineContainer River => river;
+        public float CurrentTargetT => TargetT(targetIdx);
+        public float PreviousTargetT => targetIdx <= 0 ? 0f : TargetT(targetIdx - 1);
+        public float RouteProgress01 => RouteProgress();
+        public string CurrentLandmarkName => LandmarkName(targetIdx);
+        public string PreviousLandmarkName => targetIdx <= 0 ? "출발" : LandmarkName(targetIdx - 1);
 
         void Awake() {
             try {
@@ -96,8 +103,25 @@ namespace Game.Surface {
         }
 
         float TargetDistance() {
-            float t = targetIdx < targets.Length ? Mathf.Clamp01(targets[targetIdx]) : 1f;
-            return t * length;
+            return TargetT(targetIdx) * length;
+        }
+
+        float RouteProgress() {
+            float start = targetIdx <= 0 ? 0f : TargetT(targetIdx - 1) * length;
+            float end = TargetDistance();
+            return Mathf.InverseLerp(start, end, distance);
+        }
+
+        // 목표 배열 접근을 한 곳에 모아 정화 구간 연출도 같은 기준을 사용
+        float TargetT(int index) {
+            return index < targets.Length ? Mathf.Clamp01(targets[index]) : 1f;
+        }
+
+        string LandmarkName(int index) {
+            if (routeNames == null || routeNames.Length == 0) {
+                return $"정화구역 {index + 1}";
+            }
+            return routeNames[Mathf.Clamp(index, 0, routeNames.Length - 1)];
         }
 
         // 스플라인 위치·접선 적용 — 수면 항해라 기수 상하 흔들림 없이 수평 방향만 회전

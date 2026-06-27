@@ -11,6 +11,7 @@ namespace Game.UI {
         [SerializeField] GameObject hudPanel;
         [SerializeField] GameObject researchPanel;
         [SerializeField] GameObject craftPanel;
+        [SerializeField] GameObject surfaceRoutePanel;
 
         bool surfaceArrived;   // 수상에서 정화 지점 도착 여부(콘솔 표시 게이트)
 
@@ -61,6 +62,7 @@ namespace Game.UI {
             Set(hudPanel, s == GameState.Dive);
             Set(researchPanel, s == GameState.Research);
             Set(craftPanel, s == GameState.Craft);
+            Set(surfaceRoutePanel, s == GameState.Surface && !(surface != null && surface.ConsoleShown));
         }
 
         static void Set(GameObject go, bool on) {

@@ -32,6 +32,8 @@ namespace Game.Core {
         GameState hubOrigin = GameState.Dock;   // 연구/제작을 연 출발 상태 — 닫을 때 이 상태로 복귀
         InputAction researchInput;               // 수상/거점에서 연구 열기(1)
         InputAction craftInput;                  // 수상/거점에서 제작 열기(2)
+        bool clearNarrationDone;                 // 클리어 대사 완료 후에만 다음 구역으로 이동
+        bool clearPendingOnSurface;              // 3단계 설치 후 수면 복귀 시 클리어 대사 시작
 
         // 지연 생성 — EditMode 테스트처럼 Awake 없이 접근해도 동작(기존 필드 초기화와 동등)
         GameFsm Fsm {
@@ -250,12 +252,10 @@ namespace Game.Core {
                 toast.Show("오염원 충돌 — 배터리 10% 손실");
             }
         }
-        // 플레이어 수동 복귀(R) — 탐사 중엔 거점 복귀, 클리어 후엔 수면 복귀(W6)
+        // 플레이어 수동 복귀(R) — 탐사 중에만 거점 복귀, 클리어는 내레이션 완료가 이동 트리거
         void OnReturnInput(InputAction.CallbackContext ctx) {
             if (Fsm.Current == GameState.Dive) {
                 ReturnDock();
-            } else if (Fsm.Current == GameState.Clear) {
-                Fsm.Change(GameState.Surface);
             }
         }
         // 행동 피드백 토스트(그동안 미구독이던 이벤트 소비)
@@ -292,11 +292,18 @@ namespace Game.Core {
                 return;
             }
             if (toast != null) {
-                toast.Show("정화 완료 — 오염 구역의 물빛이 맑아졌습니다");
+                toast.Show("정화 완료 — [R]로 수면 복귀");
             }
-            if (!Fsm.Change(GameState.Clear)) {
-                Debug.LogWarning($"[GameBootstrap] 정화 완료했으나 Clear 전환 거부됨(현재 {Fsm.Current})");
+            clearPendingOnSurface = true;
+        }
+
+        // 클리어 내레이션이 끝난 뒤에만 Surface로 돌아가 다음 정화구역 항해를 재개
+        public void CompleteClearNarration() {
+            if (Fsm.Current != GameState.Clear || clearNarrationDone) {
+                return;
             }
+            clearNarrationDone = true;
+            Fsm.Change(GameState.Surface);
         }
 
         // 탐사 강제 종료 → 거점 복귀
@@ -352,12 +359,19 @@ namespace Game.Core {
                 }
                 clearView.Play();   // 정화 연출 + STAGE CLEAR
                 if (toast != null) {
-                    toast.Show("스테이지 클리어 — R키로 수면 복귀");
+                    toast.Show("대사를 끝까지 넘기면 다음 정화구역으로 이동합니다");
                 }
             }
             // 수면 복귀(W6) — 클리어 오버레이 숨기고 다음 구역 항해 재개(SurfaceBootstrap이 리그 재활성)
             if (to == GameState.Surface && clearView != null) {
                 clearView.ResetState();
+            }
+            if (to == GameState.Surface && clearPendingOnSurface) {
+                clearPendingOnSurface = false;
+                clearNarrationDone = false;
+                if (!Fsm.Change(GameState.Clear)) {
+                    Debug.LogWarning($"[GameBootstrap] 수면 복귀 후 Clear 전환 거부됨(현재 {Fsm.Current})");
+                }
             }
         }
 
