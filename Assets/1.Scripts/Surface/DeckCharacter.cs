@@ -112,9 +112,11 @@ namespace Game.Surface {
             Vector3 localDir = transform.parent.InverseTransformDirection(worldDir);
             localDir.y = 0f;
             Vector3 p = transform.localPosition + localDir * (moveSpeed * mag * dt);
-            // 1차 클램프(거친 한계) 후 선체 표면 검사 — 표면 밖/가파른 측면이면 이동 취소
-            p.x = Mathf.Clamp(p.x, deckCenter.x - deckHalf.x, deckCenter.x + deckHalf.x);
-            p.z = Mathf.Clamp(p.z, deckCenter.y - deckHalf.y, deckCenter.y + deckHalf.y);
+            // 보행 가능 범위는 실제 덱 콜라이더가 결정 — 콜라이더가 없을 때만 설정값으로 폴백
+            if (deckColliders == null || deckColliders.Length == 0) {
+                p.x = Mathf.Clamp(p.x, deckCenter.x - deckHalf.x, deckCenter.x + deckHalf.x);
+                p.z = Mathf.Clamp(p.z, deckCenter.y - deckHalf.y, deckCenter.y + deckHalf.y);
+            }
             if (TrySnapToDeck(p, out var snapped)) {
                 snapped.y = Mathf.MoveTowards(transform.localPosition.y, snapped.y, snapLerp * dt);
                 transform.localPosition = snapped;

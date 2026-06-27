@@ -18,6 +18,9 @@ namespace Game.UI {
         [SerializeField] ResearchMinigame minigame;   // 오염 구조 연결 퍼즐(미연결 시 즉시 분석 폴백)
 
         bool fallbackWarned;   // 폴백 경고 1회만 출력
+        int selectedSampleLevel; // 선택한 샘플 레벨(0이면 자동 선택)
+
+        public int SelectedSampleLevel => selectedSampleLevel;
 
         void Start() {
             // minigame 미배선 시 자가탐색(NarrationController/ScoreHud 패턴)
@@ -85,7 +88,7 @@ namespace Game.UI {
             if (research == null || run == null) {
                 return;
             }
-            int level = LowestSampleLevel();
+            int level = SelectedOrBestSampleLevel();
             if (level <= 0) {
                 Refresh();   // 분석할 샘플 없음
                 return;
@@ -110,9 +113,29 @@ namespace Game.UI {
             }
         }
 
-        // 보유한 가장 낮은 오염수준 샘플(1~3) — 없으면 0
-        int LowestSampleLevel() {
-            for (int lv = 1; lv <= 3; lv++) {
+        // UI에서 분석할 샘플 레벨 선택 — 없는 레벨이면 자동 선택으로 복귀
+        public void SelectSampleLevel(int level) {
+            if (run == null || level < 1 || level > 3 || run.GetSampleCount(level) <= 0) {
+                selectedSampleLevel = BestSampleLevel();
+            } else {
+                selectedSampleLevel = level;
+            }
+            Refresh();
+        }
+
+        // 선택 샘플이 있으면 유지, 없으면 가장 높은 보유 샘플로 자동 선택
+        int SelectedOrBestSampleLevel() {
+            if (run != null && selectedSampleLevel >= 1 && selectedSampleLevel <= 3
+                && run.GetSampleCount(selectedSampleLevel) > 0) {
+                return selectedSampleLevel;
+            }
+            selectedSampleLevel = BestSampleLevel();
+            return selectedSampleLevel;
+        }
+
+        // 보유한 가장 높은 오염수준 샘플(3→1) — 상위 재료를 바로 분석할 수 있게 기본 선택
+        int BestSampleLevel() {
+            for (int lv = 3; lv >= 1; lv--) {
                 if (run.GetSampleCount(lv) > 0) {
                     return lv;
                 }
@@ -129,6 +152,7 @@ namespace Game.UI {
             if (research != null && progressFill != null) {
                 progressFill.fillAmount = research.Progress;
             }
+            SelectedOrBestSampleLevel();
             bool done = research != null && research.Done;
             if (statusText != null) {
                 int s = run != null ? run.TotalBankSamples : 0;

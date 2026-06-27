@@ -22,6 +22,7 @@ namespace Game.Stage {
 
         // 정화 완료 — 코디네이터가 클리어 전환에 사용
         public event Action OnPurified;
+        public bool CanShowInstallNotice => !done && armed && inside && run != null && run.BuoyReady;
 
         void Awake() {
             try {
@@ -52,7 +53,7 @@ namespace Game.Stage {
                 ShowPrompt(false);
                 return;
             }
-            bool ready = inside && run.BuoyReady;
+            bool ready = CanShowInstallNotice;
             // F 홀드 중에만 진행(능동감) — 수집(E)과 키 충돌 회피. 중단해도 t 보존(부분진행 유지)
             bool keyHeld = Keyboard.current != null && Keyboard.current.fKey.isPressed;
             bool holding = ready && (keyHeld || holdOverride);
@@ -66,10 +67,11 @@ namespace Game.Stage {
             UpdateFill(p);      // 월드 게이지
             if (t >= installTime) {
                 done = true;
+                int installed = run.InstallPendingBuoy();   // 설치 완료 후에만 수심 게이트 단계 상승
                 run.SetBuoyReady(false);   // 부유체 소비
                 ShowPrompt(false);
                 OnPurified?.Invoke();
-                Debug.Log("[PurifyInstaller] 정화 완료");
+                Debug.Log($"[PurifyInstaller] 정화 부유체 {installed}단계 설치 완료");
             }
         }
 

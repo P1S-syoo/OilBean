@@ -31,6 +31,7 @@ namespace Game.World {
 
         readonly Dictionary<int, List<GameObject>> cells = new();
         readonly List<ItemDef> candidates = new();   // PickByDepth 무할당 재사용
+        readonly List<ItemDef> deepCandidates = new(); // 깊은 수심 3단계 재료 후보 재사용
         readonly List<int> removeBuf = new();         // Reconcile 무할당 재사용
         int lastCenter = int.MinValue;
         bool warnedTarget;
@@ -224,7 +225,36 @@ namespace Game.World {
             if (candidates.Count == 0) {
                 return null;
             }
+            var deep = PickDeepMaterial(excelY, h);
+            if (deep != null) {
+                return deep;
+            }
             return candidates[((h >> 20) & 0x3FF) % candidates.Count];
+        }
+
+        // 깊은 수심에서는 3단계 재료(특수강재·Lv3 샘플)를 우선 노출해 제작 병목을 줄임
+        ItemDef PickDeepMaterial(float excelY, int h) {
+            if (excelY > -20f) {
+                return null;
+            }
+            deepCandidates.Clear();
+            foreach (var it in table.items) {
+                if (it == null || it.prefab == null) {
+                    continue;
+                }
+                if (excelY < it.minSpawnY || excelY > it.maxSpawnY) {
+                    continue;
+                }
+                bool isStage3Material = (it.kind == ResourceKind.Scrap && it.grade >= 2)
+                    || (it.kind == ResourceKind.Sample && it.pollutionLevel >= 3);
+                if (isStage3Material) {
+                    deepCandidates.Add(it);
+                }
+            }
+            if (deepCandidates.Count == 0) {
+                return null;
+            }
+            return deepCandidates[((h >> 20) & 0x3FF) % deepCandidates.Count];
         }
 
         GameObject Spawn(ItemDef def, Vector3 pos) {

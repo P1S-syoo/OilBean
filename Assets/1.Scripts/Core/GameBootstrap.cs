@@ -74,7 +74,7 @@ namespace Game.Core {
                 }
                 if (collector != null) {
                     collector.OnFull += OnInvFull;
-                    collector.OnCollect += OnCollected;   // 수집 토스트
+                    collector.OnCollectDetail += OnCollectedDetail;   // 구체 수집 토스트
                 }
                 if (research != null) research.OnUnlocked += OnUnlocked;
                 if (crafting != null) {
@@ -181,7 +181,7 @@ namespace Game.Core {
             if (battery != null) battery.OnEmpty -= OnBatteryEmpty;
             if (collector != null) {
                 collector.OnFull -= OnInvFull;
-                collector.OnCollect -= OnCollected;
+                collector.OnCollectDetail -= OnCollectedDetail;
             }
             if (research != null) research.OnUnlocked -= OnUnlocked;
             if (crafting != null) {
@@ -259,10 +259,21 @@ namespace Game.Core {
             }
         }
         // 행동 피드백 토스트(그동안 미구독이던 이벤트 소비)
-        void OnCollected(ResourceKind k) {
+        void OnCollectedDetail(Pickup pickup) {
             if (toast != null) {
-                toast.Show(k == ResourceKind.Scrap ? "고철: 장비 제작 재료입니다." : "오염 샘플: 연구 재료입니다.");
+                toast.Show(BuildCollectMessage(pickup));
             }
+        }
+
+        string BuildCollectMessage(Pickup pickup) {
+            if (pickup == null || pickup.Def == null) {
+                return "자원 수집";
+            }
+            var def = pickup.Def;
+            if (def.kind == ResourceKind.Scrap) {
+                return $"{ItemDataTable.SteelName(def.grade)} {def.weight:0}kg — {def.displayName}";
+            }
+            return $"Lv.{def.pollutionLevel} 오염 샘플 — {def.displayName}";
         }
         void OnUnlocked() { if (toast != null) toast.Show("분석 완료 — 정화 약품 해금"); }
         // C3 온보딩 — 제작 후 '무엇을 할지'를 명확히(잠수→정화 지점 설치)
@@ -279,6 +290,9 @@ namespace Game.Core {
                     purify.ReArm();
                 }
                 return;
+            }
+            if (toast != null) {
+                toast.Show("정화 완료 — 오염 구역의 물빛이 맑아졌습니다");
             }
             if (!Fsm.Change(GameState.Clear)) {
                 Debug.LogWarning($"[GameBootstrap] 정화 완료했으나 Clear 전환 거부됨(현재 {Fsm.Current})");
@@ -319,7 +333,7 @@ namespace Game.Core {
             if (to == GameState.Dive && !diveHintShown) {
                 diveHintShown = true;
                 if (toast != null) {
-                    toast.Show("탐사 시작 — WASD 이동 · 자원 수집 · 배터리·오염원 주의 · R 거점 복귀");
+                    toast.Show("탐사 시작 — WASD 이동 · E 수집 · F 설치 · R 수면 위 정화선 복귀");
                 }
             }
             if (to == GameState.Dock) {

@@ -34,7 +34,8 @@ namespace Game.Core {
         [Header("진행")]
         [SerializeField] float purify;        // 정화 진행도 0~1
         [SerializeField] bool buoyReady;      // 정화 부유체 제작 완료(설치 대기)
-        [SerializeField] int buoyStage;       // 정화 부유체 단계 0~3 (수심 게이트: 0=~15m 1=~35m 2=~50m 3=클리어)
+        [SerializeField] int pendingBuoyStage; // 제작 완료 후 설치 대기 중인 부유체 단계
+        [SerializeField] int buoyStage;       // 설치 완료 부유체 단계 0~3 (수심 게이트: 0=~15m 1=~35m 2=~50m 3=클리어)
         [SerializeField] bool hullArmor;      // 내압 프레임 — 오염원 충돌 1회 흡수(제작 장비)
         [SerializeField] int researchProgress; // 연구로 분석한 샘플 수(리셋 대상)
         [SerializeField] List<string> recipes = new();  // 해금된 레시피 id
@@ -46,6 +47,7 @@ namespace Game.Core {
         public int SampleCount => sampleCount;
         public float Purify => purify;
         public bool BuoyReady => buoyReady;
+        public int PendingBuoyStage => pendingBuoyStage;
         public int BuoyStage => buoyStage;
         public bool HullArmor => hullArmor;
         public int ResearchProgress => researchProgress;
@@ -171,9 +173,24 @@ namespace Game.Core {
             maxAnalyzedLevel = Mathf.Max(maxAnalyzedLevel, level);
         }
 
-        // 정화 부유체 단계 설정(수심 게이트)
+        // 설치 완료된 부유체 단계 설정 — 수심 게이트는 이 값만 사용
         public void SetBuoyStage(int s) {
             buoyStage = Mathf.Clamp(s, 0, 3);
+        }
+
+        // 제작 완료 후 설치 대기 단계 기록 — 설치 전에는 수심 게이트를 열지 않음
+        public void SetPendingBuoyStage(int s) {
+            pendingBuoyStage = Mathf.Clamp(s, 0, 3);
+        }
+
+        // 설치 완료 처리 — 대기 단계를 실제 수심 게이트 단계로 승격
+        public int InstallPendingBuoy() {
+            int installed = Mathf.Clamp(pendingBuoyStage, 0, 3);
+            if (installed > 0) {
+                SetBuoyStage(installed);
+            }
+            pendingBuoyStage = 0;
+            return installed;
         }
 
         // 내압 프레임 장착/해제
@@ -254,6 +271,9 @@ namespace Game.Core {
         // 정화 부유체 제작 완료 표시
         public void SetBuoyReady(bool v) {
             buoyReady = v;
+            if (!v) {
+                pendingBuoyStage = 0;
+            }
         }
 
         // 연구 진행 1스텝(분석한 샘플 수↑)
@@ -281,6 +301,7 @@ namespace Game.Core {
             sampleCount = 0;
             purify = 0f;
             buoyReady = false;
+            pendingBuoyStage = 0;
             buoyStage = 0;
             hullArmor = false;
             researchProgress = 0;

@@ -8,8 +8,8 @@
       "requestTime": "2026-06-27T01:45:49+09:00",
       "status": "succeeded",
       "model_url": "https://3d.varco.ai/api/objects//api/objects/842467086390ec9b04611aa025a5b636.glb",
-      "glb": "Assets/4.Art/Varco/PurifierModels/purifier_stage1.glb",
-      "bytes": 7709196
+      "glb": "Assets/4.Art/Varco/PurifierModels/hanriver_purifier_buoy_stage01.glb",
+      "bytes": 9863532
     },
     {
       "stage": 2,
@@ -18,8 +18,8 @@
       "requestTime": "2026-06-27T01:45:49+09:00",
       "status": "succeeded",
       "model_url": "https://3d.varco.ai/api/objects//api/objects/96dc82970f275a44dcb3b5d743a54078.glb",
-      "glb": "Assets/4.Art/Varco/PurifierModels/purifier_stage2.glb",
-      "bytes": 10156856
+      "glb": "Assets/4.Art/Varco/PurifierModels/hanriver_purifier_buoy_stage02.glb",
+      "bytes": 9863532
     },
     {
       "stage": 3,
@@ -28,8 +28,8 @@
       "requestTime": "2026-06-27T01:45:49+09:00",
       "status": "succeeded",
       "model_url": "https://3d.varco.ai/api/objects//api/objects/be30567959f79cd9013b440d8456daa1.glb",
-      "glb": "Assets/4.Art/Varco/PurifierModels/purifier_stage3.glb",
-      "bytes": 9979272
+      "glb": "Assets/4.Art/Varco/PurifierModels/hanriver_purifier_buoy_stage03.glb",
+      "bytes": 8837824
     }
   ],
   "updated": 1782492826.755063

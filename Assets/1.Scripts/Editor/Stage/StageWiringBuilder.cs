@@ -155,7 +155,7 @@ namespace Game.Editor.Stage {
             }
             prop.arraySize = 3;
             for (int i = 0; i < 3; i++) {
-                string path = $"{PurifierModelDir}/purifier_stage{i + 1}.glb";
+                string path = $"{PurifierModelDir}/hanriver_purifier_buoy_stage{i + 1:00}.glb";
                 prop.GetArrayElementAtIndex(i).objectReferenceValue = AssetDatabase.LoadAssetAtPath<GameObject>(path);
             }
             so.ApplyModifiedPropertiesWithoutUndo();

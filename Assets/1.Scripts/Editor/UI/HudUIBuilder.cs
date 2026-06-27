@@ -634,6 +634,7 @@ namespace Game.Editor.UI {
             var resExtSo = new SerializedObject(resExt);
             AssignRef(resExtSo, "run",        run);
             AssignRef(resExtSo, "research",   research);
+            AssignRef(resExtSo, "panel",      resComp);
             AssignRef(resExtSo, "smp1Text",   smp1Txt);
             AssignRef(resExtSo, "smp2Text",   smp2Txt);
             AssignRef(resExtSo, "smp3Text",   smp3Txt);

@@ -25,8 +25,9 @@ namespace Game.UI {
 
         // 직전 표시값 캐시(매 프레임 재할당 방지)
         float lastSteel0 = -1f, lastSteel1 = -1f, lastSteel2 = -1f;
-        int lastSmp = -1, lastPts = -1, lastBuoy = -1;
+        int lastSmp = -1, lastPts = -1, lastBuoy = -1, lastPendingBuoy = -1;
         float lastWeight = -1f;
+        bool lastBuoyReady;
 
         void Awake() {
             // 미연결 참조 자동 탐색 — 수상 잠수 트리거용
@@ -91,14 +92,18 @@ namespace Game.UI {
             int smp = run.TotalBankSamples;
             int pts  = research != null ? research.Points : 0;
             int buoy = run.BuoyStage;
+            int pending = run.PendingBuoyStage;
+            bool ready = run.BuoyReady;
             float w  = run.Weight;
             if (Mathf.Approximately(s0, lastSteel0) && Mathf.Approximately(s1, lastSteel1)
                 && Mathf.Approximately(s2, lastSteel2) && smp == lastSmp
-                && pts == lastPts && buoy == lastBuoy && Mathf.Approximately(w, lastWeight)) {
+                && pts == lastPts && buoy == lastBuoy && pending == lastPendingBuoy
+                && ready == lastBuoyReady && Mathf.Approximately(w, lastWeight)) {
                 return;
             }
             lastSteel0 = s0; lastSteel1 = s1; lastSteel2 = s2;
-            lastSmp = smp; lastPts = pts; lastBuoy = buoy; lastWeight = w;
+            lastSmp = smp; lastPts = pts; lastBuoy = buoy; lastPendingBuoy = pending;
+            lastBuoyReady = ready; lastWeight = w;
             Refresh();
         }
 
@@ -143,12 +148,44 @@ namespace Game.UI {
                     $"현재 분석 포인트: {pts} / {need}pt\n" +
                     $"다음: {GetNextAgentName()} 해금 필요";
             } else {
-                float depth = run.MaxDepth();
-                goalBodyText.text =
-                    $"부유체 {buoy}단계 완료 — 수심 {depth:0}m 탐사 가능\n" +
-                    $"부유체를 설치하고 다음 구역으로 진입하세요.\n" +
-                    $"설치 대기: {(run.BuoyReady ? "준비됨" : "제작 필요")}";
+                goalBodyText.text = BuildBuoyGoalText(buoy);
             }
+        }
+
+        // 부유체 제작·설치 단계 안내 — 수면 거점에서 다음 행동을 바로 알 수 있게 표시
+        string BuildBuoyGoalText(int buoy) {
+            if (run == null) {
+                return "";
+            }
+            if (run.BuoyReady) {
+                int pending = Mathf.Max(1, run.PendingBuoyStage);
+                return
+                    $"정화 부유체 {StageName(pending)} 설치 대기\n" +
+                    $"[잠수] 후 정화 지점에서 [F]키를 길게 누르세요.\n" +
+                    $"설치 완료 후 다음 수심 구역이 열립니다.";
+            }
+            if (buoy <= 0) {
+                return
+                    "정화 약품 해금 완료\n" +
+                    "다음: 부유체 Ⅰ 제작 후 설치\n" +
+                    "[제작] 탭에서 첫 정화 부유체를 준비하세요.";
+            }
+            int next = Mathf.Clamp(buoy + 1, 1, 3);
+            if (buoy < 3) {
+                return
+                    $"정화 부유체 {StageName(buoy)} 가동 중\n" +
+                    $"다음: 부유체 {StageName(next)} 제작 후 설치\n" +
+                    $"[제작] 탭에서 다음 단계 부유체를 준비하세요.";
+            }
+            return "모든 정화 부유체 설치 완료\n구역 정화 마무리 단계입니다.";
+        }
+
+        string StageName(int stage) {
+            return Mathf.Clamp(stage, 1, 3) switch {
+                1 => "Ⅰ",
+                2 => "Ⅱ",
+                _ => "Ⅲ"
+            };
         }
 
         // 버튼 활성 상태 — 패널 열기는 조건 최소화(가능 항목 판단은 패널 내부에서)

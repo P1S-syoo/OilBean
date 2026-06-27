@@ -18,7 +18,7 @@ namespace Game.Stage {
         [SerializeField] Vector3[] stageScales = {
             new(3.2f, 3.2f, 3.2f),
             new(4.4f, 4.4f, 4.4f),
-            new(5.8f, 5.8f, 5.8f)
+            new(11.6f, 11.6f, 11.6f)
         };
         [SerializeField] float floatBob = 0.18f;
         [SerializeField] float spinDegPerSec = 12f;
@@ -27,6 +27,8 @@ namespace Game.Stage {
         Light glow;
         Camera mainCam;
         GameObject marker;
+        GameObject clearPatch;
+        GameObject clearColumn;
 
         void Awake() {
             if (installer == null) {
@@ -86,6 +88,7 @@ namespace Game.Stage {
                 marker.SetActive(false);   // 설치 후에는 큰 마커 대신 실제 정화체만 보이게 함
             }
             EnsureGlow(stage);
+            ShowCleanSection(stage, instant);
             if (!instant) {
                 current.transform.DOScale(TargetScale(stage), 0.85f)
                     .SetEase(Ease.OutBack)
@@ -106,10 +109,14 @@ namespace Game.Stage {
             var prefab = stagePrefabs != null && stagePrefabs.Length >= stage ? stagePrefabs[stage - 1] : null;
 #if UNITY_EDITOR
             if (prefab == null) {
-                prefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{StageModelDir}/purifier_stage{stage}.glb");
+                prefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{StageModelDir}/{StageAssetName(stage)}");
             }
 #endif
             return prefab;
+        }
+
+        static string StageAssetName(int stage) {
+            return $"hanriver_purifier_buoy_stage{Mathf.Clamp(stage, 1, 3):00}.glb";
         }
 
         void BuildAura(Transform parent, int stage) {
@@ -185,6 +192,7 @@ namespace Game.Stage {
             var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
             var mat = new Material(shader) { name = name };
             mat.color = color;
+            ConfigureTransparency(mat, color);
             return mat;
         }
 
@@ -192,7 +200,29 @@ namespace Game.Stage {
             var shader = Shader.Find("Sprites/Default") ?? Shader.Find("Universal Render Pipeline/Unlit");
             var mat = new Material(shader) { name = name };
             mat.color = color;
+            ConfigureTransparency(mat, color);
             return mat;
+        }
+
+        // 알파가 있는 정화 패치/빛 기둥이 실제 반투명으로 렌더되게 설정
+        void ConfigureTransparency(Material mat, Color color) {
+            if (mat == null || color.a >= 0.99f) {
+                return;
+            }
+            if (mat.HasProperty("_BaseColor")) {
+                mat.SetColor("_BaseColor", color);
+            }
+            if (mat.HasProperty("_Color")) {
+                mat.SetColor("_Color", color);
+            }
+            if (mat.HasProperty("_Surface")) {
+                mat.SetFloat("_Surface", 1f);
+            }
+            mat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            mat.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            mat.SetFloat("_ZWrite", 0f);
+            mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
         }
 
         Vector3 SurfacePosition() {
@@ -224,12 +254,75 @@ namespace Game.Stage {
                     stage >= 3 ? new Color(0.58f, 0.78f, 0.9f) : new Color(0.44f, 0.66f, 0.74f),
                     1.2f)
                 .SetTarget(this);
+            if (stage >= 3) {
+                PlayFinalCleansePulse();
+            }
             if (mainCam != null && stage >= 3) {
                 float fov = mainCam.fieldOfView;
                 DOTween.Sequence().SetTarget(this)
                     .Append(DOTween.To(() => mainCam.fieldOfView, v => mainCam.fieldOfView = v, fov - 8f, 0.65f).SetEase(Ease.OutCubic))
                     .Append(DOTween.To(() => mainCam.fieldOfView, v => mainCam.fieldOfView = v, fov, 1.1f).SetEase(Ease.InOutCubic));
             }
+        }
+
+        // 정화 구역만 맑은 물 패치와 빛 기둥으로 표시 — 강 전체 탁도는 유지해 섹션이 나뉘어 보임
+        void ShowCleanSection(int stage, bool instant) {
+            float radius = 13f + stage * 6f;
+            EnsureCleanPatch(radius);
+            EnsureCleanColumn(radius, stage);
+            clearPatch.transform.localScale = new Vector3(radius, 0.018f, radius);
+            clearColumn.transform.localScale = new Vector3(radius * 0.55f, 10f + stage * 3f, radius * 0.55f);
+            if (instant) {
+                return;
+            }
+            clearPatch.transform.localScale = Vector3.zero;
+            clearColumn.transform.localScale = Vector3.zero;
+            clearPatch.transform.DOScale(new Vector3(radius, 0.018f, radius), 1.4f)
+                .SetEase(Ease.OutCubic)
+                .SetTarget(this);
+            clearColumn.transform.DOScale(new Vector3(radius * 0.55f, 10f + stage * 3f, radius * 0.55f), 1.1f)
+                .SetEase(Ease.OutCubic)
+                .SetTarget(this);
+        }
+
+        void EnsureCleanPatch(float radius) {
+            if (clearPatch != null) {
+                clearPatch.transform.position = SurfacePosition() + Vector3.up * 0.04f;
+                return;
+            }
+            clearPatch = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            clearPatch.name = "CleanWaterSection";
+            clearPatch.transform.SetParent(transform, false);
+            clearPatch.transform.position = SurfacePosition() + Vector3.up * 0.04f;
+            DestroyRuntimeSafe(clearPatch.GetComponent<Collider>());
+            var renderer = clearPatch.GetComponent<Renderer>();
+            renderer.sharedMaterial = MakeMat("CleanWaterSectionMat", new Color(0.20f, 0.88f, 1f, 0.42f));
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        }
+
+        void EnsureCleanColumn(float radius, int stage) {
+            if (clearColumn != null) {
+                clearColumn.transform.position = SurfacePosition() + Vector3.up * (5f + stage);
+                return;
+            }
+            clearColumn = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            clearColumn.name = "CleanSkySection";
+            clearColumn.transform.SetParent(transform, false);
+            clearColumn.transform.position = SurfacePosition() + Vector3.up * (5f + stage);
+            DestroyRuntimeSafe(clearColumn.GetComponent<Collider>());
+            var renderer = clearColumn.GetComponent<Renderer>();
+            renderer.sharedMaterial = MakeMat("CleanSkySectionMat", new Color(0.68f, 0.95f, 1f, 0.20f));
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        }
+
+        // 3단계는 구역 패치를 한 번 더 밝게 펄스해 최종 정화를 강조
+        void PlayFinalCleansePulse() {
+            if (clearPatch == null || glow == null) {
+                return;
+            }
+            DOTween.To(() => glow.intensity, v => glow.intensity = v, glow.intensity + 5f, 0.45f)
+                .SetLoops(2, LoopType.Yoyo)
+                .SetTarget(this);
         }
     }
 }

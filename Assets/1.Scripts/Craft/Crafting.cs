@@ -65,8 +65,8 @@ namespace Game.Craft {
             if (run.GetSteel(r.grade) < r.kg) {
                 return false;
             }
-            if (r.effect == Effect.Buoy && run.BuoyStage != (int)r.amount - 1) {
-                return false;   // 직전 단계에서만 다음 부유체 제작(순차)
+            if (r.effect == Effect.Buoy && (run.BuoyReady || run.BuoyStage != (int)r.amount - 1)) {
+                return false;   // 설치 완료 직후 단계에서만 다음 부유체 제작(제작만으로 수심 해금 금지)
             }
             if (r.effect == Effect.Hull && run.HullArmor) {
                 return false;   // 내압 이미 장착
@@ -94,7 +94,7 @@ namespace Game.Craft {
         void ApplyEffect(Recipe r) {
             switch (r.effect) {
                 case Effect.Buoy:
-                    run.SetBuoyStage((int)r.amount);
+                    run.SetPendingBuoyStage((int)r.amount);
                     run.SetBuoyReady(true);
                     OnBuoyCrafted?.Invoke();
                     Debug.Log($"[Crafting] 정화 부유체 {r.amount}단계 제작");
@@ -131,8 +131,11 @@ namespace Game.Craft {
         }
 
         // ── 기존 호환 API (CraftPanel/GameBootstrap) ──
-        // 다음 단계 부유체 id — 현재 BuoyStage+1 (3단계 초과면 null)
+        // 다음 단계 부유체 id — 설치 완료 단계+1 (제작 대기 중이면 추가 제작 금지)
         string NextBuoyId() {
+            if (run != null && run.BuoyReady) {
+                return null;
+            }
             int next = (run != null ? run.BuoyStage : 0) + 1;
             return next <= 3 ? $"buoy_{next}" : null;
         }

@@ -23,6 +23,7 @@ namespace Game.Items {
 
         // 수집 성공/적재 한계 — 사운드·HUD 등이 구독
         public event Action<ResourceKind> OnCollect;
+        public event Action<Pickup> OnCollectDetail;   // 구체 아이템 안내용(기존 OnCollect 호환 유지)
         public event Action OnFull;
         public event Action<bool> OnInteractableChanged;   // 범위 내 대상 유무(E 프롬프트용)
 
@@ -193,6 +194,7 @@ namespace Game.Items {
                 }
             }
             inRange.Remove(target);
+            OnCollectDetail?.Invoke(target);
             OnCollect?.Invoke(target.Kind);
             Destroy(target.gameObject);
             return true;

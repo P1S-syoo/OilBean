@@ -4,6 +4,7 @@ using DG.Tweening;
 using Game.Core;
 using Game.Items;
 using Game.Surface;
+using Game.Stage;
 
 namespace Game.UI {
     // Notice/Toast 공용 표시기 — sticky면 상단 notice처럼 유지, 아니면 잠깐 표시 후 사라짐
@@ -20,6 +21,7 @@ namespace Game.UI {
         [SerializeField] GameBootstrap game;
         [SerializeField] SurfaceBootstrap surface;
         [SerializeField] Collector collector;
+        [SerializeField] PurifyInstaller purify;
 
         CanvasGroup cg;
         float nextTipTime;
@@ -94,6 +96,9 @@ namespace Game.UI {
             if (collector == null) {
                 collector = FindFirstObjectByType<Collector>();
             }
+            if (purify == null) {
+                purify = FindFirstObjectByType<PurifyInstaller>();
+            }
         }
 
         void TickNotice() {
@@ -133,8 +138,14 @@ namespace Game.UI {
             if (surface != null && game.State == GameState.Surface && surface.DiveReady && !surface.ConsoleShown) {
                 return "[E]키를 눌러 정화선 거점을 여세요.";
             }
+            if (game.State == GameState.Dive && purify != null && purify.CanShowInstallNotice) {
+                return "[F]키를 길게 눌러 정화 부유체를 설치하세요.";
+            }
             if (game.State == GameState.Dive && !firstCollectDone && collector != null && collector.HasInteractable) {
                 return "[E]키를 눌러 재료를 수집하세요.";
+            }
+            if (game.State == GameState.Dive) {
+                return "[R]키를 눌러 수면 위 정화선으로 복귀하세요.";
             }
             return "";
         }
@@ -166,7 +177,8 @@ namespace Game.UI {
         static readonly string[] DiveTips = {
             "[WASD]키로 잠수정을 움직일 수 있어요.",
             "[E]키로 가까운 재료를 수집할 수 있어요.",
-            "[R]키로 정화선에 복귀할 수 있어요.",
+            "[F]키는 정화 지점에서 부유체를 설치할 수 있어요.",
+            "[R]키로 수면 위 정화선에 복귀할 수 있어요.",
             "[이동]키로 경고 방향의 위험체를 피할 수 있어요.",
             "[수심] 제한선 아래로는 더 내려갈 수 없어요."
         };

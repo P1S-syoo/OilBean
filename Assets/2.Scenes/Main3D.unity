@@ -50949,7 +50949,7 @@ MonoBehaviour:
   stageScales:
   - {x: 3.2, y: 3.2, z: 3.2}
   - {x: 4.4, y: 4.4, z: 4.4}
-  - {x: 5.8, y: 5.8, z: 5.8}
+  - {x: 11.6, y: 11.6, z: 11.6}
   floatBob: 0.18
   spinDegPerSec: 12
 --- !u!114 &1936398773

@@ -11,6 +11,7 @@ namespace Game.UI {
     public class ResearchPanelExtUI : MonoBehaviour {
         [SerializeField] RunData run;
         [SerializeField] Research research;
+        [SerializeField] ResearchPanel panel;
 
         [SerializeField] TMP_Text smp1Text;   // 오염수준 1 샘플 개수
         [SerializeField] TMP_Text smp2Text;   // 오염수준 2 샘플 개수
@@ -24,10 +25,15 @@ namespace Game.UI {
         [SerializeField] GameObject card3Root;   // agent_strong
 
         // 직전 캐시
-        int lastS1 = -1, lastS2 = -1, lastS3 = -1, lastPts = -1;
+        int lastS1 = -1, lastS2 = -1, lastS3 = -1, lastPts = -1, lastSelected = -1;
         bool lastDone = false;
+        Button[] sampleButtons;
 
         void OnEnable() {
+            if (panel == null) {
+                panel = GetComponent<ResearchPanel>();
+            }
+            EnsureSampleButtons();
             if (research != null) {
                 research.OnUnlocked += OnChanged;
                 research.OnAnalyzed += OnChanged;
@@ -61,12 +67,13 @@ namespace Game.UI {
             int s1 = run.GetSampleCount(1), s2 = run.GetSampleCount(2), s3 = run.GetSampleCount(3);
             int pts = research.Points;
             bool done = research.Done;
+            int selected = panel != null ? panel.SelectedSampleLevel : 0;
             if (s1 == lastS1 && s2 == lastS2 && s3 == lastS3
-                && pts == lastPts && done == lastDone) {
+                && pts == lastPts && done == lastDone && selected == lastSelected) {
                 return;
             }
             lastS1 = s1; lastS2 = s2; lastS3 = s3;
-            lastPts = pts; lastDone = done;
+            lastPts = pts; lastDone = done; lastSelected = selected;
             Refresh();
         }
 
@@ -83,21 +90,66 @@ namespace Game.UI {
             if (run == null) {
                 return;
             }
+            int selected = panel != null ? panel.SelectedSampleLevel : 0;
             if (smp1Text != null) {
                 int n = run.GetSampleCount(1);
-                smp1Text.text = $"{n}";
-                smp1Text.color = n > 0 ? UITheme.TextPrimary : UITheme.TextDisabled;
+                SetSampleText(smp1Text, 1, n, selected);
             }
             if (smp2Text != null) {
                 int n = run.GetSampleCount(2);
-                smp2Text.text = $"{n}";
-                smp2Text.color = n > 0 ? UITheme.TextPrimary : UITheme.TextDisabled;
+                SetSampleText(smp2Text, 2, n, selected);
             }
             if (smp3Text != null) {
                 int n = run.GetSampleCount(3);
-                smp3Text.text = $"{n}";
-                smp3Text.color = n > 0 ? UITheme.TextPrimary : UITheme.TextDisabled;
+                SetSampleText(smp3Text, 3, n, selected);
             }
+        }
+
+        // 샘플 수량 텍스트 — 선택 행만 짧은 화살표로 강조해 잘림 방지
+        void SetSampleText(TMP_Text text, int level, int count, int selected) {
+            bool hasSample = count > 0;
+            bool isSelected = hasSample && selected == level;
+            text.text = isSelected ? $"▶ {count}" : $"{count}";
+            text.color = !hasSample ? UITheme.TextDisabled : isSelected ? UITheme.Accent : UITheme.TextPrimary;
+        }
+
+        // 기존 텍스트 행 위에 투명 버튼을 덮어 클릭 선택 지원(빌더 재생성 불필요)
+        void EnsureSampleButtons() {
+            if (sampleButtons != null || smp1Text == null || smp2Text == null || smp3Text == null) {
+                return;
+            }
+            sampleButtons = new[] {
+                BuildSampleButton(smp1Text, 1),
+                BuildSampleButton(smp2Text, 2),
+                BuildSampleButton(smp3Text, 3)
+            };
+        }
+
+        Button BuildSampleButton(TMP_Text countText, int level) {
+            var parent = countText.transform.parent;
+            var go = new GameObject($"SampleSelect_Lv{level}");
+            go.transform.SetParent(parent, false);
+            var rt = go.AddComponent<RectTransform>();
+            var src = countText.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0f, src.anchorMin.y);
+            rt.anchorMax = new Vector2(1f, src.anchorMax.y);
+            rt.offsetMin = new Vector2(UITheme.SpaceSM, 0f);
+            rt.offsetMax = new Vector2(-UITheme.SpaceSM, 0f);
+            var img = go.AddComponent<Image>();
+            img.color = Color.clear;
+            var btn = go.AddComponent<Button>();
+            btn.transition = Selectable.Transition.None;
+            btn.onClick.AddListener(() => SelectLevel(level));
+            go.transform.SetAsLastSibling();   // 투명 클릭 영역은 텍스트 위에 있어야 이벤트를 받음
+            return btn;
+        }
+
+        void SelectLevel(int level) {
+            if (run == null || run.GetSampleCount(level) <= 0 || panel == null) {
+                return;
+            }
+            panel.SelectSampleLevel(level);
+            Refresh();
         }
 
         // 분석 진행 게이지
