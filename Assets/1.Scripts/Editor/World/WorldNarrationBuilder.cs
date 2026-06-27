@@ -9,7 +9,7 @@ namespace Game.EditorTools {
     // E5(내레이션)·E6(깊이 해저드 스트리머) 씬 배선 — 단일 해저드 프리팹 생성 + 스트리머/내레이션 GO 배선
     public static class WorldNarrationBuilder {
         const string HAZARD_PREFAB = "Assets/3.Prefabs/Main3D/HazardUnit.prefab";
-        const string WARN_SPRITE = "Assets/4.Art/UI/icons/icon_warning.png";
+        const string WARN_SPRITE = "Assets/4.Art/UI/icons/icon_warning_cutout.png";
 
         [MenuItem("Tools/한강/World/E5·E6 배선")]
         public static void Build() {
@@ -27,6 +27,7 @@ namespace Game.EditorTools {
         static GameObject EnsureHazardPrefab() {
             var existing = AssetDatabase.LoadAssetAtPath<GameObject>(HAZARD_PREFAB);
             if (existing != null) {
+                EnsureHazardSprite(existing);
                 return existing;
             }
             var go = new GameObject("HazardUnit");
@@ -42,6 +43,7 @@ namespace Game.EditorTools {
                 col.isTrigger = true;
                 col.radius = 0.55f;
                 var hz = go.AddComponent<Hazard>();
+                AssignHazardSprite(hz);
                 // 좌우 순환 patrol(private 직렬화 필드) — SerializedObject로 주입
                 var so = new SerializedObject(hz);
                 var pts = so.FindProperty("points");
@@ -64,6 +66,24 @@ namespace Game.EditorTools {
             }
         }
 
+        static void EnsureHazardSprite(GameObject prefab) {
+            var path = AssetDatabase.GetAssetPath(prefab);
+            var root = PrefabUtility.LoadPrefabContents(path);
+            try {
+                var hz = root.GetComponent<Hazard>() ?? root.AddComponent<Hazard>();
+                AssignHazardSprite(hz);
+                PrefabUtility.SaveAsPrefabAsset(root, path);
+            } finally {
+                PrefabUtility.UnloadPrefabContents(root);
+            }
+        }
+
+        static void AssignHazardSprite(Hazard hazard) {
+            var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(WARN_SPRITE);
+            var so = new SerializedObject(hazard);
+            AssignRef(so, "warnSprite", sprite);
+        }
+
         // 깊이 해저드 스트리머 GO 생성 + target(Sub)/hazardPrefab 배선
         static void BuildHazardStreamer(GameObject prefab) {
             var existing = GameObject.Find("HazardStreamer");
@@ -80,6 +100,10 @@ namespace Game.EditorTools {
             var sub = GameObject.Find("Sub");
             if (sub != null) {
                 AssignRef(so, "target", sub.transform);
+            }
+            var cam = Camera.main;
+            if (cam != null) {
+                AssignRef(so, "diveCam", cam);
             }
             AssignRef(so, "hazardPrefab", prefab);
         }

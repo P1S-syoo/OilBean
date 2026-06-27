@@ -14,6 +14,7 @@ namespace Game.Items {
         [SerializeField] float pickupRadius;   // 수집 감지 반경 — 기본값은 수집설정.수집반경
         [SerializeField] 수집설정 config;    // 수집 설정 — 연결 시 수집 반경 덮어씀(미연결 시 위 기본값 유지)
         [SerializeField] Game.UI.CollectMinigame minigame;   // 수집 미니게임(미연결 시 즉시 수집 폴백)
+        [SerializeField] GameBootstrap game;   // Dive 상태에서만 수집 허용
 
         Pickup pendingTarget;   // 미니게임 진행 중인 수집 대상
 
@@ -28,6 +29,10 @@ namespace Game.Items {
         Pickup highlightTarget;   // 현재 강조 중인 최근접 대상
         Game.Player.PlayerMove mover;   // 미니게임 중 이동 잠금용
         Game.Player.HazardDetector hazard;   // 미니게임(이동 잠금) 동안 피격 면제용
+        bool moveLocked;   // 수집 미니게임이 이동을 잠갔는지
+        bool collectionStateCleared;   // 수면 상태 정리 반복 호출 방지
+
+        public bool HasInteractable => highlightTarget != null;
 
         void Awake() {
             try {
@@ -44,6 +49,7 @@ namespace Game.Items {
                 interact = new InputAction("Interact", InputActionType.Button, "<Keyboard>/e");
                 mover = GetComponent<Game.Player.PlayerMove>();   // 미니게임 중 정지용(같은 잠수정)
                 hazard = GetComponentInParent<Game.Player.HazardDetector>();   // 같은 잠수정의 오염원 감지기(면제 토글)
+                game = game != null ? game : FindFirstObjectByType<GameBootstrap>();
             } catch (Exception e) {
                 Debug.LogError($"[Collector] Awake 오류: {e.Message}\n{e.StackTrace}");
             }
@@ -70,6 +76,9 @@ namespace Game.Items {
         }
 
         void OnTriggerEnter2D(Collider2D other) {
+            if (!CanCollectNow()) {
+                return;
+            }
             var p = other.GetComponent<Pickup>();
             if (p != null) {
                 inRange.Add(p);
@@ -91,6 +100,11 @@ namespace Game.Items {
 
         // 최근접 대상 강조 갱신 — 진입 효과(하이라이트) + E 프롬프트 이벤트
         void Update() {
+            if (!CanCollectNow()) {
+                ClearCollectionState();
+                return;
+            }
+            RestoreCollectionState();
             var n = Nearest();
             if (n == highlightTarget) {
                 return;
@@ -106,6 +120,10 @@ namespace Game.Items {
         }
 
         void OnInteract(InputAction.CallbackContext ctx) {
+            if (!CanCollectNow()) {
+                ClearCollectionState();
+                return;
+            }
             // 미니게임 미배선 — 즉시 수집(폴백, 테스트 호환)
             if (minigame == null) {
                 TryCollectNearest();
@@ -138,9 +156,8 @@ namespace Game.Items {
 
         // 미니게임 중 잠수정 이동 잠금/해제 — 잠금 동안엔 회피 불가라 오염원 피격도 면제
         void SetMoveLock(bool locked) {
-            if (mover != null) {
-                mover.enabled = !locked;
-            }
+            moveLocked = locked;
+            ApplyMoveState();
             if (hazard != null) {
                 hazard.SetImmune(locked);
             }
@@ -148,11 +165,17 @@ namespace Game.Items {
 
         // 가장 가까운 근접 Pickup 1개 획득 시도(테스트도 직접 호출)
         public bool TryCollectNearest() {
+            if (!CanCollectNow()) {
+                return false;
+            }
             return CollectTarget(Nearest());
         }
 
         // 지정 대상 수집 — 적재/입고/이벤트/파괴(미니게임 성공·즉시 수집 공용)
         bool CollectTarget(Pickup target) {
+            if (!CanCollectNow()) {
+                return false;
+            }
             if (run == null || target == null) {
                 return false;
             }
@@ -173,6 +196,49 @@ namespace Game.Items {
             OnCollect?.Invoke(target.Kind);
             Destroy(target.gameObject);
             return true;
+        }
+
+        // 수집은 2D 잠수 상태에서만 허용한다
+        bool CanCollectNow() {
+            if (game == null) {
+                game = FindFirstObjectByType<GameBootstrap>();
+            }
+            return game == null || game.State == GameState.Dive;
+        }
+
+        // 수면 복귀 등으로 수집 불가가 되면 진행·강조를 모두 정리한다
+        void ClearCollectionState() {
+            if (collectionStateCleared) {
+                return;
+            }
+            collectionStateCleared = true;
+            if (minigame != null && minigame.Active) {
+                minigame.Cancel();
+            }
+            SetMoveLock(false);
+            pendingTarget = null;
+            inRange.Clear();
+            if (highlightTarget != null) {
+                highlightTarget.SetHighlighted(false);
+                highlightTarget = null;
+                OnInteractableChanged?.Invoke(false);
+            }
+        }
+
+        // Dive 재진입 시 Surface에서 꺼둔 2D 이동을 복구한다
+        void RestoreCollectionState() {
+            if (!collectionStateCleared) {
+                return;
+            }
+            collectionStateCleared = false;
+            ApplyMoveState();
+        }
+
+        // 현재 게임 상태와 미니게임 잠금 상태를 합쳐 이동 가능 여부를 정한다
+        void ApplyMoveState() {
+            if (mover != null) {
+                mover.enabled = CanCollectNow() && !moveLocked;
+            }
         }
 
         // 파괴된 항목은 건너뛰고 최근접 선택

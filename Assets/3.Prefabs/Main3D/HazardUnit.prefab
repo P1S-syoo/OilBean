@@ -79,8 +79,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: cd5e8a6012c0143009cc8e9726975791, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Game::Game.Items.Hazard
   poisonMat: {fileID: 2100000, guid: 0be28148d1a054e11b119a5ecb18e590, type: 2}
-  warnSprite: {fileID: 21300000, guid: 64c0a3eb1f01ade43b965c31033d6053, type: 3}
+  warnSprite: {fileID: 21300000, guid: 7d4acc6bdbfac4218a2bd984a003b604, type: 3}
   bodyScale: 1.4
+  warnScale: 0.48
+  hitBoxSize: {x: 0.88, y: 0.48}
+  config: {fileID: 0}

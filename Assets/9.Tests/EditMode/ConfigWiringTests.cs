@@ -5,14 +5,15 @@ using UnityEngine;
 using Game.Core;
 
 namespace Game.Tests {
-    // 8개 카테고리 설정 .asset이 Assets/3.Data/Config에 실제 존재하는지 단언 — 누락 시 실패시켜 생성·커밋을 강제(C2 완료 게이트)
+    // 9개 카테고리 설정 .asset이 Assets/3.Data/Config에 실제 존재하는지 단언 — 누락 시 실패시켜 생성·커밋을 강제(C2 완료 게이트)
     public class ConfigWiringTests {
         const string ConfigDir = "Assets/3.Data/Config";
 
-        // 생성·배선 대상 8개 카테고리 타입 (게임설정도구.CategoryTypes와 동일해야 함)
+        // 생성·배선 대상 9개 카테고리 타입 (게임설정도구.CategoryTypes와 동일해야 함)
         static readonly Type[] CategoryTypes = {
             typeof(수면위설정),
             typeof(잠수설정),
+            typeof(월드설정),
             typeof(오디오설정),
             typeof(위험설정),
             typeof(수집설정),

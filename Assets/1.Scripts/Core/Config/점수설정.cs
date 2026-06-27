@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Game.Core {
     // 점수(콤보·등급) 설정
@@ -14,7 +15,9 @@ namespace Game.Core {
         public int 기본점수 = 100;          // 수집 1회 기본 점수
 
         [Header("등급 임계값")]
-        public int S등급 = 5000;            // S 등급 점수 임계값
-        public int A등급 = 2500;            // A 등급 점수 임계값
+        [FormerlySerializedAs("S등급")]
+        public int S등급점수 = 5000;            // S 등급 점수 임계값
+        [FormerlySerializedAs("A등급")]
+        public int A등급점수 = 2500;            // A 등급 점수 임계값
     }
 }

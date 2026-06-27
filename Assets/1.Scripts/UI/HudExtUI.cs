@@ -17,7 +17,7 @@ namespace Game.UI {
         [SerializeField] TMP_Text batteryPct;    // "100%" 퍼센트 텍스트
         [SerializeField] Image cargoFill;         // 적재 게이지 fillAmount
         [SerializeField] TMP_Text cargoText;      // "X / Y kg" 적재 수치 전용
-        [SerializeField] TMP_Text depthText;      // "수심 Xm" 텍스트
+        [SerializeField] TMP_Text depthText;      // "Xm 하강" 텍스트
         [SerializeField] RectTransform depthMarker;   // 수심 밴드 위 현재 수심 마커
         [SerializeField] TMP_Text missionText;    // 좌하 임무 안내(부유체 단계 기반)
         [SerializeField] GameObject warnBanner;   // 상단 경고 배너 루트
@@ -25,9 +25,12 @@ namespace Game.UI {
         [SerializeField] TMP_Text toastText;      // 토스트 메시지
         [SerializeField] GameObject interactPrompt;   // "E 정제" 상호작용 프롬프트(범위 진입 시)
         [SerializeField] 잠수설정 config;             // 잠수 설정 — 연결 시 수심 경고 임계 덮어씀(미연결 시 아래 기본값 유지)
+        [SerializeField] 수집설정 collectConfig;       // 수집 설정 — 적재 경고 기준 적용
 
         float dangerDepth;   // 위험색 표시 수심(m) — 기본값은 잠수설정.위험수심
         float warnDepth;     // 경고색 표시 수심(m) — 기본값은 잠수설정.경고수심
+        float lowRatio = 0.2f;          // 저배터리 경고 임계값
+        float minPickupWeight = 5f;     // 가장 가벼운 픽업도 못 실으면 적재 한계로 판정
 
         // 직전 캐시(변경 시에만 갱신)
         float lastRatio = -1f, lastW = -1f, lastMax = -1f;
@@ -41,6 +44,8 @@ namespace Game.UI {
                 var cfg = config != null ? config : Game.Core.잠수설정.기본;
                 dangerDepth = cfg.위험수심;
                 warnDepth = cfg.경고수심;
+                lowRatio = cfg.배터리경고비율;
+                minPickupWeight = (collectConfig != null ? collectConfig : 수집설정.기본).최소수집무게;
             } catch (System.Exception e) {
                 Debug.LogError($"[HudExtUI] 설정 적용 실패: {e.Message}");
             }
@@ -98,7 +103,7 @@ namespace Game.UI {
             int pct = Mathf.RoundToInt(ratio * 100f);
             batteryPct.text = $"{pct}%";
             // 저배터리 시 색상 경고
-            batteryPct.color = ratio <= 0.2f ? UITheme.ColDanger
+            batteryPct.color = ratio <= lowRatio ? UITheme.ColDanger
                              : ratio <= 0.4f ? UITheme.ColWarn
                              : UITheme.TextPrimary;
         }
@@ -130,7 +135,7 @@ namespace Game.UI {
             // 플레이어 오브젝트는 HudExtUI 와 같은 씬에 존재 — GameObject.Find 대신 Transform 캐시
             float depth = Mathf.Max(0f, DepthMap.WorldToDepth(GetPlayerY()));
             if (depthText != null) {
-                depthText.text = $"수심 {depth:0}m";
+                depthText.text = $"{depth:0}m 하강";
                 depthText.color = depth > dangerDepth ? UITheme.ColDanger
                                 : depth > warnDepth ? UITheme.ColWarn
                                 : UITheme.ColInfo;
@@ -178,8 +183,8 @@ namespace Game.UI {
                 return;
             }
             bool battDead = battery != null && battery.Ratio <= 0f;
-            bool battLow  = battery != null && battery.Ratio > 0f && battery.Ratio <= 0.2f;
-            bool cargoFull = run != null && !run.HasRoom(5f);
+            bool battLow  = battery != null && battery.Ratio > 0f && battery.Ratio <= lowRatio;
+            bool cargoFull = run != null && !run.HasRoom(minPickupWeight);
             bool show = battDead || battLow || cargoFull;
             if (warnBanner.activeSelf != show) {
                 warnBanner.SetActive(show);

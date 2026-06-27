@@ -6,8 +6,9 @@ namespace Game.Surface {
     // 덱 위 3인칭 캐릭터 — 카메라 기준 WASD 로컬 이동, 덱 경계 클램프(물에 못 떨어짐)
     public class DeckCharacter : MonoBehaviour {
         [SerializeField] Transform cam;                          // 이동 방향 기준 카메라(미연결 시 Camera.main)
-        [SerializeField] float moveSpeed;                        // 보행 속도 — 기본값은 수면위설정.덱속도
-        [SerializeField] float turnSpeed;                        // 이동 방향 회전 보간 속도 — 기본값은 수면위설정.덱회전
+        [SerializeField] float moveSpeed;                        // 보행 속도 — 기본값은 수면위설정.덱보행속도
+        [SerializeField] float turnSpeed;                        // 이동 방향 회전 보간 속도 — 기본값은 수면위설정.덱회전속도
+        [SerializeField] Vector2 deckCenter = Vector2.zero;      // 보행 가능 구역 중심(로컬 x,z)
         [SerializeField] Vector2 deckHalf = new(1.8f, 4.6f);    // 덱 절반 크기(로컬 x, z) — 1차 클램프(거친 한계)
         [SerializeField] Animator animator;                      // 선택 — 이동 시 Speed 파라미터로 모션 전환
         [SerializeField] Collider[] deckColliders;               // 선체 메시 콜라이더 — 실제 표면 위로만 보행 허용
@@ -31,8 +32,8 @@ namespace Game.Surface {
             try {
                 // 통합 설정 적용 — 미연결 시 SO 기본값 사용(중복 제거)
                 var cfg = config != null ? config : Game.Core.수면위설정.기본;
-                moveSpeed = cfg.덱속도;
-                turnSpeed = cfg.덱회전;
+                moveSpeed = cfg.덱보행속도;
+                turnSpeed = cfg.덱회전속도;
                 if (cam == null && Camera.main != null) {
                     cam = Camera.main.transform;
                 }
@@ -112,8 +113,8 @@ namespace Game.Surface {
             localDir.y = 0f;
             Vector3 p = transform.localPosition + localDir * (moveSpeed * mag * dt);
             // 1차 클램프(거친 한계) 후 선체 표면 검사 — 표면 밖/가파른 측면이면 이동 취소
-            p.x = Mathf.Clamp(p.x, -deckHalf.x, deckHalf.x);
-            p.z = Mathf.Clamp(p.z, -deckHalf.y, deckHalf.y);
+            p.x = Mathf.Clamp(p.x, deckCenter.x - deckHalf.x, deckCenter.x + deckHalf.x);
+            p.z = Mathf.Clamp(p.z, deckCenter.y - deckHalf.y, deckCenter.y + deckHalf.y);
             if (TrySnapToDeck(p, out var snapped)) {
                 snapped.y = Mathf.MoveTowards(transform.localPosition.y, snapped.y, snapLerp * dt);
                 transform.localPosition = snapped;
@@ -162,7 +163,7 @@ namespace Game.Surface {
                 if (c == null) {
                     continue;
                 }
-                // XZ 사전 컬링 — 하향 레이의 기둥이 콜라이더 XZ 밖이면 적중 불가(요철 그리드 다수 셀 비용 절감)
+                // XZ 사전 컬링 — 하향 레이의 기둥이 콜라이더 XZ 밖이면 적중 불가(다중 콜라이더 비용 절감)
                 var bb = c.bounds;
                 if (origin.x < bb.min.x || origin.x > bb.max.x || origin.z < bb.min.z || origin.z > bb.max.z) {
                     continue;

@@ -55,6 +55,8 @@ namespace Game.Narrative {
             var cfg = config != null ? config : Game.Core.연출설정.기본;
             charDelay = cfg.글자속도;
             fadeTime = cfg.페이드시간;
+            panelH = cfg.대사창높이;
+            panelBottom = cfg.대사창하단여백;
         }
 
         // 런타임 UI 빌드 — 씬에 전용 Canvas + 패널을 직접 생성

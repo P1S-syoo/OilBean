@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Game.Core {
     // 연출(내레이션·미니게임) 설정
@@ -12,10 +13,28 @@ namespace Game.Core {
         [Header("내레이션 출력")]
         public float 글자속도 = 0.04f;      // 글자 간 딜레이(초)
         public float 페이드시간 = 0.35f;    // 대사창 페이드 시간(초)
+        public float 대사창높이 = 168f;      // 대사창 높이(px)
+        public float 대사창하단여백 = 96f;   // 화면 하단에서 대사창까지 여백(px)
 
         [Header("미니게임 난이도")]
-        public int 미니노드 = 5;            // 연구 미니게임 노드 수
-        public float 미니판정 = 46f;        // 노드 통과 판정 반경(px)
+        [FormerlySerializedAs("미니노드")]
+        public int 연구미니게임노드수 = 5;            // 연구 미니게임 노드 수
+        [FormerlySerializedAs("미니판정")]
+        public float 연구미니게임판정반경 = 46f;        // 노드 통과 판정 반경(px)
+        public float[] 수집미니게임속도 = { 0.9f, 1.3f, 1.8f };          // 오염 농도별 커서 왕복 속도
+        public float[] 수집미니게임타겟반폭 = { 0.16f, 0.11f, 0.07f };  // 오염 농도별 성공 구간 반폭
+
+        [Header("UI 피드백")]
+        public float 팝업시간 = 0.22f;       // 팝업 등장 연출 시간(초)
+        public float 팝업시작크기 = 0.86f;   // 팝업 시작 스케일
+        public float 토스트표시시간 = 2f;    // 토스트 유지 시간(초)
+        public float 토스트페이드시간 = 0.3f; // 토스트 페이드 시간(초)
+        public float 노티스팁간격 = 5f;      // 상단 notice 게임 팁 변경 간격(초)
+
+        [Header("홀로그램")]
+        public float 홀로그램기본알파 = 0.88f;      // 홀로그램 기본 투명도
+        public float 홀로그램깜빡임폭 = 0.16f;      // 홀로그램 미세 깜빡임 폭
+        public float 홀로그램글리치기준 = 0.93f;    // 이 값 이상이면 강한 글리치
 
         [Header("인트로 대사(수면 최초 진입)")]
         [TextArea] public string[] 인트로대사 = {

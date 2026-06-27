@@ -5,15 +5,16 @@ using UnityEngine;
 using Game.Core;
 
 namespace Game.Editor.Tools {
-    // 게임 설정 도구 — 8개 카테고리 설정 .asset 생성 + 씬 컴포넌트의 config 필드를 타입별로 자동 배선
+    // 게임 설정 도구 — 9개 카테고리 설정 .asset 생성 + 씬 컴포넌트의 config 필드를 타입별로 자동 배선
     // (옛 통합 설정 창의 씬 배선 패턴 계승 — 단일 통합 자산 대신 카테고리별 자산 주입)
     public class 게임설정도구 : EditorWindow {
         const string ConfigDir = "Assets/3.Data/Config";
 
-        // 생성·배선 대상 8개 카테고리 타입
+        // 생성·배선 대상 9개 카테고리 타입
         static readonly Type[] CategoryTypes = {
             typeof(수면위설정),
             typeof(잠수설정),
+            typeof(월드설정),
             typeof(오디오설정),
             typeof(위험설정),
             typeof(수집설정),
@@ -31,7 +32,7 @@ namespace Game.Editor.Tools {
         void OnGUI() {
             EditorGUILayout.Space(6f);
             EditorGUILayout.LabelField("게임 설정 도구", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox("8개 카테고리 설정 자산을 생성하고, 씬의 컴포넌트 config 필드를 타입에 맞는 자산으로 자동 배선합니다.", MessageType.Info);
+            EditorGUILayout.HelpBox("9개 카테고리 설정 자산을 생성하고, 씬의 컴포넌트 config 필드를 타입에 맞는 자산으로 자동 배선합니다.", MessageType.Info);
             EditorGUILayout.Space(6f);
             if (GUILayout.Button("설정 생성 및 배선", GUILayout.Height(32f))) {
                 CreateAndWire();
@@ -71,32 +72,36 @@ namespace Game.Editor.Tools {
             return wired;
         }
 
-        // 한 객체(컴포넌트/SO)의 config 필드가 카테고리 타입이면 해당 자산을 SerializedObject로 주입 — 배선했으면 true
-        // (씬 컴포넌트·SO 에셋 양쪽이 공유하는 리플렉션+직렬화 주입 1종으로 통일)
+        // 한 객체의 설정 타입 필드를 모두 찾아 해당 자산을 주입 — 여러 설정 참조를 가진 HUD까지 배선
         static bool WireConfigField(UnityEngine.Object obj, Dictionary<Type, ScriptableObject> assets) {
             if (obj == null) {
                 return false;
             }
-            var field = obj.GetType().GetField("config",
-                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            if (field == null || !assets.TryGetValue(field.FieldType, out var asset) || asset == null) {
-                return false;   // config 없거나 카테고리 타입 아님
-            }
-            if (asset == obj) {
-                return false;   // 자기 자신 가리킴 방지(SO가 자기 타입 config를 가질 때)
-            }
             var sso = new SerializedObject(obj);
-            var prop = sso.FindProperty("config");
-            if (prop == null || prop.propertyType != SerializedPropertyType.ObjectReference || prop.objectReferenceValue == asset) {
-                return false;   // 직렬화 프로퍼티 없거나 이미 동일 자산
+            bool changed = false;
+            var flags = System.Reflection.BindingFlags.Public
+                | System.Reflection.BindingFlags.NonPublic
+                | System.Reflection.BindingFlags.Instance;
+            foreach (var field in obj.GetType().GetFields(flags)) {
+                if (!assets.TryGetValue(field.FieldType, out var asset) || asset == null || asset == obj) {
+                    continue;
+                }
+                var prop = sso.FindProperty(field.Name);
+                if (prop == null || prop.propertyType != SerializedPropertyType.ObjectReference || prop.objectReferenceValue == asset) {
+                    continue;
+                }
+                prop.objectReferenceValue = asset;
+                changed = true;
             }
-            prop.objectReferenceValue = asset;
+            if (!changed) {
+                return false;
+            }
             sso.ApplyModifiedProperties();
             EditorUtility.SetDirty(obj);
             return true;
         }
 
-        // 8개 카테고리 .asset 생성(없을 때만) — 타입→자산 매핑 반환
+        // 9개 카테고리 .asset 생성(없을 때만) — 타입→자산 매핑 반환
         static Dictionary<Type, ScriptableObject> CreateConfigAssets(out int created) {
             created = 0;
             var map = new Dictionary<Type, ScriptableObject>();

@@ -9,21 +9,21 @@ namespace Game.World {
     public class CollectibleStreamer : MonoBehaviour {
         [SerializeField] Transform target;          // 2.5D 플레이어(잠수정)
         [SerializeField] ItemDataTable table;       // 수집물 마스터 데이터
-        [SerializeField] float cellWidth;           // 셀 폭(u) — 기본값은 수집설정.셀폭
-        [SerializeField] int radiusCells;           // 좌우 로드 반경(셀) — 기본값은 수집설정.로드반경
+        [SerializeField] float cellWidth;           // 셀 폭(u) — 기본값은 수집설정.수집물생성간격
+        [SerializeField] int radiusCells;           // 좌우 로드 반경(셀) — 기본값은 수집설정.수집물로드반경
         [SerializeField] int slotsPerCell = 2;      // (호환) 기본 슬롯 — 하이브리드에서는 군집/개방 슬롯이 우선(config 비대상)
         [SerializeField] int density = 70;          // (호환) 기본 채움 확률(config 비대상)
         [SerializeField] float colliderRadius;      // 수집 트리거 월드 반경(m) — 기본값은 수집설정.트리거반경
-        [SerializeField] float zSpread;             // 오염체 z축 분산 폭 — 기본값은 수집설정.깊이분산
+        [SerializeField] float zSpread;             // 오염체 z축 분산 폭 — 기본값은 수집설정.수집물앞뒤흩어짐
 
         [Header("하이브리드 배치 — 난파 군집 + 개방 수역")]
         [SerializeField] float clusterInterval;        // 난파 군집 간격(u) — 기본값은 수집설정.군집간격
         [SerializeField] float clusterRadius;          // 군집 반경(u) — 기본값은 수집설정.군집반경
-        [SerializeField] float bridgeAnchorX;          // 양화대교 잔해 X — 기본값은 수집설정.다리기준(BridgePlacer와 일치)
-        [SerializeField] int clusterSlots;             // 군집 셀 슬롯 수 — 기본값은 수집설정.군집슬롯
-        [SerializeField] int clusterDensity;           // 군집 채움 확률(%) — 기본값은 수집설정.군집밀도
-        [SerializeField] int openSlots;                // 개방 수역 셀 슬롯 수 — 기본값은 수집설정.개방슬롯
-        [SerializeField] int openDensity;              // 개방 수역 채움 확률(%) — 기본값은 수집설정.개방밀도
+        [SerializeField] float bridgeAnchorX;          // 정화구역 중심 X — 기본값은 수집설정.정화구역중심X(BridgePlacer와 일치)
+        [SerializeField] int clusterSlots;             // 군집 셀 슬롯 수 — 기본값은 수집설정.군집수집물칸수
+        [SerializeField] int clusterDensity;           // 군집 채움 확률(%) — 기본값은 수집설정.군집생성확률
+        [SerializeField] int openSlots;                // 개방 수역 셀 슬롯 수 — 기본값은 수집설정.일반수집물칸수
+        [SerializeField] int openDensity;              // 개방 수역 채움 확률(%) — 기본값은 수집설정.일반생성확률
         [SerializeField] 수집설정 config;            // 수집 설정 — 연결 시 스폰/군집 수치 덮어씀(미연결 시 위 기본값 유지)
 
         public const float SpawnTopMargin = 0.5f;   // 수면 아래 여유(u) — 얕은 수집물도 수면 근처까지
@@ -38,17 +38,17 @@ namespace Game.World {
             try {
                 // 통합 설정 적용 — 미연결 시 SO 기본값 사용(중복 제거)
                 var cfg = config != null ? config : 수집설정.기본;
-                cellWidth = cfg.셀폭;
-                radiusCells = cfg.로드반경;
+                cellWidth = cfg.수집물생성간격;
+                radiusCells = cfg.수집물로드반경;
                 colliderRadius = cfg.트리거반경;
-                zSpread = cfg.깊이분산;
+                zSpread = cfg.수집물앞뒤흩어짐;
                 clusterInterval = cfg.군집간격;
                 clusterRadius = cfg.군집반경;
-                clusterSlots = cfg.군집슬롯;
-                clusterDensity = cfg.군집밀도;
-                openSlots = cfg.개방슬롯;
-                openDensity = cfg.개방밀도;
-                bridgeAnchorX = cfg.다리기준;
+                clusterSlots = cfg.군집수집물칸수;
+                clusterDensity = cfg.군집생성확률;
+                openSlots = cfg.일반수집물칸수;
+                openDensity = cfg.일반생성확률;
+                bridgeAnchorX = cfg.정화구역중심X;
             } catch (Exception e) {
                 Debug.LogError($"[CollectibleStreamer] config 적용 실패: {e.Message}");
             }

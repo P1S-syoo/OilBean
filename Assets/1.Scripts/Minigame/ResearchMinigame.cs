@@ -16,8 +16,8 @@ namespace Game.Minigame {
 
         [SerializeField] Game.Core.연출설정 config;   // 연출 설정 — 미연결 시 SO 기본값(연출설정.기본) 사용
 
-        int NodeCount;           // 미니게임 노드 수 — 기본값은 연출설정.미니노드
-        float HitRadius;         // 노드 통과 판정 반경(px) — 기본값은 연출설정.미니판정
+        int NodeCount;           // 미니게임 노드 수 — 기본값은 연출설정.연구미니게임노드수
+        float HitRadius;         // 노드 통과 판정 반경(px) — 기본값은 연출설정.연구미니게임판정반경
 
         GameObject panelRoot;
         RectTransform field;
@@ -35,14 +35,28 @@ namespace Game.Minigame {
             try {
                 // 연출 설정 적용 — 미연결 시 SO 기본값 사용(중복 제거, UI 빌드 전에 적용)
                 var cfg = config != null ? config : Game.Core.연출설정.기본;
-                NodeCount = cfg.미니노드;
-                HitRadius = cfg.미니판정;
+                NodeCount = cfg.연구미니게임노드수;
+                HitRadius = cfg.연구미니게임판정반경;
+                EnsureTopCanvas();
                 BuildUI();
                 if (panelRoot != null) {
                     panelRoot.SetActive(false);
                 }
             } catch (Exception e) {
                 Debug.LogError($"[ResearchMinigame] 설정 적용 실패: {e.Message}");
+            }
+        }
+
+        // 자체 캔버스를 보장해 연구/제작 패널 뒤에 깔리지 않게 한다
+        void EnsureTopCanvas() {
+            var canvas = GetComponent<Canvas>();
+            if (canvas == null) {
+                canvas = gameObject.AddComponent<Canvas>();
+            }
+            canvas.overrideSorting = true;
+            canvas.sortingOrder = 300;
+            if (GetComponent<GraphicRaycaster>() == null) {
+                gameObject.AddComponent<GraphicRaycaster>();
             }
         }
 
@@ -53,6 +67,8 @@ namespace Game.Minigame {
                 Setup();
                 state = State.Open;
                 if (panelRoot != null) {
+                    EnsureTopCanvas();
+                    BringPanelToFront();
                     panelRoot.SetActive(true);
                 }
             } catch (Exception e) {
@@ -60,6 +76,12 @@ namespace Game.Minigame {
                 state = State.Closed;
                 solved?.Invoke();   // 실패해도 분석은 진행(폴백)
             }
+        }
+
+        // 연구 퍼즐은 모달이라 열릴 때 항상 다른 패널보다 위에 둔다
+        void BringPanelToFront() {
+            panelRoot.transform.SetAsLastSibling();
+            transform.SetAsLastSibling();
         }
 
         public void Cancel() {

@@ -13,6 +13,7 @@ namespace Game.Editor.Stage {
     // 코드로 생성하고 GameBootstrap.purify/clearView에 배선(루프 완성). 재실행 시 기존 것 교체.
     public static class StageWiringBuilder {
         const string RunDataPath = "Assets/6.Data/Run_Default.asset";
+        const string PurifierModelDir = "Assets/4.Art/Varco/PurifierModels";
         const float SpotX = 38f;    // 양화대교 잔해 X — 정화 지점을 랜드마크에 정렬
         const float SpotY = 21f;    // 얕은 수심(≈9m) — 모든 부유체 단계에서 도달 가능
         const float SpotRadius = 3.2f;
@@ -124,6 +125,11 @@ namespace Game.Editor.Stage {
             var spot = go.AddComponent<PurifyInstaller>();
             var so = new SerializedObject(spot);
             AssignRef(so, "run", run);
+            var view = go.AddComponent<PurifierStageView>();
+            var vso = new SerializedObject(view);
+            AssignRef(vso, "run", run);
+            AssignRef(vso, "installer", spot);
+            AssignStagePrefabs(vso);
 
             // 청록 마커(빌보드 쿼드) — 플레이어가 정화 지점을 찾도록
             var marker = GameObject.CreatePrimitive(PrimitiveType.Quad);
@@ -144,26 +150,65 @@ namespace Game.Editor.Stage {
             return spot;
         }
 
-        // 액션 피드백 Toast — 하단 중앙 배너(구형 HUD 삭제로 사라진 것 재생성)
+        static void AssignStagePrefabs(SerializedObject so) {
+            var prop = so.FindProperty("stagePrefabs");
+            if (prop == null) {
+                return;
+            }
+            prop.arraySize = 3;
+            for (int i = 0; i < 3; i++) {
+                string path = $"{PurifierModelDir}/purifier_stage{i + 1}.glb";
+                prop.GetArrayElementAtIndex(i).objectReferenceValue = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            }
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        // 상단 Notice + 별도 Toast 슬롯 — notice는 계속 유지, toast는 추후 일회성 메시지용 빈 슬롯
         static Toast BuildToast() {
             var canvas = GameObject.Find("GameCanvas");
             if (canvas == null) {
                 return null;
             }
-            var old = canvas.transform.Find("ActionToast");
+            DestroyChild(canvas.transform, "ActionNotice");
+            DestroyChild(canvas.transform, "ActionToast");
+
+            var noticePanel = UITheme.MakePanel("ActionNotice", canvas.transform,
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(-560f, -118f), new Vector2(560f, -46f),
+                new Color(0.04f, 0.13f, 0.15f, 0.9f));
+            var noticeLabel = UITheme.MakeText("Label", noticePanel.transform, "",
+                UITheme.FontHeading, UITheme.Accent, TextAlignmentOptions.Center);
+            noticeLabel.fontStyle = TMPro.FontStyles.Bold;
+            noticeLabel.enableWordWrapping = false;
+            noticeLabel.overflowMode = TextOverflowModes.Overflow;
+            var notice = noticePanel.AddComponent<Toast>();   // RequireComponent로 CanvasGroup 자동 추가
+            var nso = new SerializedObject(notice);
+            AssignRef(nso, "label", noticeLabel);
+            AssignBool(nso, "sticky", true);
+            AssignBool(nso, "compact", true);
+            AssignBool(nso, "rotateTips", true);
+
+            var toastPanel = UITheme.MakePanel("ActionToast", canvas.transform,
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(-430f, -190f), new Vector2(430f, -130f),
+                new Color(0.03f, 0.22f, 0.26f, 0.88f));
+            var toastLabel = UITheme.MakeText("Label", toastPanel.transform, "",
+                UITheme.FontBody, UITheme.TextPrimary, TextAlignmentOptions.Center);
+            toastLabel.enableWordWrapping = false;
+            toastLabel.overflowMode = TextOverflowModes.Overflow;
+            var toast = toastPanel.AddComponent<Toast>();
+            var tso = new SerializedObject(toast);
+            AssignRef(tso, "label", toastLabel);
+            AssignBool(tso, "compact", true);
+
+            return notice;
+        }
+
+        static void DestroyChild(Transform parent, string name) {
+            var old = parent.Find(name);
             if (old != null) {
                 Object.DestroyImmediate(old.gameObject);
             }
-            var panel = UITheme.MakePanel("ActionToast", canvas.transform,
-                new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-                new Vector2(-230f, 92f), new Vector2(230f, 140f),
-                new Color(0.05f, 0.14f, 0.16f, 0.92f));
-            var label = UITheme.MakeText("Label", panel.transform, "",
-                UITheme.FontBody, UITheme.Accent, TextAlignmentOptions.Center);
-            var toast = panel.AddComponent<Toast>();   // RequireComponent로 CanvasGroup 자동 추가
-            var tso = new SerializedObject(toast);
-            AssignRef(tso, "label", label);
-            return toast;
         }
 
         // SerializedObject 배선 — 호출마다 즉시 적용(직전 미적용 변경 폐기 방지)
@@ -172,6 +217,20 @@ namespace Game.Editor.Stage {
                 var prop = so.FindProperty(propName);
                 if (prop != null) {
                     prop.objectReferenceValue = value;
+                    so.ApplyModifiedPropertiesWithoutUndo();
+                } else {
+                    Debug.LogWarning($"[StageWiringBuilder] 프로퍼티 '{propName}' 못 찾음");
+                }
+            } catch (System.Exception e) {
+                Debug.LogError($"[StageWiringBuilder] 배선 오류 ({propName}): {e.Message}");
+            }
+        }
+
+        static void AssignBool(SerializedObject so, string propName, bool value) {
+            try {
+                var prop = so.FindProperty(propName);
+                if (prop != null) {
+                    prop.boolValue = value;
                     so.ApplyModifiedPropertiesWithoutUndo();
                 } else {
                     Debug.LogWarning($"[StageWiringBuilder] 프로퍼티 '{propName}' 못 찾음");

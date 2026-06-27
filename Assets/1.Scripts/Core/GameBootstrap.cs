@@ -5,6 +5,7 @@ using Game.Player;
 using Game.Stage;
 using Game.UI;
 using Game.Craft;
+using Game.Surface;
 
 namespace Game.Core {
     // 게임 진입점 겸 코디네이터 — FSM/RunData 소유 + 강제 복귀(배터리·적재·충돌) 배선
@@ -19,6 +20,7 @@ namespace Game.Core {
         [SerializeField] ClearView clearView;     // 클리어 연출
         [SerializeField] Research research;        // 연구(해금 토스트용)
         [SerializeField] Crafting crafting;        // 제작(완료 토스트용)
+        [SerializeField] SurfaceBootstrap surface; // 수상 정화구역 도착 게이트
         [SerializeField] Toast toast;              // 행동 피드백 배너
         [SerializeField] bool autoStartDive;      // 3D 씬: 시작 시 바로 탐사 진입
         [SerializeField] bool startOnSurface;     // 수상 항해(Surface)로 시작 — 잠수 전까지 탐사 루프 잠금
@@ -77,6 +79,9 @@ namespace Game.Core {
                     crafting.OnBuoyCrafted += OnBuoyCrafted;
                     crafting.OnUpgraded += OnUpgraded;
                 }
+                if (surface == null) {
+                    surface = FindFirstObjectByType<SurfaceBootstrap>();
+                }
                 if (hazard != null) hazard.OnHit += OnHazardHit;
                 if (purify != null) {
                     purify.OnPurified += OnPurified;
@@ -119,7 +124,7 @@ namespace Game.Core {
             }
             // 인트로 안내 — 수상 거점에서 무엇을 할지(이동→정화 지점에서 잠수, 거점 메뉴)
             if (startOnSurface && toast != null) {
-                toast.Show("정화선 거점 — 강을 따라 정화 지점으로 이동, E로 잠수 (1 연구 · 2 제작)");
+                toast.Show("정화선 거점 — 정화구역 도착 후 E로 거점 패널 열기");
             }
         }
 
@@ -176,14 +181,28 @@ namespace Game.Core {
 
         // 수상/거점에서만 연구·제작 열기(1/2키) — 탐사 중엔 무시
         void OnResearchInput(InputAction.CallbackContext ctx) {
-            if (Fsm.Current == GameState.Surface || Fsm.Current == GameState.Dock) {
+            if (HubInputAllowed()) {
                 GoResearch();
             }
         }
         void OnCraftInput(InputAction.CallbackContext ctx) {
-            if (Fsm.Current == GameState.Surface || Fsm.Current == GameState.Dock) {
+            if (HubInputAllowed()) {
                 GoCraft();
             }
+        }
+
+        // 1/2키는 거점 또는 정화구역 도착 후 수면에서만 허용
+        bool HubInputAllowed() {
+            if (Fsm.Current == GameState.Dock) {
+                return true;
+            }
+            if (Fsm.Current != GameState.Surface) {
+                return false;
+            }
+            if (surface == null) {
+                surface = FindFirstObjectByType<SurfaceBootstrap>();
+            }
+            return surface != null && surface.DiveReady;
         }
 
         void OnBatteryEmpty() => ForceReturn("배터리 방전");
@@ -212,7 +231,11 @@ namespace Game.Core {
             }
         }
         // 행동 피드백 토스트(그동안 미구독이던 이벤트 소비)
-        void OnCollected(ResourceKind k) { if (toast != null) toast.Show(k == ResourceKind.Scrap ? "고철 수집" : "샘플 수집"); }
+        void OnCollected(ResourceKind k) {
+            if (toast != null) {
+                toast.Show(k == ResourceKind.Scrap ? "고철: 장비 제작 재료입니다." : "오염 샘플: 연구 재료입니다.");
+            }
+        }
         void OnUnlocked() { if (toast != null) toast.Show("분석 완료 — 정화 약품 해금"); }
         // C3 온보딩 — 제작 후 '무엇을 할지'를 명확히(잠수→정화 지점 설치)
         void OnBuoyCrafted() { if (toast != null) toast.Show("정화 부유체 완성 — 잠수해 정화 지점(양화대교 잔해)에서 F 홀드로 설치하세요"); }

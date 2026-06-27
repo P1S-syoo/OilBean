@@ -154,8 +154,8 @@ namespace Game.UI {
         // 버튼 활성 상태 — 패널 열기는 조건 최소화(가능 항목 판단은 패널 내부에서)
         void UpdateButtonStates() {
             if (researchBtn != null) {
-                // 연구는 재료(샘플)가 있어야만 열림
-                researchBtn.interactable = run != null && run.TotalBankSamples > 0;
+                // 연구 탭은 항상 열고, 재료 부족 안내는 연구 패널 내부에서 처리
+                researchBtn.interactable = true;
             }
             if (craftBtn != null) {
                 // 제작은 조건 없이 항상 열림
@@ -202,7 +202,7 @@ namespace Game.UI {
             }
         }
 
-        // 닫기 — 수상에선 콘솔 접고 배 조작 복귀(P키와 동일), 그 외 상태는 무시
+        // 닫기 — 수상에선 콘솔 접고 배 조작 복귀, 그 외 상태는 무시
         void OnClose() {
             if (surface != null && bootstrap != null && bootstrap.State == GameState.Surface) {
                 surface.CloseConsole();

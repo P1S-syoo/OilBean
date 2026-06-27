@@ -9,16 +9,16 @@ namespace Game.Juice {
     public class AtmosphereController : MonoBehaviour {
         [SerializeField] Volume volume;          // 수중 탁함 그레이드(글로벌)
         [SerializeField] GameBootstrap bootstrap;
-        [SerializeField] float murkyWeight;      // 탐사 중 탁함 강도 — 기본값은 잠수설정.탁함강도
-        [SerializeField] float blend;            // 탁함↔맑음 전환 시간 — 기본값은 잠수설정.탁함전환
+        [SerializeField] float murkyWeight;      // 탐사 중 탁함 강도 — 기본값은 잠수설정.물탁함강도
+        [SerializeField] float blend;            // 탁함↔맑음 전환 시간 — 기본값은 잠수설정.물탁함전환시간
         [SerializeField] 잠수설정 config;      // 잠수 설정 — 연결 시 분위기 수치 덮어씀(미연결 시 위 기본값 유지)
 
         void Start() {
             try {
                 // 통합 설정 적용 — 미연결 시 SO 기본값 사용(중복 제거)
                 var cfg = config != null ? config : 잠수설정.기본;
-                murkyWeight = cfg.탁함강도;
-                blend = cfg.탁함전환;
+                murkyWeight = cfg.물탁함강도;
+                blend = cfg.물탁함전환시간;
                 if (volume == null) {
                     var go = GameObject.Find("AtmosphereVolume");
                     if (go != null) {

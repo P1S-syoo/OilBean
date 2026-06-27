@@ -12,8 +12,28 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 38d0db351fc914f4f9f6e76caf1b5053, type: 3}
   m_Name: Run_Default
   m_EditorClassIdentifier: Game::Game.Core.RunData
-  scrap: 0
-  samples: 0
+  config: {fileID: 11400000, guid: 5c880bc415584466a61e3895b116c6a6, type: 2}
+  weight: 0
   maxWeight: 70
+  baseMaxWeight: 70
+  scrapCount: 0
+  sampleCount: 0
+  bankSteel:
+  - 0
+  - 0
+  - 0
+  bankSample: 000000000000000000000000
+  pendingSteel:
+  - 0
+  - 0
+  - 0
+  pendingSample: 000000000000000000000000
+  researchPoints: 0
+  maxAnalyzedLevel: 0
   purify: 0
+  buoyReady: 0
+  buoyStage: 0
+  hullArmor: 0
+  researchProgress: 0
   recipes: []
+  surfaceTargetIdx: 0

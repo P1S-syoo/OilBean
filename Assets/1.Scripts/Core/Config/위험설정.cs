@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Game.Core {
     // 위험(오염원 행동·스폰) 설정
@@ -15,6 +16,17 @@ namespace Game.Core {
         public float 공격간격 = 2.2f;       // 돌진 공격 발생 간격(초)
 
         [Header("스폰")]
-        public float 화면여유 = 3f;         // 화면 밖 스폰 시작/종료 여유(u)
+        [FormerlySerializedAs("화면여유")]
+        [FormerlySerializedAs("화면밖스폰여유")]
+        public float 화면밖등장거리 = 3f;         // 화면 밖에서 등장할 거리(u)
+        public float 공격라인상단여백 = 1.5f;     // 공격 라인이 화면 위쪽에 붙지 않게 하는 여백
+        public float 공격라인하단여백 = 1.5f;     // 공격 라인이 화면 아래쪽에 붙지 않게 하는 여백
+        public float 경고아이콘안쪽여백 = 1.4f;   // 경고 아이콘을 화면 안쪽으로 들이는 거리
+
+        [Header("표시")]
+        public float 오염원본체크기 = 1.4f;        // 오염원 본체 표시 크기
+        public float 경고아이콘화면높이비율 = 0.085f;   // 화면 높이 대비 경고 아이콘 크기
+        [FormerlySerializedAs("오염원피격박스크기")]
+        public Vector2 오염원피격범위 = new(0.88f, 0.48f);   // 오염원 피격 판정 박스 크기
     }
 }

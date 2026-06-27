@@ -24,7 +24,7 @@ namespace Game.Audio {
         [SerializeField] AudioClip bgmDive;
         [SerializeField] AudioClip bgmSurface;
         [SerializeField] float bgmVolume;   // 배경음 볼륨 — 기본값은 오디오설정.배경음크기
-        [SerializeField] float bgmFade;     // 배경음 교차 페이드 — 기본값은 오디오설정.배경음전환
+        [SerializeField] float bgmFade;     // 배경음 교차 페이드 — 기본값은 오디오설정.배경음전환시간
 
         [Header("SFX")]
         [SerializeField] AudioClip sfxCollect;
@@ -78,8 +78,9 @@ namespace Game.Audio {
                 // 오디오 설정 적용 — 미연결 시 SO 기본값 사용(중복 제거, 소스 생성 전에 적용)
                 var cfg = config != null ? config : 오디오설정.기본;
                 bgmVolume = cfg.배경음크기;
-                bgmFade = cfg.배경음전환;
+                bgmFade = cfg.배경음전환시간;
                 sfxVolume = cfg.효과음크기;
+                voiceVolume = cfg.음성크기;
                 bgmSource = CreateSource("BgmSource", true);
                 sfxSource = CreateSource("SfxSource", false);
                 voiceSource = CreateSource("VoiceSource", false);

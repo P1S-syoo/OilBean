@@ -15,10 +15,19 @@ namespace Game.UI {
         [SerializeField] Image purifyFill;    // 정화 설치 진행 게이지
         [SerializeField] float lowRatio = 0.2f;   // 저배터리 경고 임계값
         [SerializeField] float minPickupWeight = 5f;   // 가장 가벼운 픽업도 못 실으면 적재 한계로 판정
+        [SerializeField] 잠수설정 diveConfig;       // 잠수 설정 — 배터리 경고 비율 적용
+        [SerializeField] 수집설정 collectConfig;     // 수집 설정 — 최소 수집물 무게 적용
 
         // 직전 표시값 캐시(매 프레임 재생성 방지)
         float lastW = -1f, lastMax = -1f, lastRatio = -1f, lastPurify = -1f;
         int lastScrap = -1, lastSample = -1;
+
+        void Awake() {
+            var dive = diveConfig != null ? diveConfig : 잠수설정.기본;
+            var collect = collectConfig != null ? collectConfig : 수집설정.기본;
+            lowRatio = dive.배터리경고비율;
+            minPickupWeight = collect.최소수집무게;
+        }
 
         void LateUpdate() {
             UpdateInfo();

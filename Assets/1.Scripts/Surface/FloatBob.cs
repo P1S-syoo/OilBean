@@ -5,7 +5,7 @@ namespace Game.Surface {
     public class FloatBob : MonoBehaviour {
         [SerializeField] float amplitude;           // 상하 진폭(m) — 기본값은 수면위설정.부유높이
         [SerializeField] float period;              // 한 사이클 시간(초) — 기본값은 수면위설정.부유주기
-        [SerializeField] float rollDegrees;         // 좌우 기울기 진폭(도) — 기본값은 수면위설정.기울기(0이면 끔)
+        [SerializeField] float rollDegrees;         // 좌우 부유 기울기 진폭(도) — 기본값은 수면위설정.부유기울기(0이면 끔)
         [SerializeField] float phase = 0f;          // 0~1 위상 오프셋 — 개체별 어긋남(config 비대상)
         [SerializeField] Game.Core.수면위설정 config;   // 수면위 설정 — 연결 시 부유 수치 덮어씀(미연결 시 위 기본값 유지)
 
@@ -22,7 +22,7 @@ namespace Game.Surface {
                 var cfg = config != null ? config : Game.Core.수면위설정.기본;
                 amplitude = cfg.부유높이;
                 period = cfg.부유주기;
-                rollDegrees = cfg.기울기;
+                rollDegrees = cfg.부유기울기;
                 configApplied = true;
             } catch (System.Exception e) {
                 Debug.LogError($"[FloatBob] 설정 적용 실패: {e.Message}");

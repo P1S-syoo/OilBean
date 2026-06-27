@@ -7,9 +7,9 @@ namespace Game.Surface {
     public class SubNavigator : MonoBehaviour {
         [SerializeField] SplineContainer river;       // 강 중심선 스플라인
         [SerializeField] float speed;            // 순항 속도(m/s) — 기본값은 수면위설정.항해속도
-        [SerializeField] float brakeDistance;    // 목표 앞 감속 시작 거리(m) — 기본값은 수면위설정.감속거리
-        [SerializeField] float minSpeed;         // 감속 중 최저 속도 — 기본값은 수면위설정.최저속도
-        [SerializeField] float turnSpeed;        // 회전 보간 속도 — 기본값은 수면위설정.항해회전
+        [SerializeField] float brakeDistance;    // 목표 앞 감속 시작 거리(m) — 기본값은 수면위설정.항해감속거리
+        [SerializeField] float minSpeed;         // 감속 중 최저 속도 — 기본값은 수면위설정.항해최저속도
+        [SerializeField] float turnSpeed;        // 회전 보간 속도 — 기본값은 수면위설정.항해회전속도
         [SerializeField, Range(0f, 1f)] float[] targets = { 0.5f, 1f };   // 정화 목표(스플라인 정규화 거리)
         [SerializeField] Game.Core.수면위설정 config;   // 수면위 설정 — 연결 시 항해 수치 적용(미연결 시 SO 기본값)
 
@@ -29,9 +29,9 @@ namespace Game.Surface {
                 // 통합 설정 적용 — 미연결 시 SO 기본값 사용(중복 제거)
                 var cfg = config != null ? config : Game.Core.수면위설정.기본;
                 speed = cfg.항해속도;
-                brakeDistance = cfg.감속거리;
-                minSpeed = cfg.최저속도;
-                turnSpeed = cfg.항해회전;
+                brakeDistance = cfg.항해감속거리;
+                minSpeed = cfg.항해최저속도;
+                turnSpeed = cfg.항해회전속도;
                 if (river == null) {
                     Debug.LogError("[SubNavigator] 강 스플라인 미연결 — 인스펙터에서 할당하세요.");
                     enabled = false;
@@ -79,6 +79,19 @@ namespace Game.Surface {
                 return;
             }
             targetIdx++;
+            sailing = true;
+        }
+
+        // 현재 목표를 유지한 채 항해만 일시정지
+        public void PauseCurrent() {
+            sailing = false;
+        }
+
+        // 현재 목표를 유지한 채 항해 재개
+        public void ContinueCurrent() {
+            if (TargetDistance() - distance <= 0.01f) {
+                return;
+            }
             sailing = true;
         }
 

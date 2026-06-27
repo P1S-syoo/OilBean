@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using Game.Core;
 
 namespace Game.World {
     // 청크 스트리밍 — 플레이어 주변 청크만 풀에서 생성/반납(보이는 범위+α만 렌더). 대규모 맵 메모리 상수 유지
@@ -11,6 +12,7 @@ namespace Game.World {
         [SerializeField] int radiusY = 2;           // 세로 로드 반경(청크)
         [SerializeField] float blockScale = 0.95f;  // 블록 틈(격자감)
         [SerializeField] float playfieldDepth = 4f; // Playfield 블록 Z 두께 — 솔리드 덩어리(앞뒤 빈틈 제거)
+        [SerializeField] 월드설정 config;          // 월드 설정 — 연결 시 청크/블록 수치 적용
         [SerializeField] Mesh blockMesh;            // 2-서브메시 VoxelBlock(윗면/옆면). 없으면 기본 큐브
         [SerializeField] Material terrainTriMat;    // 지형 triplanar(월드UV 연속 텍스처) — 타일 반복 제거
         [SerializeField] Material bgTriMat;         // 배경 triplanar(흐림). 없으면 terrainTriMat
@@ -33,6 +35,7 @@ namespace Game.World {
 
         void Awake() {
             try {
+                ApplyConfig();
                 // VoxelBlock 메시(2-서브메시) 우선, 없으면 기본 큐브
                 if (blockMesh != null) {
                     cubeMesh = blockMesh;
@@ -70,6 +73,17 @@ namespace Game.World {
             } catch (System.Exception e) {
                 Debug.LogError($"[ChunkStreamer] Awake 오류: {e.Message}\n{e.StackTrace}");
             }
+        }
+
+        // 월드 스트리밍 설정 적용 — 미연결 시 SO 기본값 사용
+        void ApplyConfig() {
+            var cfg = config != null ? config : 월드설정.기본;
+            chunkW = cfg.청크가로블록수;
+            chunkH = cfg.청크세로블록수;
+            radiusX = cfg.청크가로로드반경;
+            radiusY = cfg.청크세로로드반경;
+            blockScale = cfg.블록크기;
+            playfieldDepth = cfg.플레이영역두께;
         }
 
         void LateUpdate() {

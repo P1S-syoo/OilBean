@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Game.Core {
     // 오디오(배경음·효과음) 크기 설정
@@ -11,9 +12,13 @@ namespace Game.Core {
 
         [Header("배경음")]
         public float 배경음크기 = 0.35f;    // 배경음 볼륨(0~1)
-        public float 배경음전환 = 0.8f;     // 배경음 교차 페이드 시간(초)
+        [FormerlySerializedAs("배경음전환")]
+        public float 배경음전환시간 = 0.8f;     // 배경음 교차 페이드 시간(초)
 
         [Header("효과음")]
         public float 효과음크기 = 0.9f;     // 효과음 볼륨(0~1)
+
+        [Header("음성")]
+        public float 음성크기 = 1f;         // 캐릭터 대사 볼륨(0~1)
     }
 }

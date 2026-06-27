@@ -22,17 +22,16 @@ namespace Game.Surface {
         [SerializeField] GameObject worldBlocks;      // 2.5D 블록 스트리머 루트 — 수상에선 강변 벽이 다리처럼 보여 숨김
         [SerializeField] GameObject skyQuad;          // 2.5D 하늘 백드롭 퀀드 — 수상 동안 숨김(안개 하늘과 충돌)
         [SerializeField] float sideZOffset = -20f;    // CamFollow zOffset과 일치해야 끊김 없음
-        [SerializeField] float blendTime;       // 카메라 블렌드·하강 연출 시간 — 기본값은 수면위설정.입수시간
-        [SerializeField] float descendDepth;    // 자동 하강 깊이 — 기본값은 수면위설정.하강깊이
-        [SerializeField] float plungeTime;      // 덱 캐릭터 입수 연출 시간 — 기본값은 수면위설정.도약시간
-        [SerializeField] float plungeDistance;  // 입수 시 측면 도약 거리 — 기본값은 수면위설정.도약거리
+        [SerializeField] float blendTime;       // 카메라 블렌드·하강 연출 시간 — 기본값은 수면위설정.잠수전환시간
+        [SerializeField] float descendDepth;    // 자동 하강 깊이 — 기본값은 수면위설정.입수하강거리
+        [SerializeField] float plungeTime;      // 덱 캐릭터 입수 연출 시간 — 기본값은 수면위설정.캐릭터점프시간
+        [SerializeField] float plungeDistance;  // 입수 시 측면 도약 거리 — 기본값은 수면위설정.캐릭터점프거리
         [SerializeField] 수면위설정 config;           // 수면위 설정 — 연결 시 잠수 연출 수치 적용(미연결 시 SO 기본값)
 
         InputAction diveInput;
-        InputAction consoleInput;       // 수상 거점 콘솔 토글(P)
         bool diveReady;
         bool diving;
-        bool consoleShown;              // 수상 콘솔 표시 여부(도착 자동 표시 + P 수동 토글)
+        bool consoleShown;              // 수상 콘솔 표시 여부(E/스크린으로 열림)
         bool screenNear;                // 스크린 콘솔 근접 — E를 연구로 분기(잠수 억제)
         Camera mainCam;                 // 수상 동안 배경색을 안개색으로 덮고 잠수 시 원복
         Color prevBg;
@@ -47,6 +46,7 @@ namespace Game.Surface {
         bool deckHomeSet;
 
         public bool DiveReady => diveReady;
+        public bool ConsoleShown => consoleShown;
         // 도착(잠수 가능) 상태 변화 알림 — UI 라우터가 거점 콘솔 토글에 사용
         public event Action<bool> OnDiveReadyChanged;
 
@@ -54,14 +54,12 @@ namespace Game.Surface {
             try {
                 // 통합 설정 적용 — 미연결 시 SO 기본값 사용(중복 제거)
                 var cfg = config != null ? config : 수면위설정.기본;
-                blendTime = cfg.입수시간;
-                descendDepth = cfg.하강깊이;
-                plungeTime = cfg.도약시간;
-                plungeDistance = cfg.도약거리;
+                blendTime = cfg.잠수전환시간;
+                descendDepth = cfg.입수하강거리;
+                plungeTime = cfg.캐릭터점프시간;
+                plungeDistance = cfg.캐릭터점프거리;
                 diveInput = new InputAction("Dive", InputActionType.Button, "<Keyboard>/e");
                 diveInput.performed += OnDiveInput;
-                consoleInput = new InputAction("Console", InputActionType.Button, "<Keyboard>/p");
-                consoleInput.performed += OnConsoleInput;
             } catch (Exception e) {
                 Debug.LogError($"[SurfaceBootstrap] 초기화 실패: {e.Message}");
             }
@@ -129,12 +127,10 @@ namespace Game.Surface {
 
         void OnEnable() {
             diveInput?.Enable();
-            consoleInput?.Enable();
         }
 
         void OnDisable() {
             diveInput?.Disable();
-            consoleInput?.Disable();
         }
 
         void OnDestroy() {
@@ -148,10 +144,6 @@ namespace Game.Surface {
                 diveInput.performed -= OnDiveInput;
                 diveInput.Dispose();
             }
-            if (consoleInput != null) {
-                consoleInput.performed -= OnConsoleInput;
-                consoleInput.Dispose();
-            }
         }
 
         // 클리어 후 Surface 복귀 감지 — 비활성 상태에서도 델리게이트는 수신되므로 여기서 재활성
@@ -159,16 +151,16 @@ namespace Game.Surface {
             // 잠수 복귀(Dock 경유)·클리어 복귀만 다음 목표로 항해 재개 — 연구/제작 허브 닫기 등은 제자리 유지(다음 지점 자동 전진 방지)
             // 화이트리스트로 게이팅 — 향후 →Surface 상태가 추가돼도 기본은 '재개 안 함'(fail-safe)
             if (to == GameState.Surface && (from == GameState.Dock || from == GameState.Clear)) {
-                ReturnToSurface();
+                ReturnToSurface(from == GameState.Clear);
             }
         }
 
         // 수면 복귀(W6) — 잠수 시퀀스의 역경로: 수상 요소 재활성 + 다음 목표로 항해 재개
-        void ReturnToSurface() {
+        void ReturnToSurface(bool advanceTarget) {
             try {
                 enabled = true;      // E 입력 재개
                 diving = false;
-                diveReady = false;
+                diveReady = !advanceTarget;
                 consoleShown = false;                // 콘솔 닫힘 동기화(SetSurfaceControl(true)는 아래 단계에서 처리)
                 OnDiveReadyChanged?.Invoke(false);   // 복귀 — 다음 목표 도착 전까지 콘솔 숨김
                 // 덱 캐릭터 원위치 복원(입수 단계에서 숨겼던 것)
@@ -188,13 +180,19 @@ namespace Game.Surface {
                 prevCaptured = false;
                 bgOverridden = false;
                 ApplySurfaceVisuals();   // 사이드뷰 끔 + 안개 배경 + 2.5D 백드롭 숨김
-                // 항해 재개 — nav가 정지 상태로 남아 있으니 다음 목표로 재출발
                 if (nav != null) {
                     nav.enabled = true;
-                    nav.Resume();
+                    if (advanceTarget) {
+                        nav.Resume();
+                        if (game != null && game.Run != null) {
+                            game.Run.SetSurfaceTarget(nav.TargetIndex);
+                        }
+                    } else {
+                        nav.PauseCurrent();
+                    }
                 }
                 SetSurfaceControl(true);   // 덱 조작·궤도 드라이버 재활성(커서 잠금은 드라이버 OnEnable이 처리)
-                Debug.Log("[SurfaceBootstrap] 수면 복귀 — 다음 목표로 항해 재개");
+                Debug.Log(advanceTarget ? "[SurfaceBootstrap] 수면 복귀 — 다음 목표로 항해 재개" : "[SurfaceBootstrap] 수면 복귀 — 미정화 구역 유지");
             } catch (Exception e) {
                 Debug.LogError($"[SurfaceBootstrap] 수면 복귀 실패: {e.Message}\n{e.StackTrace}");
             }
@@ -203,27 +201,22 @@ namespace Game.Surface {
         // 정화 목표 도달 — 잠수 허용 + 안내
         void OnArrived() {
             diveReady = true;
-            ShowConsole(true);   // 도착 — 거점 콘솔 자동 표시(커서/조작 해제 포함)
+            OnDiveReadyChanged?.Invoke(false);   // 도착 즉시 패널을 띄우지 않음 — notice 후 E로 열기
             if (toast != null) {
-                toast.Show("정화 지점 도착 — E키로 잠수 · P키로 거점 콘솔 열고닫기");
+                toast.Show("정화 지점 도착 — E키로 거점 패널 열기");
             }
         }
 
-        // 수상 거점 콘솔 토글(P) — 수상에서만, 잠수 연출 중엔 무시
-        void OnConsoleInput(InputAction.CallbackContext ctx) {
-            if (game == null || diving || game.State != GameState.Surface) {
-                return;
-            }
-            ShowConsole(!consoleShown);
-        }
-
-        // 외부(거점 콘솔 닫기 버튼)에서 수상 콘솔 닫기 — P 토글과 동일 경로
+        // 외부(거점 콘솔 닫기 버튼)에서 수상 콘솔 닫기
         public void CloseConsole() {
             ShowConsole(false);
         }
 
         // 외부(덱 스크린 콘솔 E)에서 수상 거점 콘솔 열기 — 커서/조작 해제 포함(ShowConsole 경유)
         public void OpenConsole() {
+            if (game == null || diving || game.State != GameState.Surface || !diveReady) {
+                return;
+            }
             ShowConsole(true);
         }
 
@@ -239,10 +232,10 @@ namespace Game.Surface {
 
         void OnDiveInput(InputAction.CallbackContext ctx) {
             if (screenNear) {
-                return;   // 스크린 콘솔 근접 — E는 연구(잠수 억제)
+                return;   // 스크린 콘솔 근접 — E는 거점 패널 열기(잠수 억제)
             }
             if (diveReady && !diving) {
-                RequestDive();
+                ShowConsole(true);   // 도착 후 E는 바로 잠수하지 않고 거점 패널을 연다
             }
         }
 
@@ -369,9 +362,6 @@ namespace Game.Surface {
                 }
                 // 게임 루프 인계 — 성공해야만 2.5D로 전환
                 handedOff = game.EnterDockFromSurface();
-                if (handedOff && game.Run != null && nav != null) {
-                    game.Run.SetSurfaceTarget(nav.TargetIndex + 1);   // 다음 수상 목표 기록(복귀 항해 재개용)
-                }
             } finally {
                 if (handedOff) {
                     RestoreUnderwaterVisuals();

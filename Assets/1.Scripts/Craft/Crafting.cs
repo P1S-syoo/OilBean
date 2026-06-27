@@ -45,9 +45,9 @@ namespace Game.Craft {
                 new Recipe { id = "buoy_1", agent = "agent_mild",   grade = 0, kg = cfg.부유체1비용, effect = Effect.Buoy, amount = 1 },
                 new Recipe { id = "buoy_2", agent = "agent_mid",    grade = 1, kg = cfg.부유체2비용, effect = Effect.Buoy, amount = 2 },
                 new Recipe { id = "buoy_3", agent = "agent_strong", grade = 2, kg = cfg.부유체3비용, effect = Effect.Buoy, amount = 3 },
-                new Recipe { id = "up_cargo",   agent = "", grade = 0, kg = cfg.적재비용,   effect = Effect.MaxWeight,  amount = cfg.적재증가 },
-                new Recipe { id = "up_battery", agent = "", grade = 1, kg = cfg.배터리비용, effect = Effect.BatteryCap, amount = cfg.배터리증가 },  // ≈탐사시간 +10s
-                new Recipe { id = "gear_hull",  agent = "", grade = 2, kg = cfg.내압비용,   effect = Effect.Hull,       amount = 1 },
+                new Recipe { id = "up_cargo",   agent = "", grade = 0, kg = cfg.적재업그레이드비용,   effect = Effect.MaxWeight,  amount = cfg.적재증가량 },
+                new Recipe { id = "up_battery", agent = "", grade = 1, kg = cfg.배터리업그레이드비용, effect = Effect.BatteryCap, amount = cfg.배터리증가량 },  // ≈탐사시간 +10s
+                new Recipe { id = "gear_hull",  agent = "", grade = 2, kg = cfg.내압프레임비용,   effect = Effect.Hull,       amount = 1 },
             };
         }
 

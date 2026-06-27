@@ -57,9 +57,9 @@ namespace Game.Core {
         public float MaxDepth() {
             var cfg = config != null ? config : 제작설정.기본;
             switch (buoyStage) {
-                case 0: return cfg.부유수심1;
-                case 1: return cfg.부유수심2;
-                default: return cfg.부유수심3;
+                case 0: return cfg.부유체1도달수심;
+                case 1: return cfg.부유체2도달수심;
+                default: return cfg.부유체3도달수심;
             }
         }
 

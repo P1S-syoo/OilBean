@@ -1,0 +1,23 @@
+{
+  "created": 1782492350.0062988,
+  "items": [
+    {
+      "stage": 1,
+      "input": "Assets/4.Art/Varco/PurifierConcepts/purifier_stage1_3d_input.png",
+      "requestId": "b93fdc30143b0a24a619644345beba63",
+      "requestTime": "2026-06-27T01:45:49+09:00"
+    },
+    {
+      "stage": 2,
+      "input": "Assets/4.Art/Varco/PurifierConcepts/purifier_stage2_3d_input.png",
+      "requestId": "fbe567588f57ab698c613e0571b05022",
+      "requestTime": "2026-06-27T01:45:49+09:00"
+    },
+    {
+      "stage": 3,
+      "input": "Assets/4.Art/Varco/PurifierConcepts/purifier_stage3_3d_input.png",
+      "requestId": "aa004359e235227581d7e93aed88555b",
+      "requestTime": "2026-06-27T01:45:49+09:00"
+    }
+  ]
+}

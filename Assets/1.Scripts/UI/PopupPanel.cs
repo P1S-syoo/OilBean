@@ -1,5 +1,6 @@
 using UnityEngine;
 using DG.Tweening;
+using Game.Core;
 
 namespace Game.UI {
     // 팝업 패널 연출 — 활성화 시 스케일(살짝 작게→1, OutBack)+페이드 인. 화면을 꽉 채우지 않는 팝업 UI에 부착
@@ -7,6 +8,7 @@ namespace Game.UI {
     public class PopupPanel : MonoBehaviour {
         [SerializeField] float duration = 0.22f;
         [SerializeField] float fromScale = 0.86f;
+        [SerializeField] 연출설정 config;   // 연출 설정 — 연결 시 팝업 애니메이션 적용
 
         CanvasGroup cg;
         RectTransform rt;
@@ -14,6 +16,14 @@ namespace Game.UI {
         void Awake() {
             cg = GetComponent<CanvasGroup>();
             rt = GetComponent<RectTransform>();
+            ApplyConfig();
+        }
+
+        // 팝업 연출 설정 적용 — 미연결 시 SO 기본값 사용
+        void ApplyConfig() {
+            var cfg = config != null ? config : 연출설정.기본;
+            duration = cfg.팝업시간;
+            fromScale = cfg.팝업시작크기;
         }
 
         void OnEnable() {

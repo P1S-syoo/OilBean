@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using Game.Core;
 
 namespace Game.UI {
     // 오염체 수집 스타포스 미니게임 — 좌우 왕복 커서를 멈춰 타겟존에 명중시키면 수집 성공
@@ -12,6 +13,9 @@ namespace Game.UI {
         // 오염 농도 등급(Lv1/2/3 = 인덱스 0/1/2)별 난이도 — 깊을수록 빠르고 좁다
         [SerializeField] float[] speeds = { 0.9f, 1.3f, 1.8f };          // 왕복 속도(/s)
         [SerializeField] float[] targetHalfs = { 0.16f, 0.11f, 0.07f };  // 타겟 반폭(0~1)
+        [SerializeField] 연출설정 config;   // 연출 설정 — 연결 시 수집 미니게임 난이도 적용
+        static readonly float[] DefaultSpeeds = { 0.9f, 1.3f, 1.8f };
+        static readonly float[] DefaultTargetHalfs = { 0.16f, 0.11f, 0.07f };
 
         bool active;
         float t, dir = 1f, speed, targetCenter, targetHalf;
@@ -20,17 +24,43 @@ namespace Game.UI {
         public bool Active => active;
 
         void Awake() {
+            ApplyConfig();
             if (panel != null) {
                 panel.SetActive(false);
             }
         }
 
+        // 수집 미니게임 난이도 설정 적용 — 미연결 시 SO 기본값 사용
+        void ApplyConfig() {
+            var cfg = config != null ? config : 연출설정.기본;
+            speeds = ValidLevels(cfg.수집미니게임속도, speeds, DefaultSpeeds);
+            targetHalfs = ValidLevels(cfg.수집미니게임타겟반폭, targetHalfs, DefaultTargetHalfs);
+        }
+
+        static float[] ValidLevels(float[] source, float[] current, float[] fallback) {
+            if (HasPlayableLevels(source)) return source;
+            if (HasPlayableLevels(current)) return current;
+            return fallback;
+        }
+
+        static bool HasPlayableLevels(float[] values) {
+            if (values == null || values.Length == 0) return false;
+            foreach (float value in values) {
+                if (value <= 0f) return false;
+            }
+            return true;
+        }
+
         // 미니게임 시작 — level(0~2 오염농도), 결과 콜백(명중=true)
         public void StartGame(int level, Action<bool> result) {
             try {
-                int lv = Mathf.Clamp(level, 0, Mathf.Min(speeds.Length, targetHalfs.Length) - 1);
-                speed = speeds[lv];
-                targetHalf = targetHalfs[lv];
+                int maxLevel = Mathf.Min(speeds.Length, targetHalfs.Length) - 1;
+                if (maxLevel < 0) {
+                    throw new InvalidOperationException("수집 미니게임 난이도 설정이 비어 있습니다.");
+                }
+                int lv = Mathf.Clamp(level, 0, maxLevel);
+                speed = Mathf.Max(0.01f, speeds[lv]);
+                targetHalf = Mathf.Clamp(targetHalfs[lv], 0.01f, 0.49f);
                 targetCenter = UnityEngine.Random.Range(0.2f, 0.8f);
                 onResult = result;
                 t = 0f;

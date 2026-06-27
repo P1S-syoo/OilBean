@@ -14,11 +14,11 @@ namespace Game.World {
         [SerializeField] float attackInterval;      // 돌진 공격 간격 — 기본값은 위험설정.공격간격
         [SerializeField] float warnTime;            // 경고(텔레그래프) 시간 — 기본값은 위험설정.경고시간
         [SerializeField] float dashSpeed;           // 돌진 속도 — 기본값은 위험설정.돌진속도
-        [SerializeField] float marginX;             // 화면 밖 시작/종료 여유(u) — 기본값은 위험설정.화면여유
+        [SerializeField] float marginX;             // 화면 밖 시작/종료 여유(u) — 기본값은 위험설정.화면밖등장거리
+        [SerializeField] float laneTopMargin;       // 공격 라인 상단 여백 — 기본값은 위험설정.공격라인상단여백
+        [SerializeField] float laneBottomMargin;    // 공격 라인 하단 여백 — 기본값은 위험설정.공격라인하단여백
+        [SerializeField] float warnInset;           // 경고 아이콘 안쪽 여백 — 기본값은 위험설정.경고아이콘안쪽여백
 
-        const float LaneTopMargin = 1.5f;     // 진입 높이 상단 여유
-        const float LaneBottomMargin = 1.5f;  // 진입 높이 하단 여유
-        const float WarnInset = 1.4f;         // 경고 아이콘을 화면 안쪽으로 들인 거리
         const uint Xorshift32Seed = 2463534242;   // xorshift32 초기 시드(런타임 난수 — Time/Random 의존 최소)
 
         GameBootstrap bootstrap;
@@ -34,7 +34,10 @@ namespace Game.World {
                 attackInterval = cfg.공격간격;
                 warnTime = cfg.경고시간;
                 dashSpeed = cfg.돌진속도;
-                marginX = cfg.화면여유;
+                marginX = cfg.화면밖등장거리;
+                laneTopMargin = cfg.공격라인상단여백;
+                laneBottomMargin = cfg.공격라인하단여백;
+                warnInset = cfg.경고아이콘안쪽여백;
                 if (diveCam == null) {
                     diveCam = Camera.main;
                 }
@@ -94,19 +97,17 @@ namespace Game.World {
                         return;
                     }
                 }
-                float halfH = diveCam.orthographicSize;
-                float halfW = halfH * diveCam.aspect;
-                float cx = target != null ? target.position.x : diveCam.transform.position.x;
-                float cy = diveCam.transform.position.y;
-                float left = cx - halfW;
-                float right = cx + halfW;
+                Bounds view = CameraWorldBounds();
+                float left = view.min.x;
+                float right = view.max.x;
+                float bottom = view.min.y;
+                float top = view.max.y;
 
                 bool leftToRight = (NextRand() & 1u) == 0u;
                 float startX = leftToRight ? left - marginX : right + marginX;
                 float endX = leftToRight ? right + marginX : left - marginX;
-                float warnX = leftToRight ? left + WarnInset : right - WarnInset;
-                // 진입 높이 — 화면 상하 여유 내 결정적 난수
-                float laneY = Mathf.Lerp(cy - halfH + LaneBottomMargin, cy + halfH - LaneTopMargin, NextRand01());
+                float warnX = leftToRight ? left + warnInset : right - warnInset;
+                float laneY = Mathf.Lerp(bottom + laneBottomMargin, top - laneTopMargin, NextRand01());
 
                 var go = Instantiate(hazardPrefab, new Vector3(startX, laneY, 0f), Quaternion.identity, transform);
                 go.name = "HazardDash";
@@ -114,6 +115,17 @@ namespace Game.World {
             } catch (Exception e) {
                 Debug.LogError($"[HazardStreamer] SpawnAttack 오류: {e.Message}\n{e.StackTrace}");
             }
+        }
+
+        // 카메라 화면의 z=0 평면 월드 경계 — 경고 아이콘을 항상 화면 안쪽에 배치
+        Bounds CameraWorldBounds() {
+            float depth = Mathf.Abs(diveCam.transform.position.z);
+            var lb = diveCam.ViewportToWorldPoint(new Vector3(0f, 0f, depth));
+            var rt = diveCam.ViewportToWorldPoint(new Vector3(1f, 1f, depth));
+            var min = new Vector3(Mathf.Min(lb.x, rt.x), Mathf.Min(lb.y, rt.y), 0f);
+            var max = new Vector3(Mathf.Max(lb.x, rt.x), Mathf.Max(lb.y, rt.y), 0f);
+            var b = new Bounds((min + max) * 0.5f, max - min);
+            return b;
         }
 
         // xorshift32 — 시드 진행식 난수(좌우 방향·진입 높이 분산)

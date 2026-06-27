@@ -3,6 +3,7 @@ using System.Collections;
 using Unity.Cinemachine;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using Game.Core;
 
 namespace Game.Surface {
     // 인트로 연출 — 폐허 도시 부감에서 잠수정으로 내려오는 오프닝 돌리, 스킵(Space/Esc) 가능
@@ -16,6 +17,7 @@ namespace Game.Surface {
         [SerializeField] float duration = 8f;
         [SerializeField] Vector3 startOffset = new(-26f, 16f, -8f);  // 후방 상공 와이드 — 하류(명소·안개 스카이라인)를 향해 열린 구도
         [SerializeField] Vector3 endOffset = new(0f, 5f, -13f);      // 잠수정 가까이
+        [SerializeField] 수면위설정 config;              // 수면위 설정 — 연결 시 인트로 컷신 수치 적용
 
         InputAction skip;
         Coroutine playing;
@@ -35,6 +37,7 @@ namespace Game.Surface {
         }
 
         void Start() {
+            ApplyConfig();
             // 필수 참조가 없으면 컷신 없이 즉시 조작 인계
             if (introCam == null || focus == null) {
                 Finish();
@@ -49,6 +52,14 @@ namespace Game.Surface {
             }
             introCam.gameObject.SetActive(true);
             playing = StartCoroutine(Dolly());
+        }
+
+        // 인트로 컷신 설정 적용 — 미연결 시 SO 기본값 사용
+        void ApplyConfig() {
+            var cfg = config != null ? config : 수면위설정.기본;
+            duration = cfg.인트로시간;
+            startOffset = cfg.인트로시작오프셋;
+            endOffset = cfg.인트로종료오프셋;
         }
 
         void OnEnable() {

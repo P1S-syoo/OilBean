@@ -8,8 +8,8 @@ namespace Game.Score {
     public class ScoreSystem : MonoBehaviour {
         [SerializeField] float comboWindow;   // 콤보 유지 시간(초) — 기본값은 점수설정.콤보시간
         [SerializeField] int baseValue;       // 수집 1회 기본 점수 — 기본값은 점수설정.기본점수
-        [SerializeField] int gradeS;          // S 등급 임계값 — 기본값은 점수설정.S등급
-        [SerializeField] int gradeA;          // A 등급 임계값(미만은 B) — 기본값은 점수설정.A등급
+        [SerializeField] int gradeS;          // S 등급 임계값 — 기본값은 점수설정.S등급점수
+        [SerializeField] int gradeA;          // A 등급 임계값(미만은 B) — 기본값은 점수설정.A등급점수
         [SerializeField] 점수설정 config;         // 점수 설정 — 연결 시 점수 수치 덮어씀(미연결 시 위 기본값 유지)
 
         // 점수·콤보 공개 상태
@@ -34,8 +34,8 @@ namespace Game.Score {
                 var cfg = config != null ? config : 점수설정.기본;
                 comboWindow = cfg.콤보시간;
                 baseValue = cfg.기본점수;
-                gradeS = cfg.S등급;
-                gradeA = cfg.A등급;
+                gradeS = cfg.S등급점수;
+                gradeA = cfg.A등급점수;
                 collector = FindFirstObjectByType<Collector>();
                 if (collector != null) {
                     collector.OnCollect += HandleCollect;

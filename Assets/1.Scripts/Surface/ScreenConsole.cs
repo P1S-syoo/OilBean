@@ -8,7 +8,7 @@ namespace Game.Surface {
     public class ScreenConsole : MonoBehaviour {
         [SerializeField] GameBootstrap game;        // 수상 상태 판정용
         [SerializeField] SurfaceBootstrap surface;  // 거점 콘솔 열기 + 잠수 E 억제 통지
-        [SerializeField] GameObject prompt;         // "E 연구" 프롬프트(근접 시 표시)
+        [SerializeField] GameObject prompt;         // "E 거점" 프롬프트(근접 시 표시)
         [SerializeField] float range = 2.2f;        // 상호작용 근접 거리(m)
 
         InputAction interact;
@@ -56,7 +56,8 @@ namespace Game.Surface {
                     player = dc.transform;
                 }
             }
-            bool n = player != null && (player.position - transform.position).sqrMagnitude < range * range;
+            bool ready = surface != null && surface.DiveReady;
+            bool n = ready && player != null && (player.position - transform.position).sqrMagnitude < range * range;
             if (n != near) {
                 SetNear(n);
             }
@@ -74,14 +75,10 @@ namespace Game.Surface {
 
         void OnInteract(InputAction.CallbackContext ctx) {
             // 근접 + 수상 상태에서만 — 거점 콘솔(허브: 탐사 시작/연구/제작/정화) 열기. 커서·조작 해제는 콘솔이 처리
-            if (!near || game == null || game.State != GameState.Surface) {
+            if (!near || game == null || game.State != GameState.Surface || surface == null || !surface.DiveReady) {
                 return;
             }
-            if (surface != null) {
-                surface.OpenConsole();
-            } else {
-                game.GoResearch();   // 폴백 — SurfaceBootstrap 미연결 시 기존 동작
-            }
+            surface.OpenConsole();
         }
     }
 }

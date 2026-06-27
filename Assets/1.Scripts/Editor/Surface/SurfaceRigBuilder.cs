@@ -16,14 +16,12 @@ namespace Game.Editor.Surface {
         const string CharModelPath = "Assets/4.Art/Characters/MainCharacter.fbx";
         const string CharAnimPath = "Assets/4.Art/Characters/PlayerAnim.controller";
         const string CharMatPath = "Assets/4.Art/Characters/MainCharacterMat.mat";   // 덱 캐릭터도 수중과 동일 머티리얼 적용(FBX 기본 머티리얼 = 텍스처 없음)
-        const float SubLength = 15f;          // 잠수정 진행축(Z) 목표 길이 — 덱 보행 공간 확보
-        const float SubWidthMul = 1.5f;       // 가로(X) 추가 배수 — 함교 양옆 통로 확보(앞↔뒤 이동 가능)
-        const float CharacterHeight = 1.7f;   // 덱 캐릭터 목표 키
-        const float HullLift = 0.35f;         // 흘수 보정 — 함교 포함 바운즈 중심 정렬은 선체가 깊이 잠겨 위로 올림(extents.y 비율)
+        const string SurfaceConfigPath = "Assets/3.Data/Config/수면위설정.asset";
 
         [MenuItem("Tools/한강/수상 리그 생성")]
         public static void Build() {
             try {
+                var config = LoadSurfaceConfig();
                 var old = GameObject.Find("SurfaceRig");
                 if (old != null) {
                     Undo.DestroyObjectImmediate(old);   // 재실행 시 기존 리그 교체
@@ -32,14 +30,14 @@ namespace Game.Editor.Surface {
                 Undo.RegisterCreatedObjectUndo(root, "수상 리그 생성");
 
                 var river = BuildRiver(root.transform);
-                var (nav, deckTop, deckHalf, deckCols) = BuildSub(root.transform, river);
-                var player = BuildDeckPlayer(nav.transform, deckTop, deckHalf, deckCols);
+                var (nav, deckTop, deckHalf, deckCols) = BuildSub(root.transform, river, config);
+                var player = BuildDeckPlayer(nav.transform, deckTop, deckHalf, deckCols, config);
                 var (orbitCam, orbitDriver) = BuildOrbitCamera(root.transform, player);
                 var diveCam = BuildDiveCam(root.transform);
                 BuildIntro(root.transform, nav, player, orbitCam, orbitDriver);
                 BuildEnvironment(root.transform);
                 WireBootstrap(root, nav, player, orbitCam, orbitDriver, diveCam);
-                BuildScreen(nav.transform, deckTop, deckHalf);   // 정화선 연구 스크린(근접 E → 연구)
+                BuildScreen(nav.transform, deckTop, deckHalf, config);   // 발판 쪽 거점 스크린
                 SkylinePlacer.EnsureStreamer(root);   // 스카이라인 스트리머(수상·수중 무한) 배선
 
                 EditorUtility.SetDirty(root);
@@ -48,6 +46,11 @@ namespace Game.Editor.Surface {
             } catch (Exception e) {
                 Debug.LogError($"[SurfaceRigBuilder] 생성 실패: {e.Message}\n{e.StackTrace}");
             }
+        }
+
+        static 수면위설정 LoadSurfaceConfig() {
+            var cfg = AssetDatabase.LoadAssetAtPath<수면위설정>(SurfaceConfigPath);
+            return cfg != null ? cfg : 수면위설정.기본;
         }
 
         // 해수면 위 완만한 S자 강 중심선(x -20→160, z ±6)
@@ -70,24 +73,38 @@ namespace Game.Editor.Surface {
             return container;
         }
 
-        // 정화선 연구 스크린 — 덱 위 홀로그램 콘솔(근접 E로 연구패널). 비주얼은 지지직 홀로그램
-        static void BuildScreen(Transform sub, float deckTop, Vector2 deckHalf) {
+        // 정화선 스크린 — 덱 위 홀로그램 콘솔(근접 E로 거점 패널). 비주얼은 지지직 홀로그램
+        static void BuildScreen(Transform sub, float deckTop, Vector2 deckHalf, 수면위설정 config) {
             var tex = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/4.Art/Textures/screen_holo.png");
-            var screen = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            var screen = new GameObject("ResearchScreen");
             screen.name = "ResearchScreen";
-            UnityEngine.Object.DestroyImmediate(screen.GetComponent<Collider>());   // 거리 기반 근접이라 콜라이더 불필요
             screen.transform.SetParent(sub, false);
-            // 덱 위 선미쪽에 수직으로 세움(다가오는 플레이어를 향함)
-            screen.transform.localPosition = new Vector3(0f, deckTop + 0.95f, deckHalf.y * 0.45f);
+            var platformCenter = PlatformCenter(deckHalf, config);
+            // 발판 바로 앞 높은 모니터 — 양면 Quad라 카메라가 뒤로 돌아도 사라지지 않음
+            screen.transform.localPosition = new Vector3(platformCenter.x, deckTop + config.모니터바닥높이, platformCenter.y + config.발판길이 * config.모니터앞위치비율);
             screen.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
-            screen.transform.localScale = new Vector3(1.7f, 1.0f, 1f);
-            var mr = screen.GetComponent<MeshRenderer>();
-            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            mr.sharedMaterial = MakeHoloMaterial(tex);
+            AddScreenFace(screen.transform, "Front", tex, false, config);
+            AddScreenFace(screen.transform, "Back", tex, true, config);
             screen.AddComponent<Game.Surface.HologramScreen>();
             screen.AddComponent<Game.Surface.ScreenConsole>();   // game/surface는 런타임 자동탐색
             Undo.RegisterCreatedObjectUndo(screen, "Build Research Screen");
             Debug.Log("[SurfaceRigBuilder] 연구 스크린 생성");
+        }
+
+        static void AddScreenFace(Transform parent, string name, Texture2D tex, bool back, 수면위설정 config) {
+            var face = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            face.name = name;
+            UnityEngine.Object.DestroyImmediate(face.GetComponent<Collider>());
+            face.transform.SetParent(parent, false);
+            face.transform.localRotation = Quaternion.Euler(0f, back ? 180f : 0f, 0f);
+            face.transform.localScale = new Vector3(config.모니터폭, config.모니터높이, 1f);
+            var mr = face.GetComponent<MeshRenderer>();
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            mr.sharedMaterial = MakeHoloMaterial(tex);
+        }
+
+        static Vector2 PlatformCenter(Vector2 deckHalf, 수면위설정 config) {
+            return new Vector2(0f, deckHalf.y * config.발판앞뒤위치비율);
         }
 
         // URP Unlit 투명 머티리얼 — 홀로그램 스크린용(알파 블렌드)
@@ -108,7 +125,7 @@ namespace Game.Editor.Surface {
         }
 
         // 잠수정 — 실물 모델 바운즈 기반 축 정렬·스케일, 없으면 큐브 그레이박스 폴백. 선체 콜라이더로 보행 표면 제공
-        static (SubNavigator nav, float deckTop, Vector2 deckHalf, Collider[] deckCols) BuildSub(Transform parent, SplineContainer river) {
+        static (SubNavigator nav, float deckTop, Vector2 deckHalf, Collider[] deckCols) BuildSub(Transform parent, SplineContainer river, 수면위설정 config) {
             var subRoot = new GameObject("Sub3D");
             subRoot.transform.SetParent(parent, false);
             float deckTop = 0.75f;                        // 그레이박스 선체 윗면 기본값
@@ -132,18 +149,18 @@ namespace Game.Editor.Surface {
                     b = CalcBounds(model);
                     rotated = true;
                 }
-                float scale = SubLength / Mathf.Max(b.size.z, 0.001f);
+                float scale = config.잠수정길이 / Mathf.Max(b.size.z, 0.001f);
                 // 폭 배수는 '월드 X'에 닿는 로컬 축에 적용 — Y90 회전 시 월드 X = 모델 로컬 Z
                 var ls = Vector3.one * scale;
                 if (rotated) {
-                    ls.z *= SubWidthMul;
+                    ls.z *= config.잠수정폭배율;
                 } else {
-                    ls.x *= SubWidthMul;
+                    ls.x *= config.잠수정폭배율;
                 }
                 model.transform.localScale = ls;
                 b = CalcBounds(model);
                 model.transform.position -= b.center;     // 선체 중심을 흘수선(루트 원점)에
-                model.transform.position += Vector3.up * (b.extents.y * HullLift);   // 수면 위로 흘수 보정
+                model.transform.position += Vector3.up * (b.extents.y * config.잠수정흘수보정);   // 수면 위로 흘수 보정
                 b = CalcBounds(model);
                 // 선체 윗면 — 메시 정점을 길이축으로 버킷팅해 버킷별 최고 Y의 중앙값으로 실측(함교·안테나는 소수 버킷 이상치라 배제).
                 // 과거 원통 근사(b.min.y+반지름×2)는 실제 덱보다 ~3m 높게 잡혀 캐릭터가 공중부양했음
@@ -153,12 +170,11 @@ namespace Game.Editor.Surface {
                 if (needRetint) {
                     RetintSubmarine(model);               // 폴백 모델만 — VARCO 모델은 자체 아포칼립스 텍스처 유지
                 }
-                // 요철 보행 그리드 — 단일 평탄 박스 대신 셀별로 선체 윗면 높이를 떠 박스를 깔아 굴곡을 표현.
-                // 가파른 면·함교(잠망경) 측벽은 셀을 생략 → 그곳은 못 걸어 함교 관통이 차단됨
+                // 발판 보행면 — 잠수함 전체가 아니라 표시된 발판 위에서만 걷게 제한
                 var walkGo = new GameObject("DeckWalkSurface");
                 walkGo.transform.SetParent(subRoot.transform, false);
                 walkGo.AddComponent<FloatBob>();          // 모델과 동일 부유(기본 설정) — 보행면이 선체와 함께 떠 캐릭터 부양 방지
-                BuildDeckGrid(model, subRoot.transform, b, deckHalf, walkGo, deckCols);
+                deckTop = BuildDeckPlatform(model, subRoot.transform, b, deckHalf, walkGo, deckCols, config);
                 model.AddComponent<FloatBob>();           // 선체 비주얼 부유(보행 그리드와 동일 위상이라 동기)
             } else {
                 Debug.LogWarning($"[SurfaceRigBuilder] 잠수정 모델 없음({SubModelPath}) — 큐브 그레이박스로 대체");
@@ -186,11 +202,12 @@ namespace Game.Editor.Surface {
         }
 
         // 덱 위 캐릭터 — 2.5D와 같은 수영 플레이어 모델(MainCharacter+PlayerAnim) 재사용, 없으면 캡슐 폴백
-        static DeckCharacter BuildDeckPlayer(Transform sub, float deckTop, Vector2 deckHalf, Collider[] deckCols) {
+        static DeckCharacter BuildDeckPlayer(Transform sub, float deckTop, Vector2 deckHalf, Collider[] deckCols, 수면위설정 config) {
             var playerRoot = new GameObject("DeckPlayer");
             playerRoot.transform.SetParent(sub, false);
             // 중앙·선미 쪽 스폰(함교는 보통 중앙이라 선미는 비어 있음) — robust 레이가 평평한 선체 윗면을 보장
-            var spawnLocal = new Vector3(0f, deckTop, -deckHalf.y * 0.6f);
+            var platformCenter = PlatformCenter(deckHalf, config);
+            var spawnLocal = new Vector3(platformCenter.x, deckTop, platformCenter.y);
             // 스폰 높이 실측 — 모델 전체 높이를 덮는 긴 하향 레이로 평평한(walkable) 선체 윗면만 채택(안테나·함교 곡면 건너뜀)
             if (deckCols != null && deckCols.Length > 0) {
                 Physics.SyncTransforms();   // 에디터 — 갓 추가된 MeshCollider를 물리 씬에 반영해야 Raycast 적중
@@ -237,7 +254,7 @@ namespace Game.Editor.Surface {
                 }
                 var b = CalcBounds(model);
                 if (b.size.y > 0.0001f) {
-                    model.transform.localScale = Vector3.one * (CharacterHeight / b.size.y);
+                    model.transform.localScale = Vector3.one * (config.덱캐릭터키 / b.size.y);
                     b = CalcBounds(model);
                     // 발바닥(바운즈 바닥)을 루트(덱 윗면)에 스냅
                     model.transform.position += playerRoot.transform.position - new Vector3(b.center.x, b.min.y, b.center.z);
@@ -266,7 +283,8 @@ namespace Game.Editor.Surface {
 
             var deck = playerRoot.AddComponent<DeckCharacter>();
             var dso = new SerializedObject(deck);
-            dso.FindProperty("deckHalf").vector2Value = deckHalf;
+            dso.FindProperty("deckCenter").vector2Value = platformCenter;
+            dso.FindProperty("deckHalf").vector2Value = new Vector2(config.발판폭 * 0.5f, config.발판길이 * 0.5f);
             dso.FindProperty("animator").objectReferenceValue = animator;
             // 선체 콜라이더 배선 — 실제 표면 위로만 보행
             var colsProp = dso.FindProperty("deckColliders");
@@ -305,56 +323,95 @@ namespace Game.Editor.Surface {
             }
         }
 
-        // 요철 보행 그리드 — 덱 footprint(로컬 XZ)를 셀로 나눠 각 셀에서 선체 메시 윗면으로 하향 레이캐스트,
-        // 적중면이 완만(법선 y≥0.5)한 셀에만 얇은 BoxCollider를 깔아 굴곡을 표현하고 가파른 함교 측벽은 비워 관통을 차단
-        static void BuildDeckGrid(GameObject model, Transform refFrame, Bounds modelBounds,
-                Vector2 deckHalf, GameObject walkGo, System.Collections.Generic.List<Collider> deckCols) {
+        // 발판 전용 보행면 — 플랫폼 영역 안에서만 표면을 측정해 콜라이더를 생성
+        static float BuildDeckPlatform(GameObject model, Transform refFrame, Bounds modelBounds,
+                Vector2 deckHalf, GameObject walkGo, System.Collections.Generic.List<Collider> deckCols, 수면위설정 config) {
             const float walkThick = 0.2f;
-            const float cell = 0.6f;   // 셀 한 변(m) — 촘촘한 요철감
-            // 레이캐스트용 임시 메시 콜라이더 부착(측정 후 제거)
+            var center = PlatformCenter(deckHalf, config);
             var tmp = new System.Collections.Generic.List<MeshCollider>();
             foreach (var mf in model.GetComponentsInChildren<MeshFilter>()) {
                 if (mf.sharedMesh != null && mf.GetComponent<MeshCollider>() == null) {
                     tmp.Add(mf.gameObject.AddComponent<MeshCollider>());
                 }
             }
-            Physics.SyncTransforms();   // 갓 추가된 콜라이더를 물리 씬에 반영해야 Raycast 적중
-            int nx = Mathf.Clamp(Mathf.RoundToInt(deckHalf.x * 2f / cell), 2, 24);
-            int nz = Mathf.Clamp(Mathf.RoundToInt(deckHalf.y * 2f / cell), 2, 40);
-            float originY = modelBounds.max.y + 2f;            // 레이 시작 높이(월드 — 빌드시 refFrame은 원점·단위회전)
+            Physics.SyncTransforms();
+            float originY = modelBounds.max.y + 2f;
             float rayLen = originY - modelBounds.min.y + 4f;
-            int made = 0;
-            for (int ix = 0; ix < nx; ix++) {
-                float lx = Mathf.Lerp(-deckHalf.x, deckHalf.x, (ix + 0.5f) / nx);
-                for (int iz = 0; iz < nz; iz++) {
-                    float lz = Mathf.Lerp(-deckHalf.y, deckHalf.y, (iz + 0.5f) / nz);
-                    Vector3 world = refFrame.TransformPoint(new Vector3(lx, 0f, lz));
-                    var ray = new Ray(new Vector3(world.x, originY, world.z), Vector3.down);
-                    float bestDist = float.MaxValue;
-                    RaycastHit best = default;
-                    bool found = false;
-                    foreach (var mc in tmp) {
-                        if (mc.Raycast(ray, out var hit, rayLen) && hit.distance < bestDist) {
-                            bestDist = hit.distance;
-                            best = hit;
-                            found = true;
-                        }
-                    }
-                    if (!found || best.normal.y < 0.5f) {
-                        continue;   // 미적중·가파른 면(함교 측벽 등) → 보행 불가 셀
-                    }
-                    float surfY = refFrame.InverseTransformPoint(best.point).y;
-                    var box = walkGo.AddComponent<BoxCollider>();   // 한 오브젝트에 셀마다 BoxCollider 누적(부유 동기 일괄)
-                    box.center = new Vector3(lx, surfY - walkThick * 0.5f, lz);
-                    box.size = new Vector3(cell * 1.05f, walkThick, cell * 1.05f);   // 살짝 겹쳐 셀 사이 빈틈 방지
-                    deckCols.Add(box);
-                    made++;
-                }
+            float platformY = DeckSurfaceY(model, refFrame);
+            if (RaycastHullTop(refFrame, tmp, originY, rayLen, center.x, center.y, out var hit) && hit.normal.y >= 0.45f) {
+                platformY = refFrame.InverseTransformPoint(hit.point).y;
             }
+            var box = walkGo.AddComponent<BoxCollider>();
+            box.center = new Vector3(center.x, platformY - walkThick * 0.5f, center.y);
+            box.size = new Vector3(config.발판폭, walkThick, config.발판길이);
+            deckCols.Add(box);
+            BuildPlatformVisual(walkGo.transform, center, platformY, config);
             foreach (var mc in tmp) {
                 UnityEngine.Object.DestroyImmediate(mc);
             }
-            Debug.Log($"[SurfaceRigBuilder] 덱 요철 그리드 {made}/{nx * nz}셀 보행면 생성");
+            Debug.Log("[SurfaceRigBuilder] 발판 전용 단일 보행면 생성 — 전체 덱 보행 제거");
+            return platformY;
+        }
+
+        static bool RaycastHullTop(Transform refFrame, System.Collections.Generic.List<MeshCollider> colliders,
+                float originY, float rayLen, float lx, float lz, out RaycastHit best) {
+            Vector3 world = refFrame.TransformPoint(new Vector3(lx, 0f, lz));
+            var ray = new Ray(new Vector3(world.x, originY, world.z), Vector3.down);
+            float bestDist = float.MaxValue;
+            best = default;
+            bool found = false;
+            foreach (var mc in colliders) {
+                if (mc.Raycast(ray, out var hit, rayLen) && hit.distance < bestDist) {
+                    bestDist = hit.distance;
+                    best = hit;
+                    found = true;
+                }
+            }
+            return found;
+        }
+
+        static void BuildPlatformVisual(Transform parent, Vector2 center, float topY, 수면위설정 config) {
+            var pad = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            pad.name = "WalkPlatformVisual";
+            UnityEngine.Object.DestroyImmediate(pad.GetComponent<Collider>());
+            pad.transform.SetParent(parent, false);
+            pad.transform.localPosition = new Vector3(center.x, topY + 0.015f, center.y);
+            pad.transform.localScale = new Vector3(config.발판폭, config.발판표시두께, config.발판길이);
+            var mr = pad.GetComponent<MeshRenderer>();
+            var mat = GetOrCreateMat("WalkPlatformCyan", new Color(0.05f, 0.9f, 1f, 0.42f));
+            ConfigureTransparent(mat, new Color(0.05f, 0.9f, 1f, 0.42f));
+            mr.sharedMaterial = mat;
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        }
+
+        static void ConfigureTransparent(Material mat, Color color) {
+            if (mat == null) {
+                return;
+            }
+            if (mat.HasProperty("_BaseColor")) {
+                mat.SetColor("_BaseColor", color);
+            }
+            if (mat.HasProperty("_Color")) {
+                mat.SetColor("_Color", color);
+            }
+            if (mat.HasProperty("_Surface")) {
+                mat.SetFloat("_Surface", 1f);
+            }
+            if (mat.HasProperty("_Blend")) {
+                mat.SetFloat("_Blend", 0f);
+            }
+            if (mat.HasProperty("_SrcBlend")) {
+                mat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            }
+            if (mat.HasProperty("_DstBlend")) {
+                mat.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            }
+            if (mat.HasProperty("_ZWrite")) {
+                mat.SetFloat("_ZWrite", 0f);
+            }
+            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            EditorUtility.SetDirty(mat);
         }
 
         // 실제 덱 보행면 Y(refFrame 로컬) — 메시 정점을 길이축으로 N등분해 버킷별 최고 Y의 중앙값.
@@ -577,7 +634,7 @@ namespace Game.Editor.Surface {
 
         // W4: 수면·폐허 도시 그레이박스 환경
 
-        // 좌표 결정적 해시 — 빌딩 높이/기울기 변주(재생성해도 같은 모양)
+        // 좌표 결정적 해시 — 빌딩 높이/부유 기울기 변주(재생성해도 같은 모양)
         static int Hash(int a, int b) {
             int h = a * 73856093 ^ b * 19349663;
             return (h % 1000 + 1000) % 1000;

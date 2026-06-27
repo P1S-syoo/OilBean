@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using Game.Core;
 
 namespace Game.Items {
     // 돌진형 오염원 — 경고(텔레그래프) 후 화면 한쪽 끝에서 반대편으로 직진 공격
@@ -9,6 +10,9 @@ namespace Game.Items {
         [SerializeField] Material poisonMat;     // 본체 비주얼(PoisonTrail)
         [SerializeField] Sprite warnSprite;      // 경고 아이콘(icon_warning)
         [SerializeField] float bodyScale = 1.4f; // 본체 크기
+        [SerializeField] float warnScale = 0.48f; // 화면 경고 아이콘 크기 — 너무 커서 시야를 가리지 않게 축소
+        [SerializeField] Vector2 hitBoxSize = new(0.88f, 0.48f);   // 보이는 본체보다 약간 작게 — 억울한 피격 방지
+        [SerializeField] 위험설정 config;       // 위험 설정 — 연결 시 외형·피격 크기 적용
 
         enum Phase { Warn, Dash, Done }
         Phase phase = Phase.Done;
@@ -23,12 +27,37 @@ namespace Game.Items {
 
         void Awake() {
             try {
+                ApplyConfig();
                 col = GetComponent<Collider2D>();
-                col.isTrigger = true;
+                col = EnsurePreciseCollider();
                 BuildVisual();
             } catch (Exception e) {
                 Debug.LogError($"[Hazard] 초기화 실패: {e.Message}");
             }
+        }
+
+        // 위험체 표시 설정 적용 — 미연결 시 SO 기본값 사용
+        void ApplyConfig() {
+            var cfg = config != null ? config : 위험설정.기본;
+            bodyScale = cfg.오염원본체크기;
+            hitBoxSize = cfg.오염원피격범위;
+        }
+
+        // 프리팹에 큰 원형 콜라이더가 남아 있어도 런타임은 보이는 본체 기준의 작은 박스 1개만 사용
+        Collider2D EnsurePreciseCollider() {
+            var box = GetComponent<BoxCollider2D>();
+            if (box == null) {
+                box = gameObject.AddComponent<BoxCollider2D>();
+            }
+            box.isTrigger = true;
+            box.size = hitBoxSize;
+            box.offset = Vector2.zero;
+            foreach (var c in GetComponents<Collider2D>()) {
+                if (c != box) {
+                    c.enabled = false;
+                }
+            }
+            return box;
         }
 
         // 본체(Quad)+경고 아이콘을 코드로 구성 — 프리팹 의존 최소화
@@ -58,6 +87,7 @@ namespace Game.Items {
             warnSr.sprite = warnSprite;
             warnSr.color = new Color(1f, 0.3f, 0.2f, 1f);
             warnSr.sortingOrder = 50;
+            w.transform.localScale = Vector3.one * warnScale;
         }
 
         // 디렉터 주입 — 경로/속도 설정 후 경고 단계 진입
