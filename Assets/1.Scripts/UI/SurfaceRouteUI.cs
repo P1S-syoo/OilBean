@@ -9,8 +9,10 @@ namespace Game.UI {
         [SerializeField] SubNavigator navigator;
         [SerializeField] RectTransform fill;
         [SerializeField] RectTransform marker;
+        [SerializeField] RectTransform waypointTick;
         [SerializeField] TMP_Text titleText;
         [SerializeField] TMP_Text fromText;
+        [SerializeField] TMP_Text waypointText;
         [SerializeField] TMP_Text toText;
 
         void Awake() {
@@ -26,6 +28,7 @@ namespace Game.UI {
             float p = Mathf.Clamp01(navigator.RouteProgress01);
             UpdateFill(p);
             UpdateMarker(p);
+            UpdateWaypoint();
             UpdateText();
         }
 
@@ -50,15 +53,39 @@ namespace Game.UI {
             marker.anchorMax = max;
         }
 
+        void UpdateWaypoint() {
+            if (waypointTick == null && waypointText == null) {
+                return;
+            }
+            float p = Mathf.Clamp01(navigator.FirstLandmarkProgress01);
+            SetAnchorY(waypointTick, p);
+            SetAnchorY(waypointText != null ? waypointText.rectTransform : null, p);
+        }
+
+        void SetAnchorY(RectTransform target, float y) {
+            if (target == null) {
+                return;
+            }
+            var min = target.anchorMin;
+            var max = target.anchorMax;
+            min.y = y;
+            max.y = y;
+            target.anchorMin = min;
+            target.anchorMax = max;
+        }
+
         void UpdateText() {
             if (titleText != null) {
-                titleText.text = "한강 정화 항로";
+                titleText.text = "한강 정화";
             }
             if (fromText != null) {
-                fromText.text = navigator.PreviousLandmarkName;
+                fromText.text = "출발";
+            }
+            if (waypointText != null) {
+                waypointText.text = navigator.FirstLandmarkName;
             }
             if (toText != null) {
-                toText.text = navigator.CurrentLandmarkName;
+                toText.text = navigator.FinalLandmarkName;
             }
         }
     }

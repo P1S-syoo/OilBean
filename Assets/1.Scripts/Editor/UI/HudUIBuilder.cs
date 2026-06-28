@@ -331,7 +331,7 @@ namespace Game.Editor.UI {
         }
 
         // ═══════════════════════════════════════════════════════════════════════
-        // 1.5 수면 항로 HUD — Surface 항해 중 현재 섹션 진행도를 아래→위로 표시
+        // 1.5 수면 항로 HUD — Surface 항해 중 전체 항로 진행도를 아래→위로 표시
         // ═══════════════════════════════════════════════════════════════════════
         static void BuildSurfaceRoutePanel(Transform canvas) {
             DestroyExisting(canvas, "SurfaceRoutePanel");
@@ -343,7 +343,7 @@ namespace Game.Editor.UI {
             UITheme.AddShadow(root, 0.45f, 0f, -2f);
 
             var title = UITheme.MakeText("RouteTitle", root.transform,
-                "한강 정화 항로", UITheme.FontCaption, UITheme.TextSecondary, TextAlignmentOptions.Center);
+                "한강 정화", UITheme.FontCaption, UITheme.TextSecondary, TextAlignmentOptions.Center);
             title.fontStyle = FontStyles.Bold;
             var titleRt = title.GetComponent<RectTransform>();
             titleRt.anchorMin = new Vector2(0f, 1f);
@@ -373,6 +373,11 @@ namespace Game.Editor.UI {
             markerRt.offsetMax = new Vector2(12f, 9f);
             BuildDepthMarkerGlow(marker.transform);
 
+            var waypointTick = UITheme.MakePanel("RouteWaypointTick", bar.transform,
+                new Vector2(-0.35f, 0.5f), new Vector2(1.35f, 0.5f),
+                new Vector2(0f, -1f), new Vector2(0f, 1f), UITheme.TextSecondary);
+            waypointTick.GetComponent<Image>().raycastTarget = false;
+
             var from = UITheme.MakeText("RouteFrom", root.transform,
                 "출발", UITheme.FontCaption, UITheme.TextSecondary, TextAlignmentOptions.Center);
             var fromRt = from.GetComponent<RectTransform>();
@@ -381,8 +386,17 @@ namespace Game.Editor.UI {
             fromRt.offsetMin = new Vector2(UITheme.SpaceSM, UITheme.SpaceSM);
             fromRt.offsetMax = new Vector2(-UITheme.SpaceSM, UITheme.SpaceSM + 24f);
 
+            var waypoint = UITheme.MakeText("RouteWaypoint", root.transform,
+                "세빛섬", UITheme.FontCaption, UITheme.TextSecondary, TextAlignmentOptions.Center);
+            waypoint.fontStyle = FontStyles.Bold;
+            var waypointRt = waypoint.GetComponent<RectTransform>();
+            waypointRt.anchorMin = new Vector2(0f, 0.5f);
+            waypointRt.anchorMax = new Vector2(1f, 0.5f);
+            waypointRt.offsetMin = new Vector2(UITheme.SpaceSM, -12f);
+            waypointRt.offsetMax = new Vector2(-UITheme.SpaceSM, 12f);
+
             var to = UITheme.MakeText("RouteTo", root.transform,
-                "세빛섬", UITheme.FontBody, UITheme.Accent, TextAlignmentOptions.Center);
+                "동작대교", UITheme.FontBody, UITheme.Accent, TextAlignmentOptions.Center);
             to.fontStyle = FontStyles.Bold;
             var toRt = to.GetComponent<RectTransform>();
             toRt.anchorMin = new Vector2(0f, 1f);
@@ -395,8 +409,10 @@ namespace Game.Editor.UI {
             AssignRef(so, "navigator", FindComponent<SubNavigator>());
             AssignRef(so, "fill", fillGo.GetComponent<RectTransform>());
             AssignRef(so, "marker", markerRt);
+            AssignRef(so, "waypointTick", waypointTick.GetComponent<RectTransform>());
             AssignRef(so, "titleText", title);
             AssignRef(so, "fromText", from);
+            AssignRef(so, "waypointText", waypoint);
             AssignRef(so, "toText", to);
             so.ApplyModifiedPropertiesWithoutUndo();
             Undo.RegisterCreatedObjectUndo(root, "Build Surface Route UI");

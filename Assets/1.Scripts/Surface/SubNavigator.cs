@@ -27,9 +27,12 @@ namespace Game.Surface {
         public SplineContainer River => river;
         public float CurrentTargetT => TargetT(targetIdx);
         public float PreviousTargetT => targetIdx <= 0 ? 0f : TargetT(targetIdx - 1);
-        public float RouteProgress01 => RouteProgress();
+        public float RouteProgress01 => TotalRouteProgress();
         public string CurrentLandmarkName => LandmarkName(targetIdx);
         public string PreviousLandmarkName => targetIdx <= 0 ? "출발" : LandmarkName(targetIdx - 1);
+        public string FirstLandmarkName => LandmarkName(0);
+        public string FinalLandmarkName => LandmarkName(Mathf.Max(targets.Length - 1, 0));
+        public float FirstLandmarkProgress01 => TotalProgressAtTarget(0);
 
         void Awake() {
             try {
@@ -106,10 +109,17 @@ namespace Game.Surface {
             return TargetT(targetIdx) * length;
         }
 
-        float RouteProgress() {
-            float start = targetIdx <= 0 ? 0f : TargetT(targetIdx - 1) * length;
-            float end = TargetDistance();
-            return Mathf.InverseLerp(start, end, distance);
+        // 전체 항로 진행도 — 출발→세빛섬→동작대교를 한 바 안에서 이어서 표시
+        float TotalRouteProgress() {
+            float finalDistance = TargetT(Mathf.Max(targets.Length - 1, 0)) * length;
+            return Mathf.InverseLerp(0f, finalDistance, distance);
+        }
+
+        // 특정 목표가 전체 항로 바에서 차지하는 위치
+        float TotalProgressAtTarget(int index) {
+            float finalDistance = TargetT(Mathf.Max(targets.Length - 1, 0)) * length;
+            float targetDistance = TargetT(index) * length;
+            return Mathf.InverseLerp(0f, finalDistance, targetDistance);
         }
 
         // 목표 배열 접근을 한 곳에 모아 정화 구간 연출도 같은 기준을 사용
