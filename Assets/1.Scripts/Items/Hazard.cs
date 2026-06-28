@@ -40,6 +40,7 @@ namespace Game.Items {
         void ApplyConfig() {
             var cfg = config != null ? config : 위험설정.기본;
             bodyScale = cfg.오염원본체크기;
+            warnScale = bodyScale;
             hitBoxSize = cfg.오염원피격범위;
         }
 
@@ -86,7 +87,7 @@ namespace Game.Items {
             warnSr = w.AddComponent<SpriteRenderer>();
             warnSr.sprite = warnSprite;
             warnSr.color = new Color(1f, 0.3f, 0.2f, 1f);
-            warnSr.sortingOrder = 50;
+            warnSr.sortingOrder = 500;
             w.transform.localScale = Vector3.one * warnScale;
         }
 
@@ -113,7 +114,7 @@ namespace Game.Items {
             }
             if (warnSr != null) {
                 warnSr.gameObject.SetActive(true);
-                warnSr.transform.position = new Vector3(warnX, laneY, 0f);   // 화면 안쪽 진입 가장자리
+                PlaceWarning();   // 화면 안쪽 진입 가장자리
             }
             Game.Audio.GameAudio.Instance?.PlayHazardWarn();   // 돌진 경고음
         }
@@ -126,6 +127,7 @@ namespace Game.Items {
                     var c = warnSr.color;
                     c.a = 0.4f + 0.6f * Mathf.Abs(Mathf.Sin(blink));   // 경고 깜빡임
                     warnSr.color = c;
+                    PlaceWarning();
                 }
                 if (timer <= 0f) {
                     EnterDash();
@@ -138,6 +140,14 @@ namespace Game.Items {
                     Destroy(gameObject);
                 }
             }
+        }
+
+        void PlaceWarning() {
+            if (warnSr == null) {
+                return;
+            }
+            warnSr.transform.position = new Vector3(warnX, laneY, -0.5f);
+            warnSr.transform.rotation = Quaternion.identity;
         }
 
         // 경고 종료 → 돌진 시작(본체 표시, 충돌 활성)

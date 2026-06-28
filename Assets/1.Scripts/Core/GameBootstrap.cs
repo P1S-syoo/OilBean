@@ -291,6 +291,9 @@ namespace Game.Core {
                 }
                 return;
             }
+            if (clearView != null) {
+                clearView.Play();   // 3단계 설치 즉시 LEVEL CLEAR 연출 표시
+            }
             if (toast != null) {
                 toast.Show("정화 완료 — [R]로 수면 복귀");
             }
@@ -362,16 +365,17 @@ namespace Game.Core {
                     toast.Show("대사를 끝까지 넘기면 다음 정화구역으로 이동합니다");
                 }
             }
-            // 수면 복귀(W6) — 클리어 오버레이 숨기고 다음 구역 항해 재개(SurfaceBootstrap이 리그 재활성)
-            if (to == GameState.Surface && clearView != null) {
-                clearView.ResetState();
-            }
             if (to == GameState.Surface && clearPendingOnSurface) {
                 clearPendingOnSurface = false;
                 clearNarrationDone = false;
                 if (!Fsm.Change(GameState.Clear)) {
                     Debug.LogWarning($"[GameBootstrap] 수면 복귀 후 Clear 전환 거부됨(현재 {Fsm.Current})");
                 }
+                return;
+            }
+            // 수면 복귀(W6) — 클리어 오버레이 숨기고 다음 구역 항해 재개(SurfaceBootstrap이 리그 재활성)
+            if (to == GameState.Surface && clearView != null) {
+                clearView.ResetState();
             }
         }
 

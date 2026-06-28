@@ -15,10 +15,11 @@ namespace Game.Stage {
         [SerializeField] 제작설정 config;            // 제작 설정 — 연결 시 설치 시간 적용(미연결 시 SO 기본값)
 
         bool inside;       // 스팟 안에 탐사 기계가 있나
-        bool armed = true; // 탐사 중에만 설치 허용(코디네이터가 토글). 단독 사용 시 기본 on
+        bool armed;        // 탐사 중에만 설치 허용(코디네이터가 토글)
         bool done;
         float t;           // 설치 누적 시간(홀드 중단 시 보존 — 부분진행 유지)
         bool holdOverride; // 키보드 없는 환경(PlayMode 테스트)에서 홀드를 대체
+        GameObject marker; // 설치 위치 2D 마커 — 수면에서는 숨김
         GameObject holdFxRoot;
         LineRenderer holdRing;
         LineRenderer holdArc;
@@ -36,6 +37,8 @@ namespace Game.Stage {
                 var cfg = config != null ? config : 제작설정.기본;
                 installTime = cfg.설치시간;
                 GetComponent<Collider2D>().isTrigger = true;
+                marker = transform.Find("Marker")?.gameObject;
+                ShowMarker(false);
                 EnsureBeaconFx();
                 EnsureHoldFx();
             } catch (Exception e) {
@@ -59,12 +62,15 @@ namespace Game.Stage {
         void Update() {
             if (done || run == null || !armed) {
                 ShowPrompt(false);
+                ShowMarker(false);
                 ShowHoldFx(false, 0f, false);
                 ShowBeaconFx(false);
                 return;
             }
             bool ready = CanShowInstallNotice;
-            ShowBeaconFx(true);
+            bool hasBuoy = run.BuoyReady;
+            ShowMarker(hasBuoy);
+            ShowBeaconFx(hasBuoy);
             // F 홀드 중에만 진행(능동감) — 수집(E)과 키 충돌 회피. 중단해도 t 보존(부분진행 유지)
             bool keyHeld = Keyboard.current != null && Keyboard.current.fKey.isPressed;
             bool holding = ready && (keyHeld || holdOverride);
@@ -83,6 +89,8 @@ namespace Game.Stage {
                 int installed = run.InstallPendingBuoy();   // 설치 완료 후에만 수심 게이트 단계 상승
                 run.SetBuoyReady(false);   // 부유체 소비
                 ShowPrompt(false);
+                ShowMarker(false);
+                ShowBeaconFx(false);
                 ShowHoldFx(false, 0f, false);
                 OnPurified?.Invoke();
                 Debug.Log($"[PurifyInstaller] 정화 부유체 {installed}단계 설치 완료");
@@ -209,6 +217,7 @@ namespace Game.Stage {
             t = 0f;
             UpdateFill(0f);
             ShowPrompt(false);
+            ShowMarker(false);
         }
 
         // 세션 재시작용 상태 리셋(done 래치 해제 — ResetRun과 함께 호출)
@@ -218,6 +227,7 @@ namespace Game.Stage {
             t = 0f;
             UpdateFill(0f);
             ShowPrompt(false);
+            ShowMarker(false);
             if (run != null) {
                 run.SetPurify(0f);
             }
@@ -229,6 +239,10 @@ namespace Game.Stage {
             if (!v) {
                 inside = false;   // 텔레포트(복귀)로 OnTriggerExit이 누락돼도 잔류 제거 — 재잠수 시 자동정화 방지
                 CancelInstall();
+                ShowMarker(false);
+                ShowBeaconFx(false);
+                ShowHoldFx(false, 0f, false);
+                ShowPrompt(false);
             }
         }
 
@@ -244,6 +258,12 @@ namespace Game.Stage {
                 run.SetPurify(0f);   // HUD 게이지 잔류 제거
             }
             Debug.Log("[PurifyInstaller] 설치 중단 — 진행 리셋");
+        }
+
+        void ShowMarker(bool show) {
+            if (marker != null && marker.activeSelf != show) {
+                marker.SetActive(show);
+            }
         }
     }
 }

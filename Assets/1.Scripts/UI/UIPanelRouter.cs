@@ -13,7 +13,7 @@ namespace Game.UI {
         [SerializeField] GameObject craftPanel;
         [SerializeField] GameObject surfaceRoutePanel;
 
-        bool surfaceArrived;   // 수상에서 정화 지점 도착 여부(콘솔 표시 게이트)
+        bool surfaceConsoleShown;   // 수상에서 E/스크린으로 콘솔을 직접 열었는지
 
         void Start() {
             // 미연결 시 자동 탐색
@@ -25,7 +25,7 @@ namespace Game.UI {
             }
             if (surface != null) {
                 surface.OnDiveReadyChanged += OnDiveReadyChanged;
-                surfaceArrived = surface.DiveReady;
+                surfaceConsoleShown = surface.ConsoleShown;
             }
             if (bootstrap != null) {
                 bootstrap.OnStateChanged += OnStateChanged;
@@ -44,9 +44,9 @@ namespace Game.UI {
             }
         }
 
-        // 수상 도착 상태 변화 — 콘솔 표시 갱신
-        void OnDiveReadyChanged(bool arrived) {
-            surfaceArrived = arrived;
+        // 수상 콘솔 표시 변화 — 도착만으로 자동 표시하지 않고 E/스크린 입력 때만 표시
+        void OnDiveReadyChanged(bool shown) {
+            surfaceConsoleShown = shown;
             if (bootstrap != null) {
                 Apply(bootstrap.State);
             }
@@ -56,9 +56,9 @@ namespace Game.UI {
             Apply(to);
         }
 
-        // 상태별 패널 표시 — 콘솔은 거점(Dock)이거나 수상에서 정화 지점 도착 시에만(자유 항해 중엔 숨김), 탐사=HUD, 연구/제작=각 패널
+        // 상태별 패널 표시 — 수상 콘솔은 직접 열었을 때만 표시(도착 notice와 분리)
         void Apply(GameState s) {
-            Set(dockConsole, s == GameState.Dock || (s == GameState.Surface && surfaceArrived));
+            Set(dockConsole, s == GameState.Dock || (s == GameState.Surface && surfaceConsoleShown));
             Set(hudPanel, s == GameState.Dive);
             Set(researchPanel, s == GameState.Research);
             Set(craftPanel, s == GameState.Craft);
